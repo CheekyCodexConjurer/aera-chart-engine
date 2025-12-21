@@ -1,0 +1,57 @@
+# PineScript Catalog Summary
+
+Source: `D:\\quant-lab\\pinescript-api-docs\\Pine Script language reference manual`
+Total entries: 884
+
+## Namespace counts
+- adjustment: 3
+- alert: 3
+- array: 55
+- backadjustment: 3
+- barmerge: 4
+- barstate: 7
+- box: 30
+- chart: 17
+- color: 24
+- currency: 25
+- dayofweek: 7
+- display: 6
+- dividends: 5
+- earnings: 7
+- extend: 4
+- font: 2
+- for: 1
+- format: 5
+- global: 131
+- hline: 3
+- input: 13
+- label: 43
+- line: 28
+- linefill: 6
+- location: 5
+- log: 3
+- map: 11
+- math: 28
+- matrix: 49
+- order: 2
+- plot: 11
+- polyline: 3
+- position: 9
+- request: 10
+- runtime: 1
+- scale: 3
+- session: 9
+- settlement_as_close: 3
+- shape: 12
+- size: 6
+- splits: 2
+- str: 18
+- strategy: 96
+- syminfo: 41
+- ta: 69
+- table: 23
+- text: 10
+- ticker: 9
+- timeframe: 14
+- xloc: 2
+- yloc: 3

@@ -1,0 +1,53 @@
+# PineScript Catalog: misc
+
+Source: `D:\quant-lab\pinescript-api-docs\Pine Script language reference manual`
+Count: 47
+
+## Entries
+- for...in
+- math.abs()
+- math.acos()
+- math.asin()
+- math.atan()
+- math.avg()
+- math.ceil()
+- math.cos()
+- math.e
+- math.exp()
+- math.floor()
+- math.log()
+- math.log10()
+- math.max()
+- math.min()
+- math.phi
+- math.pi
+- math.pow()
+- math.random()
+- math.round_to_mintick()
+- math.round()
+- math.rphi
+- math.sign()
+- math.sin()
+- math.sqrt()
+- math.sum()
+- math.tan()
+- math.todegrees()
+- math.toradians()
+- str.contains()
+- str.endswith()
+- str.format_time()
+- str.format()
+- str.length()
+- str.lower()
+- str.match()
+- str.pos()
+- str.repeat()
+- str.replace_all()
+- str.replace()
+- str.split()
+- str.startswith()
+- str.substring()
+- str.tonumber()
+- str.tostring()
+- str.trim()
+- str.upper()

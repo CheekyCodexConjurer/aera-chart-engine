@@ -30,17 +30,25 @@ This file defines specialized agent roles, ownership boundaries, and review requ
 | Change type | Required agents |
 | --- | --- |
 | Render graph or shader changes | Architecture, Rendering |
-| Data window or LOD contract changes | Architecture, Data Pipeline |
-| Interaction state machine changes | Architecture, Interaction |
+| Data window or LOD contract changes | Architecture, Data Pipeline, Data/Time Semantics Curator |
+| Interaction state machine changes | Architecture, Interaction, Replay Semantics Owner (if replay) |
 | Worker protocol or compute changes | Architecture, Compute |
-| Public API or lifecycle changes | Architecture, Integration |
+| Public API or lifecycle changes | Architecture, Integration, API and Contract Steward |
 | Crosshair or hit-testing changes | Rendering, Interaction, Data Pipeline |
+| Replay cutoff or time-travel changes | Architecture, Replay Semantics Owner, Interaction |
+| Diagnostics or error taxonomy changes | Architecture, Diagnostics and Reproducibility |
+| Overlay primitive changes | Rendering, Interaction, Overlay Semantics Owner |
 
 ## Definition of done
 - Performance budgets are respected and measured.
 - Contracts and docs are updated with version notes.
 - Diagnostics are updated for new behavior.
 - Interaction states remain complete and deterministic.
+
+## Definition of done for documentation changes
+- Cross-links are updated and validated.
+- Invariants and SLOs are referenced when relevant.
+- Any new doc page includes a short rationale: why this belongs in chart-engine and not quant-lab.
 
 ## Cadence and audits
 - Monthly performance budget review.
@@ -316,6 +324,139 @@ This file defines specialized agent roles, ownership boundaries, and review requ
 **Escalation cues**
 - Any change that affects engine initialization order.
 - Any change that alters public event semantics.
+
+## API and Contract Steward
+**Responsibilities**
+- Owns public API contract docs, versioning policy, and migration notes.
+- Ensures compatibility with host patterns without importing host responsibilities.
+- Maintains contract diff discipline for all changes.
+
+**Can change alone**
+- Update public API contract docs and migration templates.
+- Clarify versioning notes without altering behavior.
+
+**Requires cross-agent approval**
+- Any change that alters public API behavior.
+- Any change that affects lifecycle or performance SLOs.
+
+**Failure patterns to avoid**
+- Allowing undocumented behavior changes.
+- Blurring host and engine responsibilities.
+- Skipping migration notes for breaking changes.
+
+## Quant-Lab Integration Liaison
+**Responsibilities**
+- Owns integration guide accuracy and adapter mapping docs.
+- Produces contract diffs when host usage patterns change.
+- Prevents scope creep into host-owned workflows.
+
+**Can change alone**
+- Update integration guide and mapping tables.
+- Add coordination notes and cross-repo alignment updates.
+
+**Requires cross-agent approval**
+- Any change that implies engine behavior changes.
+- Any change that alters responsibility boundaries.
+
+**Failure patterns to avoid**
+- Importing host UI concepts into engine docs.
+- Assuming host internal state as engine requirements.
+- Treating integration notes as engine contracts.
+
+## Replay Semantics Owner
+**Responsibilities**
+- Owns replay documentation and cutoff invariants.
+- Enforces global cutoff for rendering and hit-testing.
+- Requires replay-specific benchmarks for replay changes.
+
+**Can change alone**
+- Update replay docs and edge case lists.
+- Add replay test cases or benchmarks.
+
+**Requires cross-agent approval**
+- Any change that affects interaction or data pipeline behavior.
+- Any change that modifies cutoff or clamp behavior.
+
+**Failure patterns to avoid**
+- Indicator-specific replay exceptions.
+- Inconsistent clipping across overlays.
+- Implicit snapping or clamp behavior changes.
+
+## Performance Regression Gatekeeper
+**Responsibilities**
+- Owns benchmark suite specs and performance SLOs.
+- Blocks merges that exceed regression thresholds.
+- Ensures performance regressions are treated as breaking changes.
+
+**Can change alone**
+- Update benchmark docs with measured evidence.
+- Adjust reporting formats and evidence requirements.
+
+**Requires cross-agent approval**
+- Any change to performance budgets or SLO thresholds.
+- Any change to regression policy severity.
+
+**Failure patterns to avoid**
+- Allowing merges without benchmark deltas.
+- Accepting regressions without explicit waivers.
+- Using microbenchmarks as the only evidence.
+
+## Data and Time Semantics Curator
+**Responsibilities**
+- Owns canonical time domain policy and timezone strategy.
+- Owns session and gap semantics and update ordering rules.
+- Ensures preconditions are explicit before implementation.
+
+**Can change alone**
+- Clarify data and time semantics docs without behavior change.
+- Add examples for sessions, gaps, and ordering.
+
+**Requires cross-agent approval**
+- Any change to canonical time domain or ordering rules.
+- Any change that affects data window semantics.
+
+**Failure patterns to avoid**
+- Ambiguous time semantics across docs.
+- Hidden changes to ordering or dedup rules.
+- Accepting out-of-order updates without explicit policy.
+
+## Diagnostics and Reproducibility Agent
+**Responsibilities**
+- Owns error taxonomy and reproducibility bundle format.
+- Ensures unsupported behaviors emit explicit diagnostics.
+- Maintains replayable reproduction workflows.
+
+**Can change alone**
+- Update diagnostics docs and repro bundle fields.
+- Add diagnostic severity guidance.
+
+**Requires cross-agent approval**
+- Any change that affects runtime error behavior.
+- Any change that alters diagnostics emitted by the engine.
+
+**Failure patterns to avoid**
+- Silent failures or untyped errors.
+- Non-reproducible issues due to missing state capture.
+- Inconsistent severity levels for similar failures.
+
+## Overlay Semantics and Plot Primitive Owner
+**Responsibilities**
+- Owns overlay primitive semantics, layering, and clipping rules.
+- Ensures renderer remains indicator-agnostic.
+- Maintains multi-pane overlay targeting rules.
+
+**Can change alone**
+- Update overlay docs and primitive definitions.
+- Add new primitive specs without changing existing behavior.
+
+**Requires cross-agent approval**
+- Any change that affects rendering pipeline or interaction contracts.
+- Any change to clipping or z-order invariants.
+
+**Failure patterns to avoid**
+- Indicator-specific hardcoding or exceptions.
+- Overlay clipping that violates replay cutoff.
+- Ambiguous z-ordering across panes.
 
 **Can change alone**
 - Internal adapter optimizations that do not alter public APIs.

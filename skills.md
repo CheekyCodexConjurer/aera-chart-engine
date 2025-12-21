@@ -348,3 +348,193 @@ This file defines the skills required to build and maintain the charting engine.
 - Interaction side effects tied to pointer-move noise.
 - Inconsistent states across panes or series.
 - Non-deterministic behavior under rapid input.
+
+## Contract authoring and drift control
+**Why it matters**
+- Contract drift causes silent behavior changes and breaks host workflows.
+- Documentation is a first-class artifact for this engine.
+
+**What good looks like**
+- Every behavioral change updates the relevant contract docs.
+- Migration notes exist for any user-visible change.
+- Contract diffs are explicit and reviewable.
+
+**Scope boundaries**
+- Includes public API contract, performance SLOs, and architecture pages.
+- Includes migration notes and versioning updates.
+- Excludes host-specific UI flows and indicator schemas.
+
+**Evidence and artifacts**
+- Updated contract docs with version notes.
+- Migration note for any breaking or behavior-altering change.
+- Checklist showing updated pages: API contract, SLOs, architecture.
+
+**Review questions**
+- Are all affected contracts updated and linked?
+- Is the change documented in a migration note?
+- Are implicit behavior changes prevented?
+
+**Common failure modes**
+- Shipping behavior changes without doc updates.
+- Missing migration notes for breaking changes.
+- Ambiguous ownership of contract changes.
+
+## Quant-lab interop skill
+**Why it matters**
+- The engine must integrate tightly without copying host responsibilities.
+- Adapter boundaries are the primary source of integration bugs.
+
+**What good looks like**
+- Clear mapping from Plot API outputs to engine primitives.
+- Explicit division of responsibilities between host and engine.
+- Replay cutoff propagation is documented end-to-end.
+
+**Scope boundaries**
+- Includes adapter mapping and data transformation responsibilities.
+- Excludes host UI components, menus, and layout systems.
+- Explicitly forbids importing quant-lab UI concepts into engine docs.
+
+**Evidence and artifacts**
+- Mapping table from Plot API to engine primitives.
+- Integration notes that reference only contracts, not host internals.
+- Replay cutoff propagation description.
+
+**Review questions**
+- Is the boundary between host and engine explicit?
+- Are mappings documented without host-specific UI coupling?
+- Does replay cutoff propagate to overlays deterministically?
+
+**Common failure modes**
+- Copying host UI concepts into engine scope.
+- Implicit transformations that hide host responsibilities.
+- Indicator-specific behavior baked into engine docs.
+
+## Replay semantics stewardship
+**Why it matters**
+- Replay correctness is critical for quant analysis workflows.
+- Small inconsistencies break trust in results.
+
+**What good looks like**
+- Global cutoff applies to all rendering and hit-testing.
+- Navigation clamp is deterministic and documented.
+- Snapping rules are explicit and consistent.
+
+**Scope boundaries**
+- Includes replay cutoff, preview, and clipping rules.
+- Excludes host playback UI and state machine code.
+
+**Evidence and artifacts**
+- Replay-specific benchmark results.
+- Replay semantic contract updates.
+- Edge case list for gaps and window shifts.
+
+**Review questions**
+- Does global cutoff apply to all primitives and hit-tests?
+- Are snapping and preview rules explicit?
+- Are replay-specific regressions measured?
+
+**Common failure modes**
+- Indicator-specific replay exceptions.
+- Inconsistent cutoff application across overlays.
+- Silent changes to snapping or clamp behavior.
+
+## Large dataset budgeting
+**Why it matters**
+- Large datasets dominate CPU and GPU memory.
+- Without explicit budgeting, performance becomes non-deterministic.
+
+**What good looks like**
+- Memory math per series type is documented.
+- Cache caps and eviction rules are explicit and enforced.
+- Large dataset behavior is benchmarked and monitored.
+
+**Scope boundaries**
+- Includes CPU and GPU memory accounting.
+- Includes cache caps, pools, and eviction policy.
+- Excludes host-side storage and persistence details.
+
+**Evidence and artifacts**
+- Memory footprint tables for 10k, 100k, 1M points.
+- Cache cap configuration and enforcement proof.
+- Large dataset benchmark runs with memory deltas.
+
+**Review questions**
+- Are memory budgets explicit and enforced?
+- Is memory math documented for each series type?
+- Are cache caps tested under load?
+
+**Common failure modes**
+- Unbounded buffers or caches under stress.
+- Missing memory math for new primitives.
+- Undocumented increases in per-point memory cost.
+
+## Host overlay interop
+**Why it matters**
+- Host overlays rely on precise coordinate conversion.
+- Poor contracts cause jitter and layout drift.
+
+**What good looks like**
+- Coordinate conversion semantics are explicit.
+- Update triggers are event-driven, not polling.
+- Offscreen behavior is deterministic and documented.
+
+**Scope boundaries**
+- Includes time to x and price to y conversions.
+- Includes layout and gutter metrics for masking.
+- Excludes host UI layout or DOM rendering logic.
+
+**Evidence and artifacts**
+- Coordinate conversion contract examples.
+- Event-driven update triggers documented.
+- Offscreen conversion rules specified.
+
+**Review questions**
+- Are conversions stable under pan and zoom?
+- Are host overlays updated without per-frame polling?
+- Are gutter and plot area metrics available?
+
+**Common failure modes**
+- Polling in rAF as the default integration path.
+- Offscreen conversions that return inconsistent values.
+- Missing gutter metrics for host masking.
+
+## Benchmark-as-gate
+**Why it matters**
+- Quant workflows require deterministic performance.
+- Regressions must be caught before merge.
+
+**What good looks like**
+- Benchmarks are mandatory for hot path changes.
+- Evidence includes trace IDs and histograms.
+- Regression thresholds are enforced.
+
+**Scope boundaries**
+- Includes pan and zoom, replay scrub, indicator toggle, timeframe switch.
+- Includes dataset specs and reproducible configs.
+- Excludes synthetic microbenchmarks as the only evidence.
+
+**Evidence and artifacts**
+- p50 and p95 metrics for each required scenario.
+- Trace capture files or IDs.
+- Dataset specification used for benchmarks.
+
+**Review questions**
+- Are required scenarios included in the benchmark set?
+- Are deltas reported with consistent methodology?
+- Does evidence include both latency and memory metrics?
+
+**Common failure modes**
+- Merging without benchmark deltas.
+- Using microbenchmarks only.
+- Ignoring memory regressions.
+
+## Do not copy from quant-lab
+**Must remain in quant-lab docs**
+- Indicator authoring rules and Python runner details.
+- UI layout, menus, and app-specific state management.
+- Host-specific workflow logic and component design.
+
+**Allowed to adopt**
+- Contract-first documentation discipline.
+- No indicator hardcoding in the renderer.
+- Documentation sync and drift control practices.

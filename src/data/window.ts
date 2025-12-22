@@ -18,6 +18,14 @@ export type SeriesWindow = {
   end: number;
 };
 
+export function rangeSpan(range: Range): number {
+  return range.endMs - range.startMs;
+}
+
+export function rangeContains(outer: Range, inner: Range): boolean {
+  return outer.startMs <= inner.startMs && outer.endMs >= inner.endMs;
+}
+
 export function computeDataWindow(range: Range, prefetchRatio: number): DataWindow {
   const span = range.endMs - range.startMs;
   const margin = span * prefetchRatio;

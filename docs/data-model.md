@@ -41,6 +41,11 @@ This document defines the core data entities, identity rules, and ownership boun
 - The host responds with data slices aligned to the canonical time domain.
 - If the host provides a smaller window, the engine must surface a diagnostic.
 
+## Render window stabilization
+- The engine maintains an internal render window derived from the visible range plus prefetch.
+- The render window only shifts when the view approaches its edges.
+- Geometry is built for the render window; pan within it is transform-only.
+
 ## Update types (first-class)
 | Update type | Description | View anchor behavior |
 | --- | --- | --- |
@@ -48,6 +53,11 @@ This document defines the core data entities, identity rules, and ownership boun
 | Prepend | Add older points to history | Preserve anchor unless host requests reset |
 | Patch | Modify a known time range | Preserve anchor unless out of range |
 | Replace | Full series replacement | Anchor reset unless host pins it |
+
+**Ordering invariants**
+- Append updates must start after the last snapshot time.
+- Prepend updates must end before the first snapshot time.
+- Patch updates must reference timestamps already present in the snapshot.
 
 ## Cache and overlay impact
 - Append and patch update only affected buffers and overlays.

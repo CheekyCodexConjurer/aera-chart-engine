@@ -31,7 +31,6 @@ engine.resetToLatest();
 engine.flush();
 
 assert.ok(visibleRange, "visible range event should fire");
-assert.ok(dataWindow, "data window request should fire");
 assert.equal(visibleRange.startMs, 1000);
 assert.equal(visibleRange.endMs, 10000);
 
@@ -49,6 +48,13 @@ engine.handlePointerMove("price", x ?? 0, 50);
 engine.flush();
 assert.ok(crosshairEvent, "crosshair move should emit");
 assert.equal(crosshairEvent.nearestTimeMs, 10000);
+
+dataWindow = null;
+engine.setVisibleRange({ startMs: 20000, endMs: 30000 });
+engine.flush();
+assert.ok(dataWindow, "data window request should fire for out-of-window range");
+assert.ok(dataWindow.startMs <= 20000, "data window should include visible start");
+assert.ok(dataWindow.endMs >= 30000, "data window should include visible end");
 
 let overlayLayout = null;
 engine.onOverlayLayoutChange((event) => {

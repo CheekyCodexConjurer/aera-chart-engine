@@ -27,6 +27,8 @@ This document defines guarantees and expectations for large datasets (10k to 1M 
 - Host owns data supply and paging.
 - Engine requests a data window with explicit prefetch margin.
 - Host may provide a larger window but must indicate bounds.
+- Requests are coalesced while a window is pending.
+- Coverage is inferred from primary series bounds unless explicitly overridden by the host.
 
 ## Stress behavior
 - When under pressure, the engine must degrade gracefully:

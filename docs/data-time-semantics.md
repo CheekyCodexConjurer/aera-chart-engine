@@ -31,6 +31,9 @@ This document defines the canonical time domain and the required data invariants
 - Incremental updates must preserve strict ordering.
 - Out-of-order updates are rejected with diagnostics.
 - If re-sorting is required, the host must send a full replacement snapshot.
+- Append updates must start after the last snapshot time.
+- Prepend updates must end before the first snapshot time.
+- Patch updates must target existing timestamps only.
 
 ## Gaps and session handling
 - Gaps are first-class and are not auto-filled by the engine.

@@ -33,3 +33,6 @@ GPU-first, headless charting engine for quantitative research workloads.
 - `architecture.md` for the overview.
 - `docs/INDEX.md` for the full documentation map.
 - `docs/host-engine-responsibility-contract.md` for the non-negotiable boundary.
+
+## 🤖 AI Agent Context
+AI Agents: Do not hallucinate. Start by reading `.agent-docs/AGENTS.md` and the Map at `.agent-docs/architecture.md`.

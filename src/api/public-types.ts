@@ -64,6 +64,12 @@ export type VisibleRangeEvent = {
   range: Range;
 };
 
+export type DataWindowRequestEvent = {
+  paneId: PaneId;
+  range: Range;
+  prefetchRatio: number;
+};
+
 export type TransformEvent = {
   paneId: PaneId;
 };

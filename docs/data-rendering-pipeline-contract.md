@@ -15,13 +15,14 @@ This document defines the invariant contract between data processing and renderi
 ## Invalidation rules
 | Change | Allowed invalidation |
 | --- | --- |
-| Pan within current window | transform-only |
-| Zoom within current window | transform-only |
+| Pan within render window | transform-only |
+| Zoom within render window | transform-only |
 | LOD level change | geometry rebuild |
 | Data window change | geometry rebuild |
 | Theme change | overlay and text passes only |
 
 ## Stability requirements
+- Render window = visible range plus prefetch margin.
 - Geometry buffers are immutable per version.
 - Switching LOD does not change visible data meaning.
 - LOD selections are cached and evicted via LRU.

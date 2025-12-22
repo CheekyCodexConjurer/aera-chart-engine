@@ -2,6 +2,7 @@ import {
   AxisLabelMeasure,
   ChartEngineOptions,
   CrosshairEvent,
+  DataWindowRequestEvent,
   HitTestEvent,
   KeyCommand,
   LayoutChangeEvent,
@@ -27,9 +28,10 @@ import {
 import { DiagnosticsStore } from "./diagnostics.js";
 import { EventEmitter } from "./events.js";
 import { FrameScheduler } from "./scheduler.js";
-import { computeDataWindow, sliceSnapshot } from "../data/window.js";
+import { computeDataWindow, rangeContains, rangeSpan, sliceSnapshot } from "../data/window.js";
 import { validateSeriesData } from "../data/validation.js";
 import { appendSnapshot, createSnapshot, patchSnapshot, prependSnapshot } from "../data/snapshot.js";
+import type { SeriesSnapshot } from "../data/snapshot.js";
 import { computeSeriesDomain, normalizeSeries, SeriesState, updateApproxBarInterval } from "./series.js";
 import { decimateCandles, decimateMinMax } from "../data/lod.js";
 import { LruCache } from "../data/cache.js";
@@ -43,14 +45,11 @@ import { NullRenderer } from "../rendering/null-renderer.js";
 import { clamp } from "../util/math.js";
 import { AxisTick, generateNumericTicks, generateTimeTicks } from "./axis.js";
 
+const RENDER_WINDOW_GUARD_RATIO = 0.5;
+const RENDER_WINDOW_SPAN_TOLERANCE = 0.02;
+
 export type ChartEngineInitOptions = ChartEngineOptions & {
   renderer?: Renderer;
-};
-
-export type DataWindowRequestEvent = {
-  paneId: string;
-  range: Range;
-  prefetchRatio: number;
 };
 
 export class ChartEngine {
@@ -332,6 +331,11 @@ export class ChartEngine {
       return;
     }
     const snapshot = series.snapshot;
+    if (snapshot && updateType !== "replace") {
+      if (!this.validateSeriesUpdate(series, snapshot, data, updateType)) {
+        return;
+      }
+    }
     if (!snapshot || updateType === "replace") {
       series.snapshot = createSnapshot(series.type, data, (snapshot?.version ?? 0) + 1);
     } else if (updateType === "append") {
@@ -342,8 +346,86 @@ export class ChartEngine {
       series.snapshot = patchSnapshot(series.type, snapshot, data);
     }
     updateApproxBarInterval(series);
+    this.updateDataWindowCoverage(series.paneId);
+    const pane = this.panes.get(series.paneId);
+    if (pane) {
+      this.updateRenderWindow(pane, pane.visibleRange);
+      this.maybeRequestDataWindow(pane);
+    }
     this.updateScaleDomain(series.paneId);
     this.requestRender();
+  }
+
+  private validateSeriesUpdate(
+    series: SeriesState,
+    snapshot: SeriesSnapshot,
+    data: SeriesData,
+    updateType: SeriesUpdateType
+  ): boolean {
+    const updateTimes = data.timeMs;
+    if (updateTimes.length === 0) {
+      this.diagnostics.addError("series.update.empty", "series update contains no points", {
+        seriesId: series.id,
+        paneId: series.paneId,
+        updateType
+      });
+      this.diagnosticsEmitter.emit();
+      return false;
+    }
+    if (updateType === "append") {
+      const lastBase = snapshot.timeMs[snapshot.timeMs.length - 1];
+      if (updateTimes[0] <= lastBase) {
+        this.diagnostics.addError("series.update.append.order", "append update must start after the last snapshot time", {
+          seriesId: series.id,
+          paneId: series.paneId,
+          lastSnapshotTimeMs: lastBase,
+          firstUpdateTimeMs: updateTimes[0]
+        });
+        this.diagnosticsEmitter.emit();
+        return false;
+      }
+    }
+    if (updateType === "prepend") {
+      const firstBase = snapshot.timeMs[0];
+      const lastUpdate = updateTimes[updateTimes.length - 1];
+      if (lastUpdate >= firstBase) {
+        this.diagnostics.addError("series.update.prepend.order", "prepend update must end before the first snapshot time", {
+          seriesId: series.id,
+          paneId: series.paneId,
+          firstSnapshotTimeMs: firstBase,
+          lastUpdateTimeMs: lastUpdate
+        });
+        this.diagnosticsEmitter.emit();
+        return false;
+      }
+    }
+    if (updateType === "patch") {
+      let missingCount = 0;
+      const sample: number[] = [];
+      for (const time of updateTimes) {
+        if (findExactIndex(snapshot.timeMs, time) < 0) {
+          missingCount += 1;
+          if (sample.length < 3) {
+            sample.push(time);
+          }
+        }
+      }
+      if (missingCount > 0) {
+        this.diagnostics.addError(
+          "series.update.patch.missing",
+          "patch update contains timestamps not present in base snapshot",
+          {
+            seriesId: series.id,
+            paneId: series.paneId,
+            missingCount,
+            missingSample: sample
+          }
+        );
+        this.diagnosticsEmitter.emit();
+        return false;
+      }
+    }
+    return true;
   }
 
   updateSeries(seriesId: string, update: SeriesUpdate): void {
@@ -351,8 +433,17 @@ export class ChartEngine {
   }
 
   removeSeries(seriesId: string): void {
+    const paneId = this.series.get(seriesId)?.paneId;
     this.series.delete(seriesId);
     this.renderCache.delete(seriesId);
+    if (paneId) {
+      this.updateDataWindowCoverage(paneId);
+      const pane = this.panes.get(paneId);
+      if (pane) {
+        this.updateRenderWindow(pane, pane.visibleRange);
+        this.maybeRequestDataWindow(pane);
+      }
+    }
     this.requestRender();
   }
 
@@ -688,33 +779,43 @@ export class ChartEngine {
     const snapshot = series.snapshot;
     if (!snapshot) return null;
     const cutoffTime = this.getCutoffTime();
-    const effectiveRange: Range = {
+    const renderWindow = pane.renderWindow ?? pane.visibleRange;
+    const renderRange: Range = {
+      startMs: renderWindow.startMs,
+      endMs: cutoffTime !== undefined ? Math.min(renderWindow.endMs, cutoffTime) : renderWindow.endMs
+    };
+    const visibleRange: Range = {
       startMs: pane.visibleRange.startMs,
       endMs: cutoffTime !== undefined ? Math.min(pane.visibleRange.endMs, cutoffTime) : pane.visibleRange.endMs
     };
+    const visibleSlice = sliceSnapshot(snapshot, visibleRange, cutoffTime);
+    if (!visibleSlice || visibleSlice.timeMs.length === 0) return null;
+    const renderSlice = sliceSnapshot(snapshot, renderRange, cutoffTime);
+    if (!renderSlice || renderSlice.timeMs.length === 0) return null;
+    const selection = this.selectLod(series, pane.plotArea.width, visibleSlice.timeMs.length);
+    const visibleSpan = Math.max(1, rangeSpan(visibleRange));
+    const renderSpan = Math.max(visibleSpan, rangeSpan(renderRange));
+    const maxPoints = Math.max(2, Math.floor(selection.maxPoints * (renderSpan / visibleSpan)));
     const cache = this.renderCache.get(series.id);
-    const slice = sliceSnapshot(snapshot, effectiveRange, cutoffTime);
-    if (!slice || slice.timeMs.length === 0) return null;
-    const selection = this.selectLod(series, pane.plotArea.width, slice.timeMs.length);
-    const maxPoints = selection.maxPoints;
     if (
       cache &&
       cache.version === snapshot.version &&
-      cache.startMs === effectiveRange.startMs &&
-      cache.endMs === effectiveRange.endMs &&
+      cache.windowStartMs === renderRange.startMs &&
+      cache.windowEndMs === renderRange.endMs &&
       cache.maxPoints === maxPoints &&
       cache.cutoffTime === cutoffTime
     ) {
       return cache.series;
     }
 
-    const cacheKey = `${series.id}|${snapshot.version}|${effectiveRange.startMs}|${effectiveRange.endMs}|${maxPoints}`;
+    const cutoffKey = cutoffTime ?? "none";
+    const cacheKey = `${series.id}|${snapshot.version}|${renderRange.startMs}|${renderRange.endMs}|${maxPoints}|${cutoffKey}`;
     const cachedSeries = this.lodCache.get(cacheKey);
     if (cachedSeries) {
       this.renderCache.set(series.id, {
         version: snapshot.version,
-        startMs: effectiveRange.startMs,
-        endMs: effectiveRange.endMs,
+        windowStartMs: renderRange.startMs,
+        windowEndMs: renderRange.endMs,
         maxPoints,
         cutoffTime,
         series: cachedSeries
@@ -722,15 +823,15 @@ export class ChartEngine {
       return cachedSeries;
     }
 
-    let timeMs = slice.timeMs;
+    let timeMs = renderSlice.timeMs;
     let fields: Record<string, Float64Array> = {};
 
     if (series.type === "candles") {
-      const open = slice.fields.open ?? new Float64Array();
-      const high = slice.fields.high ?? new Float64Array();
-      const low = slice.fields.low ?? new Float64Array();
-      const close = slice.fields.close ?? new Float64Array();
-      const volume = slice.fields.volume ?? new Float64Array();
+      const open = renderSlice.fields.open ?? new Float64Array();
+      const high = renderSlice.fields.high ?? new Float64Array();
+      const low = renderSlice.fields.low ?? new Float64Array();
+      const close = renderSlice.fields.close ?? new Float64Array();
+      const volume = renderSlice.fields.volume ?? new Float64Array();
       const decimated = decimateCandles(timeMs, open, high, low, close, volume, maxPoints);
       timeMs = decimated.timeMs;
       fields = {
@@ -741,7 +842,7 @@ export class ChartEngine {
         volume: decimated.volume
       };
     } else {
-      const values = slice.fields.value ?? new Float64Array();
+      const values = renderSlice.fields.value ?? new Float64Array();
       const decimated = decimateMinMax(timeMs, values, maxPoints);
       timeMs = decimated.timeMs;
       fields = { value: decimated.values };
@@ -758,8 +859,8 @@ export class ChartEngine {
 
     this.renderCache.set(series.id, {
       version: snapshot.version,
-      startMs: effectiveRange.startMs,
-      endMs: effectiveRange.endMs,
+      windowStartMs: renderRange.startMs,
+      windowEndMs: renderRange.endMs,
       maxPoints,
       cutoffTime,
       series: renderSeries
@@ -1065,13 +1166,85 @@ export class ChartEngine {
       this.visibleRangeEmitter.emit({ paneId, range });
       this.transformEmitter.emit({ paneId });
     }
-    const dataWindow = computeDataWindow(range, this.prefetchRatio);
-    if (!rangesEqual(pane.lastEmittedDataWindow, dataWindow.range)) {
-      pane.lastEmittedDataWindow = { ...dataWindow.range };
-      this.dataWindowEmitter.emit({ paneId, range: dataWindow.range, prefetchRatio: dataWindow.prefetchRatio });
-    }
+    this.updateRenderWindow(pane, range);
+    this.maybeRequestDataWindow(pane);
     this.updateScaleDomain(paneId);
     this.requestRender();
+  }
+
+  private updateRenderWindow(pane: PaneState, range: Range): void {
+    if (!this.shouldUpdateRenderWindow(pane, range)) return;
+    const dataWindow = computeDataWindow(range, this.prefetchRatio);
+    pane.renderWindow = { ...dataWindow.range };
+  }
+
+  private shouldUpdateRenderWindow(pane: PaneState, range: Range): boolean {
+    const renderWindow = pane.renderWindow;
+    if (!renderWindow) return true;
+    const renderSpan = rangeSpan(renderWindow);
+    if (!Number.isFinite(renderSpan) || renderSpan <= 0) return true;
+    const ratio = 1 + 2 * this.prefetchRatio;
+    const baseSpan = ratio > 0 ? renderSpan / ratio : renderSpan;
+    if (!Number.isFinite(baseSpan) || baseSpan <= 0) return true;
+    const span = rangeSpan(range);
+    if (Math.abs(span - baseSpan) > baseSpan * RENDER_WINDOW_SPAN_TOLERANCE) return true;
+    if (!rangeContains(renderWindow, range)) return true;
+    const margin = baseSpan * this.prefetchRatio;
+    const guard = margin * RENDER_WINDOW_GUARD_RATIO;
+    if (guard <= 0) return false;
+    if (range.startMs <= renderWindow.startMs + guard) return true;
+    if (range.endMs >= renderWindow.endMs - guard) return true;
+    return false;
+  }
+
+  private maybeRequestDataWindow(pane: PaneState): void {
+    const target = pane.renderWindow ?? pane.visibleRange;
+    const coverage = pane.dataWindowCoverage;
+    if (coverage && rangeContains(coverage, target)) {
+      if (pane.pendingDataWindow && rangeContains(coverage, pane.pendingDataWindow)) {
+        pane.pendingDataWindow = null;
+      }
+      pane.lastCoverageWarning = null;
+      return;
+    }
+    if (pane.pendingDataWindow && rangeContains(pane.pendingDataWindow, target)) {
+      return;
+    }
+    if (!rangesEqual(pane.lastRequestedDataWindow, target)) {
+      pane.lastRequestedDataWindow = { ...target };
+      pane.pendingDataWindow = { ...target };
+      this.dataWindowEmitter.emit({ paneId: pane.id, range: target, prefetchRatio: this.prefetchRatio });
+    }
+  }
+
+  private updateDataWindowCoverage(paneId: string): void {
+    const pane = this.ensurePane(paneId);
+    const primary = this.getPrimarySeries(paneId);
+    const snapshot = primary?.snapshot;
+    if (!snapshot || snapshot.timeMs.length === 0) {
+      pane.dataWindowCoverage = null;
+      return;
+    }
+    const coverage: Range = {
+      startMs: snapshot.timeMs[0],
+      endMs: snapshot.timeMs[snapshot.timeMs.length - 1]
+    };
+    pane.dataWindowCoverage = coverage;
+    if (!pane.pendingDataWindow) return;
+    if (rangeContains(coverage, pane.pendingDataWindow)) {
+      pane.pendingDataWindow = null;
+      pane.lastCoverageWarning = null;
+      return;
+    }
+    if (!rangesEqual(pane.lastCoverageWarning, pane.pendingDataWindow)) {
+      pane.lastCoverageWarning = { ...pane.pendingDataWindow };
+      this.diagnostics.addWarn("data.window.incomplete", "data window coverage is smaller than requested", {
+        paneId,
+        requested: { ...pane.pendingDataWindow },
+        coverage: { ...coverage }
+      });
+      this.diagnosticsEmitter.emit();
+    }
   }
 
   private requestRender(): void {
@@ -1152,7 +1325,11 @@ export class ChartEngine {
       timeTicks: [],
       primaryScaleId: "price",
       lastEmittedRange: null,
-      lastEmittedDataWindow: null
+      renderWindow: null,
+      dataWindowCoverage: null,
+      pendingDataWindow: null,
+      lastRequestedDataWindow: null,
+      lastCoverageWarning: null
     };
     this.panes.set(paneId, pane);
     this.recomputeLayout();
@@ -1486,7 +1663,11 @@ type PaneState = {
   timeTicks: AxisTick[];
   primaryScaleId: string;
   lastEmittedRange: Range | null;
-  lastEmittedDataWindow: Range | null;
+  renderWindow: Range | null;
+  dataWindowCoverage: Range | null;
+  pendingDataWindow: Range | null;
+  lastRequestedDataWindow: Range | null;
+  lastCoverageWarning: Range | null;
 };
 
 type ScaleConfigState = {
@@ -1514,8 +1695,8 @@ type PaneRenderState = {
 
 type RenderSeriesCache = {
   version: number;
-  startMs: TimeMs;
-  endMs: TimeMs;
+  windowStartMs: TimeMs;
+  windowEndMs: TimeMs;
   maxPoints: number;
   cutoffTime?: TimeMs;
   series: RenderSeries;
@@ -1553,6 +1734,19 @@ function isPointInside(plotArea: PlotArea, x: number, y: number): boolean {
     y >= plotArea.y &&
     y <= plotArea.y + plotArea.height
   );
+}
+
+function findExactIndex(times: Float64Array, timeMs: TimeMs): number {
+  let low = 0;
+  let high = times.length - 1;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    const value = times[mid];
+    if (value === timeMs) return mid;
+    if (value < timeMs) low = mid + 1;
+    else high = mid - 1;
+  }
+  return -1;
 }
 
 function findNearestIndex(times: Float64Array, timeMs: TimeMs, cutoff?: TimeMs): number | null {

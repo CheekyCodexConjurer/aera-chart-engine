@@ -18,6 +18,10 @@ This index maps all canonical documentation for the chart engine. Each page is s
 - `diagnostics-failure-surfaces.md` - error taxonomy and repro bundles.
 - `performance-contracts.md` - performance invariants and doc map.
 
+## Contributor skills
+- `../skills.md` - skills rubric and index.
+- `skills/INDEX.md` - skill definition leaf pages.
+
 ## Integration and boundary contracts
 - `host-engine-responsibility-contract.md` - non-negotiable ownership split.
 - `quant-lab-integration-guide.md` - how the host uses the engine today.

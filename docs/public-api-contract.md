@@ -45,6 +45,23 @@ Point: { x: number, y: number }
 - Range values are always in time milliseconds, not logical indices.
 - Changes are emitted only when the range meaningfully changes.
 
+## Data window requests (prefetch + paging)
+- `onDataWindowRequest(callback(event))`
+
+**Event payload**
+```
+{
+  paneId: PaneId,
+  range: Range,          // render window with prefetch margin
+  prefetchRatio: number
+}
+```
+
+**Rules**
+- Emitted when the active render window shifts or when coverage is insufficient.
+- Requests are coalesced; the engine will not spam identical windows.
+- If host responds with a smaller window, the engine emits a diagnostic.
+
 ## Pointer events contract
 - `onCrosshairMove(callback(event))`
 - `onCrosshairClick(callback(event))`

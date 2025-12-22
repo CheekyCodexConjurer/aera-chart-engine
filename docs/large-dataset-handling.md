@@ -21,6 +21,8 @@ This document defines guarantees and expectations for large datasets (10k to 1M 
 - CPU cache cap per chart must be explicit and enforced.
 - GPU buffer pools must be bounded and instrumented.
 - Cache eviction uses LRU with visible data pinned.
+ - Default GPU series cache cap: 256 MB (configurable by renderer).
+ - GPU cache evictions emit `render/series-cache-evicted` diagnostics.
 
 ## Window ownership and integration pattern
 - Engine owns view window selection.

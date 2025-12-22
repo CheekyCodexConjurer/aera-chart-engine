@@ -2,6 +2,40 @@
 
 This file preserves the original roadmap phases and workstreams for reference. It remains authoritative unless superseded by executable milestones in `ROADMAP.md`.
 
+## M8 acceptance mapping (doc-only)
+Use this mapping to validate T8.x completion in `ROADMAP.md`.
+
+**T8.1 Rendering pipeline completion**
+- Evidence: benchmark report for `baseline-1m` meets p50/p95 targets.
+- Evidence: baseline benchmark reports are stored under `tools/bench/reports/`.
+- Evidence: GPU memory budgeting and eviction policy documented.
+- Evidence: diagnostics for context loss and buffer rebuilds are implemented.
+
+**T8.2 Axes and multi-scale completion**
+- Evidence: tick collision tests and gutter stability tests pass.
+- Evidence: multi-pane + multi-scale invariants documented and enforced.
+- Evidence: coordinate conversion contract validated via harness.
+
+**T8.3 Data pipeline and LOD completion**
+- Evidence: LOD determinism and hysteresis tests pass.
+- Evidence: window request/response contract tests pass.
+- Evidence: append/prepend/patch behaviors verified under load.
+
+**T8.4 Interaction and hit-testing completion**
+- Evidence: interaction SLOs met for pan/zoom/crosshair/replay scrub.
+- Evidence: hit-testing stable under replay and gaps.
+- Evidence: input priority rules verified via perf traces.
+
+**T8.5 Compute and indicator integration completion**
+- Evidence: worker cancellation and backpressure tests pass.
+- Evidence: stale result dropping verified via versioned outputs.
+- Evidence: indicator output caps enforced with diagnostics.
+
+**T8.6 Observability and regression gate completion**
+- Evidence: repro bundle capture/replay works for baseline scenarios.
+- Evidence: benchmark gates running in CI with thresholds enforced.
+- Evidence: diagnostics taxonomy implemented and surfaced.
+
 ## Legacy phases
 
 ### Phase 1: GPU core and scene integrity

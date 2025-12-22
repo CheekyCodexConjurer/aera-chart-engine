@@ -38,6 +38,8 @@ This document defines the WebGL2-first render pipeline, resource strategy, and r
 - GPU resources are tracked by explicit lifetime handles.
 - Context loss triggers a full resource rebuild from cached CPU data.
 - Resource rebuilds are observable and diagnostic surfaced.
+- Buffer resizes emit `render/buffer-rebuild`.
+- Series cache eviction emits `render/series-cache-evicted`.
 
 ## Partial invalidation
 - Dirty flags are per pass and per pane.

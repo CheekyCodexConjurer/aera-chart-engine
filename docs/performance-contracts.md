@@ -13,6 +13,13 @@ This document summarizes performance invariants and points to detailed performan
 - Input latency is measured end-to-end for pan, zoom, and hover.
 - GC churn in hot paths is forbidden.
 
+## Target summary (p50/p95)
+- Frame time under load (500-2k visible): p50 <= 8 ms, p95 <= 16 ms.
+- Input latency (pan/zoom/replay scrub): p95 <= 16 ms.
+- Dataset scale: 10k-1M loaded points per series.
+- Overlay scale: 5k markers, 2k labels, 1k zones per pane.
+- Source of truth for per-action SLOs: `responsiveness-slos.md`.
+
 ## Related documents
 - `responsiveness-slos.md` for p50/p95 latency targets.
 - `main-thread-blocking-budget.md` for allowed work on main thread.

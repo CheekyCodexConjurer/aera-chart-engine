@@ -1,0 +1,53 @@
+{
+  "runId": "2025-12-22T15-31-34-378Z",
+  "scenarioId": "baseline-1m",
+  "seed": 0,
+  "engineVersion": "0.1.0",
+  "engineContractVersion": "0.1.0",
+  "runnerVersion": "bench-0.1",
+  "hardwareProfile": {
+    "cpu": "AMD Ryzen 9 3900XT 12-Core Processor           ",
+    "gpu": "unknown",
+    "browser": "node",
+    "os": "win32 10.0.26100"
+  },
+  "datasetSpec": {
+    "barCount": 1000000,
+    "visibleTarget": 2000,
+    "overlayCounts": {
+      "markers": 0,
+      "labels": 0,
+      "zones": 0
+    },
+    "timeDomain": "utc-ms"
+  },
+  "metrics": {
+    "frameTimeMs": {
+      "p50": 0.008600000000001273,
+      "p95": 0.010599999999982401,
+      "p99": 0.016899999999992588
+    },
+    "inputLatencyMs": {
+      "p50": 0.008600000000001273,
+      "p95": 0.010599999999982401
+    },
+    "memoryDeltaMB": {
+      "cpu": 0.535736083984375,
+      "gpu": 0
+    },
+    "drawCalls": 0,
+    "stateChanges": 0
+  },
+  "assertions": {
+    "p50TargetMs": 8,
+    "p95TargetMs": 16,
+    "p50Pass": true,
+    "p95Pass": true
+  },
+  "artifacts": {
+    "traceIds": []
+  },
+  "timestamp": "2025-12-22T15:31:34.382Z",
+  "renderer": "null",
+  "notes": "Headless Node run using NullRenderer; input latency is proxied by frame time."
+}

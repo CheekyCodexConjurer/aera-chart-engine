@@ -123,6 +123,10 @@ export class ChartEngine {
     this.keyboardPanFraction = options.keyboardPanFraction ?? 0.1;
     this.keyboardZoomFactor = options.keyboardZoomFactor ?? 1.2;
     this.renderer = options.renderer ?? new NullRenderer();
+    this.renderer.setDiagnostics?.((diag) => {
+      this.diagnostics.add(diag);
+      this.diagnosticsEmitter.emit();
+    });
 
     this.scheduler = new FrameScheduler(() => this.renderFrame());
     this.ensurePane("price");
@@ -437,6 +441,7 @@ export class ChartEngine {
     const paneId = this.series.get(seriesId)?.paneId;
     this.series.delete(seriesId);
     this.renderCache.delete(seriesId);
+    this.renderer.removeSeries?.(seriesId);
     if (paneId) {
       this.updateDataWindowCoverage(paneId);
       const pane = this.panes.get(paneId);

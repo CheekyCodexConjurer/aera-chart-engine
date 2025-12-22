@@ -10,8 +10,12 @@ export class GpuBuffer {
         nextCapacity = data.byteLength;
       }
       gl.bufferData(gl.ARRAY_BUFFER, nextCapacity, targetUsage);
-      this.capacityBytes = nextCapacity;
-    }
-    gl.bufferSubData(gl.ARRAY_BUFFER, 0, data);
+    this.capacityBytes = nextCapacity;
+  }
+  gl.bufferSubData(gl.ARRAY_BUFFER, 0, data);
+  }
+
+  getCapacityBytes(): number {
+    return this.capacityBytes;
   }
 }

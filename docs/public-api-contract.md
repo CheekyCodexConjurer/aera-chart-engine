@@ -144,6 +144,29 @@ Supported commands:
 - Returns `null` when conversion is out of range.
 - Conversions use the active axis transform at the time of the call.
 
+## Worker / OffscreenCanvas (planned, doc-only)
+These APIs describe the intended boundary; they are not implemented yet.
+
+**Planned methods**
+- `setWorkerAdapter(adapter)`
+- `getWorkerStatus() -> { available: boolean, mode: "main" | "worker" | "offscreen" }`
+- `postComputeRequest({ windowId, version, payload, priority? })`
+- `cancelCompute(windowId)`
+
+**Adapter interface (planned)**
+```
+WorkerAdapter: {
+  post(message): void
+  onMessage(handler): void
+  terminate(): void
+  supportsOffscreenCanvas?: boolean
+}
+```
+
+**Rules**
+- Worker results are versioned and dropped if stale.
+- Fallback to main thread emits diagnostics and never happens silently.
+
 ## Axis and scale configuration
 - `setScaleConfig(paneId, scaleId, { position?, visible?, tickCount?, labelFormatter? })`
 - `setTimeAxisConfig({ tickCount?, labelFormatter? })`

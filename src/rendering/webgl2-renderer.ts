@@ -22,6 +22,7 @@ import { formatTimestamp } from "../core/axis.js";
 import {
   AreaOverlayData,
   CrosshairEvent,
+  Diagnostic,
   HistogramOverlayData,
   HLineOverlayData,
   LabelOverlayData,
@@ -36,10 +37,12 @@ import { GpuTextRenderer } from "./gpu-text.js";
 
 export type WebGL2RendererOptions = {
   onError?: (message: string) => void;
+  onDiagnostic?: (diag: Diagnostic) => void;
   clearColor?: RgbaColor;
   textLayer?: TextLayer;
   useGpuText?: boolean;
   textFont?: string;
+  maxSeriesGpuBytes?: number;
 };
 
 export class WebGL2Renderer implements Renderer {
@@ -56,17 +59,40 @@ export class WebGL2Renderer implements Renderer {
   private quadIndexBuffer: WebGLBuffer | null = null;
   private seriesCache = new Map<string, SeriesGpuEntry>();
   private gpuText: GpuTextRenderer | null = null;
+  private diagnosticHandler?: (diag: Diagnostic) => void;
+  private maxSeriesGpuBytes: number;
+  private seriesGpuBytes = 0;
   private width = 0;
   private height = 0;
   private dpr = 1;
   private warnedMissingTextLayer = false;
   private clipStack: PlotArea[] = [];
+  private hasContextListeners = false;
+  private isContextLost = false;
+  private contextLossCount = 0;
 
-  constructor(private canvas: HTMLCanvasElement, private options: WebGL2RendererOptions = {}) {}
+  constructor(private canvas: HTMLCanvasElement, private options: WebGL2RendererOptions = {}) {
+    this.diagnosticHandler = options.onDiagnostic;
+    this.maxSeriesGpuBytes = options.maxSeriesGpuBytes ?? 256 * 1024 * 1024;
+  }
 
   initialize(): void {
+    if (!this.hasContextListeners) {
+      this.canvas.addEventListener("webglcontextlost", this.handleContextLost);
+      this.canvas.addEventListener("webglcontextrestored", this.handleContextRestored);
+      this.hasContextListeners = true;
+    }
+    if (this.isContextLost) {
+      return;
+    }
     this.gl = this.canvas.getContext("webgl2");
     if (!this.gl) {
+      this.emitDiagnostic({
+        code: "render/context-lost",
+        message: "WebGL2 context not available",
+        severity: "error",
+        recoverable: true
+      });
       this.options.onError?.("WebGL2 context not available");
       return;
     }
@@ -126,21 +152,57 @@ export class WebGL2Renderer implements Renderer {
       this.options.onError?.("Failed to compile series line program");
       return;
     }
-    this.lineProgram = createLineProgramInfo(this.gl, lineProgram);
+    try {
+      this.lineProgram = createLineProgramInfo(this.gl, lineProgram);
+    } catch (error) {
+      this.emitDiagnostic({
+        code: "render/buffer-allocation-failed",
+        message: "Failed to allocate line VAO",
+        severity: "error",
+        recoverable: false,
+        context: { error: String(error) }
+      });
+      this.options.onError?.("Failed to allocate line VAO");
+      return;
+    }
 
     const quadProgram = createProgram(this.gl, SERIES_QUAD_VERT, SERIES_QUAD_FRAG);
     if (!quadProgram) {
       this.options.onError?.("Failed to compile series quad program");
       return;
     }
-    this.quadProgram = createQuadProgramInfo(this.gl, quadProgram, this.quadCornerBuffer, this.quadIndexBuffer);
+    try {
+      this.quadProgram = createQuadProgramInfo(this.gl, quadProgram, this.quadCornerBuffer, this.quadIndexBuffer);
+    } catch (error) {
+      this.emitDiagnostic({
+        code: "render/buffer-allocation-failed",
+        message: "Failed to allocate quad VAO",
+        severity: "error",
+        recoverable: false,
+        context: { error: String(error) }
+      });
+      this.options.onError?.("Failed to allocate quad VAO");
+      return;
+    }
 
     const barProgram = createProgram(this.gl, SERIES_BAR_VERT, SERIES_BAR_FRAG);
     if (!barProgram) {
       this.options.onError?.("Failed to compile series bar program");
       return;
     }
-    this.barProgram = createBarProgramInfo(this.gl, barProgram, this.quadCornerBuffer, this.quadIndexBuffer);
+    try {
+      this.barProgram = createBarProgramInfo(this.gl, barProgram, this.quadCornerBuffer, this.quadIndexBuffer);
+    } catch (error) {
+      this.emitDiagnostic({
+        code: "render/buffer-allocation-failed",
+        message: "Failed to allocate bar VAO",
+        severity: "error",
+        recoverable: false,
+        context: { error: String(error) }
+      });
+      this.options.onError?.("Failed to allocate bar VAO");
+      return;
+    }
 
     const useGpuText = this.options.useGpuText ?? !this.options.textLayer;
     if (useGpuText) {
@@ -206,6 +268,92 @@ export class WebGL2Renderer implements Renderer {
     }
 
     gl.disable(gl.SCISSOR_TEST);
+  }
+
+  setDiagnostics(handler: (diag: Diagnostic) => void): void {
+    this.diagnosticHandler = handler;
+  }
+
+  removeSeries(seriesId: string): void {
+    this.dropSeriesEntry(seriesId);
+  }
+
+  private emitDiagnostic(diag: Diagnostic): void {
+    this.diagnosticHandler?.(diag);
+  }
+
+  private emitBufferRebuild(context: BufferRebuildContext | undefined, before: number, after: number): void {
+    if (!context || after <= before) return;
+    this.emitDiagnostic({
+      code: "render/buffer-rebuild",
+      message: "GPU buffer resized",
+      severity: "info",
+      recoverable: true,
+      context: {
+        seriesId: context.seriesId,
+        buffer: context.buffer,
+        beforeBytes: before,
+        afterBytes: after
+      }
+    });
+  }
+
+  private handleContextLost = (event: Event): void => {
+    event.preventDefault();
+    if (this.isContextLost) return;
+    this.isContextLost = true;
+    this.contextLossCount += 1;
+    this.emitDiagnostic({
+      code: "render/context-lost",
+      message: "WebGL2 context lost",
+      severity: "error",
+      recoverable: true,
+      context: { count: this.contextLossCount }
+    });
+    this.resetGpuState();
+  };
+
+  private handleContextRestored = (): void => {
+    if (!this.isContextLost) return;
+    this.isContextLost = false;
+    this.emitDiagnostic({
+      code: "render/context-restored",
+      message: "WebGL2 context restored",
+      severity: "info",
+      recoverable: true
+    });
+    this.initialize();
+    if (this.width > 0 && this.height > 0) {
+      this.resize(this.width, this.height, this.dpr);
+    }
+  };
+
+  private resetGpuState(): void {
+    if (this.gl) {
+      if (this.dynamicVbo) this.gl.deleteBuffer(this.dynamicVbo);
+      if (this.dynamicVao) this.gl.deleteVertexArray(this.dynamicVao);
+      if (this.dynamicProgram) this.gl.deleteProgram(this.dynamicProgram);
+      if (this.quadCornerBuffer) this.gl.deleteBuffer(this.quadCornerBuffer);
+      if (this.quadIndexBuffer) this.gl.deleteBuffer(this.quadIndexBuffer);
+      if (this.lineProgram) this.gl.deleteProgram(this.lineProgram.program);
+      if (this.quadProgram) this.gl.deleteProgram(this.quadProgram.program);
+      if (this.barProgram) this.gl.deleteProgram(this.barProgram.program);
+      for (const entry of this.seriesCache.values()) {
+        this.releaseSeriesEntry(entry);
+      }
+    }
+    this.seriesCache.clear();
+    this.seriesGpuBytes = 0;
+    this.dynamicProgram = null;
+    this.dynamicVao = null;
+    this.dynamicVbo = null;
+    this.lineProgram = null;
+    this.quadProgram = null;
+    this.barProgram = null;
+    this.quadCornerBuffer = null;
+    this.quadIndexBuffer = null;
+    this.gpuText = null;
+    this.gl = null;
   }
 
   private renderPane(
@@ -532,11 +680,184 @@ export class WebGL2Renderer implements Renderer {
 
   private getSeriesEntry(gl: WebGL2RenderingContext, series: RenderSeries): SeriesGpuEntry | null {
     const cached = this.seriesCache.get(series.id);
-    if (cached && cached.seriesRef === series) return cached;
+    if (cached) {
+      if (cached.seriesRef === series) {
+        this.touchSeries(series.id);
+        return cached;
+      }
+      const typeChanged = cached.seriesRef.type !== series.type;
+      const previousBytes = cached.gpuBytes ?? 0;
+      const updated = this.updateSeriesEntry(gl, cached, series);
+      if (updated) {
+        this.updateSeriesBytes(updated, previousBytes);
+        this.touchSeries(series.id);
+        this.enforceSeriesBudget();
+        return updated;
+      }
+      this.dropSeriesEntry(series.id);
+      if (typeChanged) {
+        this.emitDiagnostic({
+          code: "render/buffer-rebuild",
+          message: "series type changed; rebuilding GPU buffers",
+          severity: "info",
+          recoverable: true,
+          context: { seriesId: series.id }
+        });
+      }
+    }
     const entry = this.buildSeriesEntry(gl, series);
     if (!entry) return null;
+    entry.gpuBytes = this.computeEntryBytes(entry);
+    this.seriesGpuBytes += entry.gpuBytes;
     this.seriesCache.set(series.id, entry);
+    this.touchSeries(series.id);
+    this.enforceSeriesBudget();
     return entry;
+  }
+
+  private updateSeriesEntry(
+    gl: WebGL2RenderingContext,
+    entry: SeriesGpuEntry,
+    series: RenderSeries
+  ): SeriesGpuEntry | null {
+    if (entry.seriesRef.type !== series.type) {
+      return null;
+    }
+    entry.seriesRef = series;
+    if (series.type === "line") {
+      entry.line = this.upsertLineBuffer(
+        gl,
+        entry.line ?? null,
+        this.buildLineData(series.timeMs, series.fields.value, 0),
+        { seriesId: series.id, buffer: "line" }
+      );
+      return entry.line ? entry : null;
+    }
+    if (series.type === "area") {
+      entry.line = this.upsertLineBuffer(
+        gl,
+        entry.line ?? null,
+        this.buildLineData(series.timeMs, series.fields.value, 0),
+        { seriesId: series.id, buffer: "line" }
+      );
+      entry.area = this.upsertLineBuffer(
+        gl,
+        entry.area ?? null,
+        this.buildAreaData(series.timeMs, series.fields.value),
+        { seriesId: series.id, buffer: "area" }
+      );
+      return entry.line && entry.area ? entry : null;
+    }
+    if (series.type === "histogram") {
+      entry.histogram = this.upsertInstanceBuffer(
+        gl,
+        entry.histogram ?? null,
+        this.buildBarData(series.timeMs, series.fields.value, series.id),
+        { seriesId: series.id, buffer: "histogram" }
+      );
+      return entry.histogram ? entry : null;
+    }
+    if (series.type === "candles") {
+      const wickData = this.buildCandleWickData(series);
+      if (!wickData) return null;
+      const body = this.upsertInstanceBuffer(
+        gl,
+        entry.candles?.body ?? null,
+        this.buildCandleBodyData(series),
+        { seriesId: series.id, buffer: "candle-body" }
+      );
+      const wickUp = this.upsertLineBuffer(
+        gl,
+        entry.candles?.wickUp ?? null,
+        wickData.up,
+        { seriesId: series.id, buffer: "candle-wick-up" }
+      );
+      const wickDown = this.upsertLineBuffer(
+        gl,
+        entry.candles?.wickDown ?? null,
+        wickData.down,
+        { seriesId: series.id, buffer: "candle-wick-down" }
+      );
+      entry.candles = {
+        wickUp,
+        wickDown,
+        body
+      };
+      return entry.candles.body ? entry : null;
+    }
+    return null;
+  }
+
+  private releaseSeriesEntry(entry: SeriesGpuEntry): void {
+    if (!this.gl) return;
+    const gl = this.gl;
+    this.releaseLineBuffer(gl, entry.line ?? null);
+    this.releaseLineBuffer(gl, entry.area ?? null);
+    this.releaseInstanceBuffer(gl, entry.histogram ?? null);
+    if (entry.candles) {
+      this.releaseLineBuffer(gl, entry.candles.wickUp ?? null);
+      this.releaseLineBuffer(gl, entry.candles.wickDown ?? null);
+      this.releaseInstanceBuffer(gl, entry.candles.body ?? null);
+    }
+  }
+
+  private dropSeriesEntry(seriesId: string): void {
+    const entry = this.seriesCache.get(seriesId);
+    if (!entry) return;
+    this.seriesCache.delete(seriesId);
+    this.seriesGpuBytes -= entry.gpuBytes ?? 0;
+    this.releaseSeriesEntry(entry);
+  }
+
+  private touchSeries(seriesId: string): void {
+    const entry = this.seriesCache.get(seriesId);
+    if (!entry) return;
+    this.seriesCache.delete(seriesId);
+    this.seriesCache.set(seriesId, entry);
+  }
+
+  private updateSeriesBytes(entry: SeriesGpuEntry, previousBytes: number): void {
+    const nextBytes = this.computeEntryBytes(entry);
+    entry.gpuBytes = nextBytes;
+    this.seriesGpuBytes += nextBytes - previousBytes;
+  }
+
+  private computeEntryBytes(entry: SeriesGpuEntry): number {
+    let bytes = 0;
+    bytes += this.getBufferBytes(entry.line ?? null);
+    bytes += this.getBufferBytes(entry.area ?? null);
+    bytes += this.getBufferBytes(entry.histogram ?? null);
+    if (entry.candles) {
+      bytes += this.getBufferBytes(entry.candles.wickUp ?? null);
+      bytes += this.getBufferBytes(entry.candles.wickDown ?? null);
+      bytes += this.getBufferBytes(entry.candles.body ?? null);
+    }
+    return bytes;
+  }
+
+  private getBufferBytes(buffer: LineBuffer | InstanceBuffer | null): number {
+    if (!buffer) return 0;
+    return buffer.uploader.getCapacityBytes();
+  }
+
+  private enforceSeriesBudget(): void {
+    if (this.maxSeriesGpuBytes <= 0) return;
+    while (this.seriesGpuBytes > this.maxSeriesGpuBytes && this.seriesCache.size > 1) {
+      const oldest = this.seriesCache.keys().next().value as string | undefined;
+      if (!oldest) break;
+      const entry = this.seriesCache.get(oldest);
+      if (!entry) break;
+      this.seriesCache.delete(oldest);
+      this.seriesGpuBytes -= entry.gpuBytes ?? 0;
+      this.releaseSeriesEntry(entry);
+      this.emitDiagnostic({
+        code: "render/series-cache-evicted",
+        message: "series GPU cache evicted to honor budget",
+        severity: "warn",
+        recoverable: true,
+        context: { seriesId: oldest, totalBytes: this.seriesGpuBytes, maxBytes: this.maxSeriesGpuBytes }
+      });
+    }
   }
 
   private buildSeriesEntry(gl: WebGL2RenderingContext, series: RenderSeries): SeriesGpuEntry | null {
@@ -559,14 +880,14 @@ export class WebGL2Renderer implements Renderer {
     return entry;
   }
 
-  private createLineBuffer(
-    gl: WebGL2RenderingContext,
+  private buildLineData(
     timeMs: Float64Array,
     values: Float64Array | undefined,
     side: number
-  ): LineBuffer | null {
+  ): LineData | null {
     if (!values || values.length === 0) return null;
     const count = Math.min(timeMs.length, values.length);
+    if (count === 0) return null;
     const data = new Float32Array(count * 4);
     let offset = 0;
     for (let i = 0; i < count; i += 1) {
@@ -576,37 +897,13 @@ export class WebGL2Renderer implements Renderer {
       data[offset++] = values[i];
       data[offset++] = side;
     }
-    const buffer = gl.createBuffer();
-    if (!buffer) return null;
-    const uploader = new GpuBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    uploader.upload(gl, data, gl.STATIC_DRAW);
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
-    return { buffer, uploader, count, stride: 4, data };
+    return { data, count };
   }
 
-  private uploadLineBuffer(
-    gl: WebGL2RenderingContext,
-    data: Float32Array,
-    count: number
-  ): LineBuffer | null {
-    if (count <= 0) return null;
-    const buffer = gl.createBuffer();
-    if (!buffer) return null;
-    const uploader = new GpuBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    uploader.upload(gl, data, gl.STATIC_DRAW);
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
-    return { buffer, uploader, count, stride: 4, data };
-  }
-
-  private createAreaBuffer(
-    gl: WebGL2RenderingContext,
-    timeMs: Float64Array,
-    values: Float64Array | undefined
-  ): LineBuffer | null {
+  private buildAreaData(timeMs: Float64Array, values: Float64Array | undefined): LineData | null {
     if (!values || values.length === 0) return null;
     const count = Math.min(timeMs.length, values.length);
+    if (count === 0) return null;
     const data = new Float32Array(count * 2 * 4);
     let offset = 0;
     for (let i = 0; i < count; i += 1) {
@@ -620,23 +917,17 @@ export class WebGL2Renderer implements Renderer {
       data[offset++] = values[i];
       data[offset++] = 1;
     }
-    const buffer = gl.createBuffer();
-    if (!buffer) return null;
-    const uploader = new GpuBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    uploader.upload(gl, data, gl.STATIC_DRAW);
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
-    return { buffer, uploader, count: count * 2, stride: 4, data };
+    return { data, count: count * 2 };
   }
 
-  private createBarBuffer(
-    gl: WebGL2RenderingContext,
+  private buildBarData(
     timeMs: Float64Array,
     values: Float64Array | undefined,
-    seriesId = "histogram"
-  ): InstanceBuffer | null {
+    seriesId: string
+  ): InstanceData | null {
     if (!values || values.length === 0) return null;
     const count = Math.min(timeMs.length, values.length);
+    if (count === 0) return null;
     const data = new Float32Array(count * 7);
     let offset = 0;
     const color = colorFromId(seriesId, 1);
@@ -650,60 +941,15 @@ export class WebGL2Renderer implements Renderer {
       data[offset++] = color[2];
       data[offset++] = color[3];
     }
-    const buffer = gl.createBuffer();
-    if (!buffer) return null;
-    const uploader = new GpuBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    uploader.upload(gl, data, gl.STATIC_DRAW);
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
-    return { buffer, uploader, count, stride: 7, data };
+    return { data, count, stride: 7 };
   }
 
-  private createCandleWickBuffers(
-    gl: WebGL2RenderingContext,
-    series: RenderSeries
-  ): { up: LineBuffer | null; down: LineBuffer | null } | null {
-    const open = series.fields.open;
-    const high = series.fields.high;
-    const low = series.fields.low;
-    const close = series.fields.close;
-    if (!open || !high || !low || !close) return null;
-    let upCount = 0;
-    let downCount = 0;
-    for (let i = 0; i < series.timeMs.length; i += 1) {
-      if (close[i] >= open[i]) upCount += 1;
-      else downCount += 1;
-    }
-    const upData = new Float32Array(upCount * 2 * 4);
-    const downData = new Float32Array(downCount * 2 * 4);
-    let upOffset = 0;
-    let downOffset = 0;
-    for (let i = 0; i < series.timeMs.length; i += 1) {
-      const [hi, lo] = splitFloat64(series.timeMs[i]);
-      const isUp = close[i] >= open[i];
-      const target = isUp ? upData : downData;
-      let offset = isUp ? upOffset : downOffset;
-      target[offset++] = hi;
-      target[offset++] = lo;
-      target[offset++] = high[i];
-      target[offset++] = 0;
-      target[offset++] = hi;
-      target[offset++] = lo;
-      target[offset++] = low[i];
-      target[offset++] = 0;
-      if (isUp) upOffset = offset;
-      else downOffset = offset;
-    }
-    const up = this.uploadLineBuffer(gl, upData, upCount * 2);
-    const down = this.uploadLineBuffer(gl, downData, downCount * 2);
-    return { up, down };
-  }
-
-  private createCandleBodyBuffer(gl: WebGL2RenderingContext, series: RenderSeries): InstanceBuffer | null {
+  private buildCandleBodyData(series: RenderSeries): InstanceData | null {
     const open = series.fields.open;
     const close = series.fields.close;
     if (!open || !close) return null;
-    const count = series.timeMs.length;
+    const count = Math.min(series.timeMs.length, open.length, close.length);
+    if (count === 0) return null;
     const data = new Float32Array(count * 8);
     let offset = 0;
     for (let i = 0; i < count; i += 1) {
@@ -719,13 +965,206 @@ export class WebGL2Renderer implements Renderer {
       data[offset++] = color[2];
       data[offset++] = color[3];
     }
+    return { data, count, stride: 8 };
+  }
+
+  private buildCandleWickData(series: RenderSeries): { up: LineData | null; down: LineData | null } | null {
+    const open = series.fields.open;
+    const high = series.fields.high;
+    const low = series.fields.low;
+    const close = series.fields.close;
+    if (!open || !high || !low || !close) return null;
+    let upCount = 0;
+    let downCount = 0;
+    const count = Math.min(series.timeMs.length, open.length, high.length, low.length, close.length);
+    for (let i = 0; i < count; i += 1) {
+      if (close[i] >= open[i]) upCount += 1;
+      else downCount += 1;
+    }
+    const upData = upCount > 0 ? new Float32Array(upCount * 2 * 4) : null;
+    const downData = downCount > 0 ? new Float32Array(downCount * 2 * 4) : null;
+    let upOffset = 0;
+    let downOffset = 0;
+    for (let i = 0; i < count; i += 1) {
+      const [hi, lo] = splitFloat64(series.timeMs[i]);
+      const isUp = close[i] >= open[i];
+      if (isUp && upData) {
+        upData[upOffset++] = hi;
+        upData[upOffset++] = lo;
+        upData[upOffset++] = high[i];
+        upData[upOffset++] = 0;
+        upData[upOffset++] = hi;
+        upData[upOffset++] = lo;
+        upData[upOffset++] = low[i];
+        upData[upOffset++] = 0;
+      } else if (!isUp && downData) {
+        downData[downOffset++] = hi;
+        downData[downOffset++] = lo;
+        downData[downOffset++] = high[i];
+        downData[downOffset++] = 0;
+        downData[downOffset++] = hi;
+        downData[downOffset++] = lo;
+        downData[downOffset++] = low[i];
+        downData[downOffset++] = 0;
+      }
+    }
+    return {
+      up: upData ? { data: upData, count: upCount * 2 } : null,
+      down: downData ? { data: downData, count: downCount * 2 } : null
+    };
+  }
+
+  private createLineBuffer(
+    gl: WebGL2RenderingContext,
+    timeMs: Float64Array,
+    values: Float64Array | undefined,
+    side: number
+  ): LineBuffer | null {
+    const payload = this.buildLineData(timeMs, values, side);
+    if (!payload) return null;
+    return this.uploadLineBuffer(gl, payload.data, payload.count);
+  }
+
+  private uploadLineBuffer(
+    gl: WebGL2RenderingContext,
+    data: Float32Array,
+    count: number
+  ): LineBuffer | null {
+    if (count <= 0) return null;
     const buffer = gl.createBuffer();
-    if (!buffer) return null;
+    if (!buffer) {
+      this.emitDiagnostic({
+        code: "render/buffer-allocation-failed",
+        message: "Failed to allocate line buffer",
+        severity: "error",
+        recoverable: false
+      });
+      return null;
+    }
     const uploader = new GpuBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     uploader.upload(gl, data, gl.STATIC_DRAW);
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
-    return { buffer, uploader, count, stride: 8, data };
+    return { buffer, uploader, count, stride: 4, data };
+  }
+
+  private createAreaBuffer(
+    gl: WebGL2RenderingContext,
+    timeMs: Float64Array,
+    values: Float64Array | undefined
+  ): LineBuffer | null {
+    const payload = this.buildAreaData(timeMs, values);
+    if (!payload) return null;
+    return this.uploadLineBuffer(gl, payload.data, payload.count);
+  }
+
+  private createBarBuffer(
+    gl: WebGL2RenderingContext,
+    timeMs: Float64Array,
+    values: Float64Array | undefined,
+    seriesId = "histogram"
+  ): InstanceBuffer | null {
+    const payload = this.buildBarData(timeMs, values, seriesId);
+    if (!payload) return null;
+    return this.createInstanceBuffer(gl, payload);
+  }
+
+  private createCandleWickBuffers(
+    gl: WebGL2RenderingContext,
+    series: RenderSeries
+  ): { up: LineBuffer | null; down: LineBuffer | null } | null {
+    const payload = this.buildCandleWickData(series);
+    if (!payload) return null;
+    const up = payload.up ? this.uploadLineBuffer(gl, payload.up.data, payload.up.count) : null;
+    const down = payload.down ? this.uploadLineBuffer(gl, payload.down.data, payload.down.count) : null;
+    return { up, down };
+  }
+
+  private createCandleBodyBuffer(gl: WebGL2RenderingContext, series: RenderSeries): InstanceBuffer | null {
+    const payload = this.buildCandleBodyData(series);
+    if (!payload) return null;
+    return this.createInstanceBuffer(gl, payload);
+  }
+
+  private upsertLineBuffer(
+    gl: WebGL2RenderingContext,
+    existing: LineBuffer | null,
+    payload: LineData | null,
+    context?: BufferRebuildContext
+  ): LineBuffer | null {
+    if (!payload || payload.count === 0) {
+      this.releaseLineBuffer(gl, existing);
+      return null;
+    }
+    if (!existing) {
+      return this.uploadLineBuffer(gl, payload.data, payload.count);
+    }
+    const before = existing.uploader.getCapacityBytes();
+    gl.bindBuffer(gl.ARRAY_BUFFER, existing.buffer);
+    existing.uploader.upload(gl, payload.data, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    existing.count = payload.count;
+    existing.data = payload.data;
+    const after = existing.uploader.getCapacityBytes();
+    if (after > before) {
+      this.emitBufferRebuild(context, before, after);
+    }
+    return existing;
+  }
+
+  private upsertInstanceBuffer(
+    gl: WebGL2RenderingContext,
+    existing: InstanceBuffer | null,
+    payload: InstanceData | null,
+    context?: BufferRebuildContext
+  ): InstanceBuffer | null {
+    if (!payload || payload.count === 0) {
+      this.releaseInstanceBuffer(gl, existing);
+      return null;
+    }
+    if (!existing) {
+      return this.createInstanceBuffer(gl, payload);
+    }
+    const before = existing.uploader.getCapacityBytes();
+    gl.bindBuffer(gl.ARRAY_BUFFER, existing.buffer);
+    existing.uploader.upload(gl, payload.data, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    existing.count = payload.count;
+    existing.stride = payload.stride;
+    existing.data = payload.data;
+    const after = existing.uploader.getCapacityBytes();
+    if (after > before) {
+      this.emitBufferRebuild(context, before, after);
+    }
+    return existing;
+  }
+
+  private createInstanceBuffer(gl: WebGL2RenderingContext, payload: InstanceData): InstanceBuffer | null {
+    const buffer = gl.createBuffer();
+    if (!buffer) {
+      this.emitDiagnostic({
+        code: "render/buffer-allocation-failed",
+        message: "Failed to allocate instance buffer",
+        severity: "error",
+        recoverable: false
+      });
+      return null;
+    }
+    const uploader = new GpuBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    uploader.upload(gl, payload.data, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    return { buffer, uploader, count: payload.count, stride: payload.stride, data: payload.data };
+  }
+
+  private releaseLineBuffer(gl: WebGL2RenderingContext, buffer: LineBuffer | null): void {
+    if (!buffer) return;
+    gl.deleteBuffer(buffer.buffer);
+  }
+
+  private releaseInstanceBuffer(gl: WebGL2RenderingContext, buffer: InstanceBuffer | null): void {
+    if (!buffer) return;
+    gl.deleteBuffer(buffer.buffer);
   }
 
   private drawLineSeries(
@@ -1580,12 +2019,28 @@ type LineBuffer = {
   data: Float32Array;
 };
 
+type LineData = {
+  data: Float32Array;
+  count: number;
+};
+
+type BufferRebuildContext = {
+  seriesId: string;
+  buffer: string;
+};
+
 type InstanceBuffer = {
   buffer: WebGLBuffer;
   uploader: GpuBuffer;
   count: number;
   stride: number;
   data: Float32Array;
+};
+
+type InstanceData = {
+  data: Float32Array;
+  count: number;
+  stride: number;
 };
 
 type CandleBuffers = {
@@ -1596,6 +2051,7 @@ type CandleBuffers = {
 
 type SeriesGpuEntry = {
   seriesRef: RenderSeries;
+  gpuBytes?: number;
   line?: LineBuffer | null;
   area?: LineBuffer | null;
   histogram?: InstanceBuffer | null;

@@ -46,6 +46,12 @@ This document defines the core data entities, identity rules, and ownership boun
 - The render window only shifts when the view approaches its edges.
 - Geometry is built for the render window; pan within it is transform-only.
 
+## Window observability (required)
+- Host-visible: `onVisibleRangeChange` emits the view window.
+- Host-visible: `onDataWindowRequest` emits the render window + prefetch ratio.
+- Diagnostics and repro bundles must include render window ranges and shift reasons.
+- Render window shifts are coalesced to avoid churn.
+
 ## Update types (first-class)
 | Update type | Description | View anchor behavior |
 | --- | --- | --- |

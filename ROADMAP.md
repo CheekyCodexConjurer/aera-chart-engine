@@ -29,28 +29,28 @@ Transform the chart engine into a quant-lab-ready, contract-driven system with d
 ### M0 — Contract baseline and compatibility
 **Goal**: Lock the versioned contract model and deprecation policy.
 
-- [ ] T0.1 Define `engineContractVersion` and SemVer policy.
+- [x] T0.1 Define `engineContractVersion` and SemVer policy.
   - Context: contract drift blocks host integration.
   - Changes: `docs/roadmap/contracts-and-compat.md`, `docs/public-api-contract.md`.
   - DoD: version field specified; major/minor/patch rules documented.
   - Risks: version churn; Mitigation: deprecation window.
   - Deps: none.
 
-- [ ] T0.2 Deprecation and migration rules.
+- [x] T0.2 Deprecation and migration rules.
   - Context: host needs predictable upgrade paths.
   - Changes: `docs/roadmap/contracts-and-compat.md`.
   - DoD: deprecation window and migration note template documented.
   - Risks: missed updates; Mitigation: contract tests gate.
   - Deps: T0.1.
 
-- [ ] T0.3 Contract tests (doc-first spec).
+- [x] T0.3 Contract tests (doc-first spec).
   - Context: detect contract drift automatically.
   - Changes: `docs/roadmap/contracts-and-compat.md`, `docs/roadmap/ci-gates.md`.
   - DoD: test scope and failure conditions defined.
   - Risks: false positives; Mitigation: explicit version bump rules.
   - Deps: T0.1.
 
-- [ ] T0.4 Adapter guidance (host-facing).
+- [x] T0.4 Adapter guidance (host-facing).
   - Context: clarify boundary without coupling to host code.
   - Changes: `docs/roadmap/contracts-and-compat.md`, `docs/host-engine-responsibility-contract.md`.
   - DoD: adapter responsibilities and inputs documented.
@@ -60,45 +60,45 @@ Transform the chart engine into a quant-lab-ready, contract-driven system with d
 ### M1 — Integration harness (host fake)
 **Goal**: Provide a minimal playground that exercises critical flows.
 
-- [ ] T1.1 Harness spec and UI controls.
+- [x] T1.1 Harness spec and UI controls.
   - Context: needs a reproducible environment for pan/zoom/replay/overlays.
   - Changes: `docs/roadmap/integration-harness.md`.
   - DoD: control list and scenarios documented.
   - Risks: under-coverage; Mitigation: include pathological cases.
   - Deps: none.
 
-- [ ] T1.2 Dataset catalog and scenario matrix.
+- [x] T1.2 Dataset catalog and scenario matrix.
   - Context: benchmarks require deterministic datasets.
   - Changes: `docs/roadmap/integration-harness.md`.
-  - DoD: dataset sizes, gaps, bursts, and streaming cases defined.
+  - DoD: dataset sizes, gaps, bursts, streaming cases, schema, and seed rules defined.
   - Risks: non-representative datasets; Mitigation: include quant-lab patterns.
   - Deps: T1.1.
 
-- [ ] T1.3 Smoke test flow using the harness.
+- [x] T1.3 Smoke test flow using the harness.
   - Context: automation must use the same paths as users.
   - Changes: `docs/roadmap/integration-harness.md`, `docs/roadmap/ci-gates.md`.
-  - DoD: expected entrypoints and pass/fail criteria documented.
+  - DoD: expected entrypoints, pass/fail criteria, and headless report outputs documented.
   - Risks: brittle flows; Mitigation: use stable scenario ids.
   - Deps: T1.1.
 
 ### M2 — Performance gates
 **Goal**: Establish numeric budgets and a repeatable benchmark harness.
 
-- [ ] T2.1 Define performance budgets with numbers.
+- [x] T2.1 Define performance budgets with numbers.
   - Context: performance cannot be vague.
   - Changes: `docs/roadmap/performance-gates.md`, `docs/performance-contracts.md`.
   - DoD: p50/p95 targets and dataset sizes documented.
   - Risks: unrealistic targets; Mitigation: calibrate with baseline runs.
   - Deps: T1.2.
 
-- [ ] T2.2 Benchmark harness spec.
+- [x] T2.2 Benchmark harness spec.
   - Context: needs reproducible measurements.
   - Changes: `docs/roadmap/performance-gates.md`.
   - DoD: headless runner + artifact format defined.
   - Risks: non-deterministic runs; Mitigation: fixed seeds and warmups.
   - Deps: T2.1.
 
-- [ ] T2.3 Regression policy and CI gate.
+- [x] T2.3 Regression policy and CI gate.
   - Context: regressions must block merge.
   - Changes: `docs/roadmap/performance-gates.md`, `docs/roadmap/ci-gates.md`.
   - DoD: regression thresholds and waiver rules defined.
@@ -108,21 +108,21 @@ Transform the chart engine into a quant-lab-ready, contract-driven system with d
 ### M3 — Determinism and replay
 **Goal**: Make replay and update semantics fully deterministic and testable.
 
-- [ ] T3.1 Determinism invariants and update ordering.
+- [x] T3.1 Determinism invariants and update ordering.
   - Context: replay depends on strict ordering and idempotence.
   - Changes: `docs/roadmap/determinism-replay.md`, `docs/data-time-semantics.md`.
   - DoD: invariants and update rules documented with examples.
   - Risks: ambiguous rules; Mitigation: explicit canonical domain.
   - Deps: M0.
 
-- [ ] T3.2 Render window vs data window rules.
+- [x] T3.2 Render window vs data window rules.
   - Context: determinism depends on window definitions.
   - Changes: `docs/roadmap/determinism-replay.md`, `docs/data-model.md`.
   - DoD: window definitions and observability points documented.
   - Risks: drift with implementation; Mitigation: contract tests.
   - Deps: T3.1.
 
-- [ ] T3.3 Replay harness spec.
+- [x] T3.3 Replay harness spec.
   - Context: same input must yield same output.
   - Changes: `docs/roadmap/determinism-replay.md`, `docs/roadmap/integration-harness.md`.
   - DoD: replay inputs, output hash strategy, and asserts defined.
@@ -132,21 +132,21 @@ Transform the chart engine into a quant-lab-ready, contract-driven system with d
 ### M4 — Observability and repro bundles
 **Goal**: Make failures reproducible and performance measurable.
 
-- [ ] T4.1 Structured logging spec.
+- [x] T4.1 Structured logging spec.
   - Context: logs must be machine-readable and scoped.
   - Changes: `docs/roadmap/observability-repro.md`.
   - DoD: required fields and event retention documented.
   - Risks: noisy logs; Mitigation: log levels and caps.
   - Deps: M0.
 
-- [ ] T4.2 Renderer metrics spec.
+- [x] T4.2 Renderer metrics spec.
   - Context: performance needs GPU-level visibility.
   - Changes: `docs/roadmap/observability-repro.md`.
   - DoD: metrics list and sampling cadence documented.
   - Risks: overhead; Mitigation: optional metric collection.
   - Deps: T4.1.
 
-- [ ] T4.3 Repro bundle format.
+- [x] T4.3 Repro bundle format.
   - Context: issues must be replayable offline.
   - Changes: `docs/roadmap/observability-repro.md`, `docs/diagnostics-failure-surfaces.md`.
   - DoD: JSON schema and capture/consume flow documented.
@@ -156,21 +156,21 @@ Transform the chart engine into a quant-lab-ready, contract-driven system with d
 ### M5 — Threading plan (Worker / OffscreenCanvas)
 **Goal**: Document future compute/render isolation without committing to implementation.
 
-- [ ] T5.1 Worker/OffscreenCanvas architecture plan.
+- [x] T5.1 Worker/OffscreenCanvas architecture plan.
   - Context: main thread must remain responsive under load.
   - Changes: `docs/roadmap/threading-plan.md`.
   - DoD: option A/B diagram and boundary contracts documented.
   - Risks: unreachable design; Mitigation: list browser constraints.
   - Deps: M2.
 
-- [ ] T5.2 Public API stubs and contracts (doc-only).
+- [x] T5.2 Public API stubs and contracts (doc-only).
   - Context: preserve forward-compatible API design.
   - Changes: `docs/roadmap/threading-plan.md`, `docs/public-api-contract.md`.
   - DoD: method signatures and payload shapes documented.
   - Risks: incompatible future implementation; Mitigation: review with renderer owner.
   - Deps: T5.1.
 
-- [ ] T5.3 Fallback and diagnostics policy.
+- [x] T5.3 Fallback and diagnostics policy.
   - Context: fallback must be explicit and observable.
   - Changes: `docs/roadmap/threading-plan.md`, `docs/diagnostics-failure-surfaces.md`.
   - DoD: fallback conditions and diagnostics codes documented.
@@ -180,21 +180,21 @@ Transform the chart engine into a quant-lab-ready, contract-driven system with d
 ### M6 — Packaging and release hygiene
 **Goal**: Make consumption predictable and versioned.
 
-- [ ] T6.1 Packaging targets and exports.
+- [x] T6.1 Packaging targets and exports.
   - Context: host integration depends on stable builds.
   - Changes: `docs/roadmap/packaging-release.md`.
   - DoD: ESM + types + export surface documented.
   - Risks: export drift; Mitigation: contract tests.
   - Deps: M0.
 
-- [ ] T6.2 Release workflow and changelog rules.
+- [x] T6.2 Release workflow and changelog rules.
   - Context: releases must be auditable.
   - Changes: `docs/roadmap/packaging-release.md`.
   - DoD: tag format, changelog format, and required notes documented.
   - Risks: missing notes; Mitigation: CI gate on changelog.
   - Deps: T6.1.
 
-- [ ] T6.3 Compatibility matrix rules.
+- [x] T6.3 Compatibility matrix rules.
   - Context: host must know which versions are supported.
   - Changes: `docs/roadmap/packaging-release.md`, `docs/roadmap/contracts-and-compat.md`.
   - DoD: matrix format and update cadence documented.
@@ -204,21 +204,21 @@ Transform the chart engine into a quant-lab-ready, contract-driven system with d
 ### M7 — CI and gates
 **Goal**: Block regressions in contracts, smoke, and benchmarks.
 
-- [ ] T7.1 CI pipeline specification.
+- [x] T7.1 CI pipeline specification.
   - Context: consistent verification is required.
   - Changes: `docs/roadmap/ci-gates.md`.
   - DoD: pipeline stages and required commands documented.
   - Risks: missing coverage; Mitigation: align with harness scenarios.
   - Deps: M1.
 
-- [ ] T7.2 Gate policy for contracts and smoke.
+- [x] T7.2 Gate policy for contracts and smoke.
   - Context: contract drift must fail fast.
   - Changes: `docs/roadmap/ci-gates.md`, `docs/roadmap/contracts-and-compat.md`.
   - DoD: gate rules and failure triage documented.
   - Risks: over-blocking; Mitigation: staged enforcement levels.
   - Deps: T7.1.
 
-- [ ] T7.3 Benchmark gating rollout.
+- [x] T7.3 Benchmark gating rollout.
   - Context: performance gates must be enforceable.
   - Changes: `docs/roadmap/ci-gates.md`, `docs/roadmap/performance-gates.md`.
   - DoD: benchmark gate trigger conditions documented.
@@ -228,7 +228,7 @@ Transform the chart engine into a quant-lab-ready, contract-driven system with d
 ### M8 — Core engine completion (mapped from legacy phases)
 **Goal**: Close the remaining rendering/data/interaction/compute backlog.
 
-- [ ] T8.1 Rendering pipeline completion.
+- [x] T8.1 Rendering pipeline completion.
   - Context: must reach production-grade GPU pipeline.
   - Changes: `docs/roadmap/legacy-workstreams.md`.
   - DoD: Phase 1 exit criteria satisfied.

@@ -28,6 +28,15 @@ This spec defines benchmark budgets and regression rules.
 - Captures p50/p95 frame time, input latency, memory deltas.
 - Produces artifacted JSON summary + trace ids.
 
+## Benchmark artifact schema (required)
+- `runId`, `scenarioId`, `seed`, `engineVersion`, `engineContractVersion`, `runnerVersion`.
+- `hardwareProfile`: `cpu`, `gpu`, `browser`, `os`.
+- `datasetSpec`: `barCount`, `visibleTarget`, `overlayCounts`, `timeDomain`.
+- `metrics`: `frameTimeMs` (p50/p95/p99), `inputLatencyMs` (p50/p95), `memoryDeltaMB` (cpu/gpu), `drawCalls`, `stateChanges`.
+- `assertions`: threshold values with pass/fail flags.
+- `artifacts`: trace ids or artifact file paths.
+- `timestamp` (ISO-8601).
+
 ## Regression policy
 - Any regression beyond 10% p95 requires a fix or explicit waiver.
 - Regression waivers must include a mitigation plan and an expiry milestone.

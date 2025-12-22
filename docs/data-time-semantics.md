@@ -19,6 +19,12 @@ This document defines the canonical time domain and the required data invariants
 - Duplicate timestamps are rejected by default.
 - If duplicates are unavoidable, the host must merge them before ingestion.
 
+## Versioning and idempotency
+- Each series snapshot carries a monotonically increasing version.
+- Incremental updates must target the latest version.
+- Non-increasing versions are rejected with diagnostics.
+- Reapplying an update with the same version is a no-op.
+
 ## Numeric validity and candle invariants
 - No NaN or Infinity values are allowed.
 - OHLC constraints:
@@ -34,6 +40,20 @@ This document defines the canonical time domain and the required data invariants
 - Append updates must start after the last snapshot time.
 - Prepend updates must end before the first snapshot time.
 - Patch updates must target existing timestamps only.
+
+## Update ordering examples
+- Valid append:
+  - Snapshot times: `[1000, 2000, 3000]`
+  - Append times: `[4000, 5000]`
+- Invalid append (overlap):
+  - Snapshot times: `[1000, 2000, 3000]`
+  - Append times: `[3000, 4000]`
+- Valid prepend:
+  - Snapshot times: `[1000, 2000, 3000]`
+  - Prepend times: `[200, 500]`
+- Invalid patch (missing time):
+  - Snapshot times: `[1000, 2000, 3000]`
+  - Patch times: `[2500]`
 
 ## Gaps and session handling
 - Gaps are first-class and are not auto-filled by the engine.

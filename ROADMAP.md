@@ -225,7 +225,7 @@ Transform the chart engine into a quant-lab-ready, contract-driven system with d
   - Risks: flaky runs; Mitigation: warmup and retry policy.
   - Deps: M2.
 
-### M8 — Core engine completion (mapped from legacy phases)
+### M8 - Core engine completion (mapped from legacy phases)
 **Goal**: Close the remaining rendering/data/interaction/compute backlog.
 
 - [x] T8.1 Rendering pipeline completion.
@@ -270,6 +270,217 @@ Transform the chart engine into a quant-lab-ready, contract-driven system with d
   - Risks: missing repro coverage; Mitigation: repro bundle spec (M4).
   - Deps: M4.
 
+## Implementation milestones (code delivery)
+M0–M8 establish the contract and documentation baseline. The milestones below track the real code delivery required for a production-ready engine.
+
+### M8R - LLM-friendly refactor (urgent)
+**Goal**: Reduce oversized files and clarify module boundaries before further implementation.
+
+- [ ] T8R.1 Audit + refactor map published.
+  - Changes: `docs/roadmap/refactor-llm-friendly.md`.
+  - DoD: audit table + module map + phased refactor plan agreed.
+
+- [ ] T8R.2 ChartEngine split.
+  - DoD: `src/core/chart-engine.ts` becomes facade (<350 lines) with modules in `src/core/engine/`.
+  - Deps: T8R.1.
+
+- [ ] T8R.3 WebGL2 renderer split.
+  - DoD: `src/rendering/webgl2-renderer.ts` becomes facade (<350 lines) with modules in `src/rendering/webgl2/`.
+  - Deps: T8R.1.
+
+- [ ] T8R.4 Overlays + public types split.
+  - DoD: `src/core/overlays.ts` + `src/api/public-types.ts` become indices (<350 lines) with submodules.
+  - Deps: T8R.1.
+
+- [ ] T8R.5 Text rendering + docs guardrails.
+  - DoD: text modules consolidated; `ROADMAP.md`/`agents.md` remain <= 500 lines.
+  - Deps: T8R.1.
+
+### M9 - Integration harness + CI (implementation)
+**Goal**: Build the host-simulating harness and wire CI gates for real runs.
+
+- [ ] T9.1 Implement the harness app and core scenarios.
+  - Context: specs exist; no executable harness yet.
+  - Changes: new `playground/` (or equivalent), scenario registry, wiring to engine API.
+  - DoD: pan/zoom/replay/overlay scenarios run deterministically with a fixed seed.
+  - Risks: scenario drift; Mitigation: scenario ids + golden configs.
+  - Deps: M1.
+
+- [ ] T9.2 Implement deterministic dataset generator + loader.
+  - Context: benchmarks and smoke require reproducible data.
+  - Changes: dataset generator, fixtures, loader contract used by harness.
+  - DoD: dataset ids produce stable hashes across runs; artifacts stored.
+  - Risks: non-determinism; Mitigation: fixed seeds + snapshot hashes.
+  - Deps: T9.1.
+
+- [ ] T9.3 Implement UI smoke test using the harness.
+  - Context: current smoke does not exercise real host flows.
+  - Changes: headless harness runner + snapshot assertions.
+  - DoD: `npm run test:ui:smoke` runs the harness scenarios and outputs artifacts.
+  - Risks: brittle tests; Mitigation: stable scenarios + tolerances.
+  - Deps: T9.1.
+
+- [ ] T9.4 Add CI pipeline with contract + smoke gates.
+  - Context: gate rules exist only in docs.
+  - Changes: CI workflow (typecheck, smoke, contract tests).
+  - DoD: PRs fail on contract drift or smoke failures.
+  - Risks: CI flakiness; Mitigation: warmups + retries for UI smoke.
+  - Deps: T9.3, M7.
+
+### M10 - Rendering + layout (implementation)
+**Goal**: Complete the GPU rendering pipeline and layout guarantees in code.
+
+- [ ] T10.1 Implement persistent GPU buffers, instancing, and clip stacks.
+  - Context: required for stable frame budgets under 1M points.
+  - Changes: renderer buffer strategy, instancing, clip masks per pane/layer.
+  - DoD: pan/zoom steady state uses transform-only updates.
+  - Risks: GPU regressions; Mitigation: perf benchmarks in M2 + gates in M7.
+  - Deps: M2.
+
+- [ ] T10.2 Implement text atlas + GPU text rendering with fallback policy.
+  - Context: text must be stable without Canvas2D thrash.
+  - Changes: SDF/MSDF atlas, glyph cache, fallback detection.
+  - DoD: label rendering meets SLOs with deterministic cache behavior.
+  - Risks: atlas thrash; Mitigation: cache caps + diagnostics.
+  - Deps: T10.1.
+
+- [ ] T10.3 Implement axis layout, gutters, and multi-scale rules in runtime.
+  - Context: docs define one visible scale per side per pane.
+  - Changes: axis layout engine, gutter sizing, tick collision rules.
+  - DoD: no label overlap; right gutter width stable across pan/zoom.
+  - Risks: label jitter; Mitigation: collision tests + deterministic layout.
+  - Deps: M0.
+
+### M11 - Data pipeline + LOD (implementation)
+**Goal**: Deliver deterministic windowing, LOD, and cache behavior.
+
+- [ ] T11.1 Implement window request handshake with prefetch + backpressure.
+  - Context: host/engine window contract is doc-only.
+  - Changes: request/response API, window cache, prefetch margin handling.
+  - DoD: no view jumps on prepend/append; stable window updates under load.
+  - Risks: window thrash; Mitigation: coalescing + request caps.
+  - Deps: M3.
+
+- [ ] T11.2 Implement LOD cache with hysteresis and deterministic selection.
+  - Context: LOD flicker remains a core risk.
+  - Changes: LOD tiers, cache eviction, pixel-density selection.
+  - DoD: LOD boundary transitions are stable across panning.
+  - Risks: memory growth; Mitigation: cache caps + eviction metrics.
+  - Deps: T11.1.
+
+- [ ] T11.3 Implement gap/session handling in the time axis.
+  - Context: quant workflows require explicit gap policy.
+  - Changes: gap compression rules, session markers, axis formatting.
+  - DoD: gaps render per policy; crosshair behavior is deterministic.
+  - Risks: domain drift; Mitigation: canonical time semantics in M3.
+  - Deps: M3.
+
+### M12 - Interaction + overlays (implementation)
+**Goal**: Deliver deterministic interactions and full overlay primitive coverage.
+
+- [ ] T12.1 Implement pointer capture, wheel/pinch zoom, and keyboard controls.
+  - Context: interaction model is spec-only.
+  - Changes: input handlers + state machine, priority rules enforced.
+  - DoD: pan/zoom/crosshair meet SLOs with zero jitter.
+  - Risks: main-thread stalls; Mitigation: transform-only updates during interaction.
+  - Deps: M4.
+
+- [ ] T12.2 Implement hit-testing across series + overlays with replay cutoff.
+  - Context: hit-testing must respect replay and gaps.
+  - Changes: hit-testing APIs, result ranking, replay cutoff clipping.
+  - DoD: crosshair and selection match replay semantics with deterministic results.
+  - Risks: inconsistent snapping; Mitigation: explicit snapping policy.
+  - Deps: M3.
+
+- [ ] T12.3 Implement all overlay primitives in the contract.
+  - Context: quant-lab plots require full primitive support.
+  - Changes: line/zone/marker/label/histogram/area/table primitives.
+  - DoD: unsupported primitives emit diagnostics (no silent drop).
+  - Risks: render overload; Mitigation: overlay caps + perf gates.
+  - Deps: M2.
+
+- [ ] T12.4 Implement host overlay coordinate conversion events.
+  - Context: host overlays must avoid per-frame polling.
+  - Changes: event-driven coordinate updates + API surface.
+  - DoD: overlays can be placed deterministically with event triggers.
+  - Risks: desync; Mitigation: versioned update events.
+  - Deps: M0.
+
+### M13 - Compute + threading (implementation)
+**Goal**: Run indicators off the main thread and prepare worker rendering.
+
+- [ ] T13.1 Implement worker compute pipeline with cancellation + backpressure.
+  - Context: compute docs exist; runtime is partial.
+  - Changes: worker pool, request versioning, cancellation, queue caps.
+  - DoD: indicator toggles do not block; stale results dropped deterministically.
+  - Risks: queue buildup; Mitigation: max queue depth + coalescing.
+  - Deps: M5.
+
+- [ ] T13.2 Implement OffscreenCanvas render path (optional mode).
+  - Context: threading plan is doc-only.
+  - Changes: renderer adapter for worker, message bridge, fallback rules.
+  - DoD: parity with main-thread rendering for core flows.
+  - Risks: browser support gaps; Mitigation: explicit fallback diagnostics.
+  - Deps: M5.
+
+### M14 - Observability + determinism (implementation)
+**Goal**: Make runtime behavior fully observable and reproducible.
+
+- [ ] T14.1 Wire structured logs + metrics to all hot paths.
+  - Context: log/metrics schema exists, integration partial.
+  - Changes: log emitters in renderer, pipeline, interaction.
+  - DoD: repro bundle captures logs + metrics for a session.
+  - Risks: overhead; Mitigation: sampling + caps.
+  - Deps: M4.
+
+- [ ] T14.2 Implement deterministic replay harness + snapshot checks.
+  - Context: replay harness is doc-only.
+  - Changes: replay runner, snapshot hashing, assert tooling.
+  - DoD: same inputs yield same hashes across runs.
+  - Risks: hash instability; Mitigation: normalized ordering rules.
+  - Deps: M3.
+
+- [ ] T14.3 Integrate benchmark gate into CI with thresholds.
+  - Context: benches exist but not enforced.
+  - Changes: CI gate, baseline artifacts, regression reporting.
+  - DoD: CI blocks on perf regressions.
+  - Risks: flaky baselines; Mitigation: warmups + retry policy.
+  - Deps: M2, M7.
+
+### M15 - PineScript parity (host adapter)
+**Goal**: Reach 100% PineScript parity via host-owned runtime and adapter.
+
+- [ ] T15.1 Implement PineScript adapter layer (host-owned).
+  - Context: compatibility matrix is defined but unimplemented.
+  - Changes: adapter mapping outputs -> engine primitives.
+  - DoD: parity suite maps catalog entries to expected primitives.
+  - Risks: scope creep; Mitigation: strict host/engine boundaries.
+  - Deps: M12.
+
+- [ ] T15.2 Implement parity coverage tests against the catalog.
+  - Context: catalog exists without executable validation.
+  - Changes: coverage harness + per-entry status checks.
+  - DoD: 100% catalog entries are covered or explicitly exempted.
+  - Risks: test maintenance; Mitigation: catalog diff tooling.
+  - Deps: T15.1.
+
+### M16 - Packaging + release (implementation)
+**Goal**: Ship predictable builds with explicit compatibility.
+
+- [ ] T16.1 Implement build outputs (ESM + types) with export map.
+  - Context: packaging rules are doc-only.
+  - Changes: build config, export map, public API surface tests.
+  - DoD: consumption works via documented entrypoints.
+  - Risks: export drift; Mitigation: contract tests.
+  - Deps: M0.
+
+- [ ] T16.2 Implement release workflow + compatibility matrix updates.
+  - Context: release hygiene requires automation.
+  - Changes: changelog enforcement, version tagging, matrix update gate.
+  - DoD: releases fail without required notes + compatibility updates.
+  - Risks: manual drift; Mitigation: CI gate on release artifacts.
+  - Deps: T16.1.
+
 ## Cross-cutting dependencies
 - M0 precedes any contract or API changes.
 - M1 is required before any CI smoke gating.
@@ -283,3 +494,4 @@ Transform the chart engine into a quant-lab-ready, contract-driven system with d
 - Contract versioning and compatibility rules are enforced.
 - Integration harness and benchmarks run in CI.
 - Replay determinism validated with repro bundles.
+ - Implementation milestones (M9+) are complete and validated.

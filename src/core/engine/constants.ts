@@ -1,0 +1,2 @@
+export const RENDER_WINDOW_GUARD_RATIO = 0.5;
+export const RENDER_WINDOW_SPAN_TOLERANCE = 0.02;

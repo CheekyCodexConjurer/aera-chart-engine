@@ -44,3 +44,4 @@ This file defines the skills required to build and maintain the charting engine.
 - `docs/skills/host-overlay-interop.md` - host overlay interop.
 - `docs/skills/benchmark-as-gate.md` - benchmark-as-gate discipline.
 - `docs/skills/do-not-copy-quant-lab.md` - scope separation rules.
+- `docs/skills/refactor-llm-friendly.md` - refactor large files into LLM-friendly modules.

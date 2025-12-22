@@ -23,3 +23,4 @@ This index lists the contributor skills required by the engine and links to the 
 - `host-overlay-interop.md` - host overlay interop.
 - `benchmark-as-gate.md` - benchmark-as-gate discipline.
 - `do-not-copy-quant-lab.md` - scope separation rules.
+- `refactor-llm-friendly.md` - refactor large files into LLM-friendly modules.

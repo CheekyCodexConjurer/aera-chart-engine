@@ -72,6 +72,13 @@ export class GlyphAtlas {
     };
   }
 
+  getMetrics(): { pages: number; glyphs: number; capacity: number; occupancy: number } {
+    const capacity = this.cols * this.rows;
+    const glyphs = Math.min(this.nextIndex, capacity);
+    const occupancy = capacity > 0 ? glyphs / capacity : 0;
+    return { pages: 1, glyphs, capacity, occupancy };
+  }
+
   getGlyph(char: string): Glyph {
     const normalized = char.length === 0 ? "?" : char[0];
     let glyph = this.glyphs.get(normalized);

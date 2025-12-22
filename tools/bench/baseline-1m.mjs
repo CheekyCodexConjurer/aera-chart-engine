@@ -6,8 +6,6 @@ import { fileURLToPath } from "node:url";
 import { ChartEngine } from "../../dist/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(__dirname, "../..");
-const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"));
 
 const COUNT = 1_000_000;
 const VISIBLE = 2_000;
@@ -33,6 +31,7 @@ for (let i = 0; i < COUNT; i += 1) {
 }
 
 const engine = new ChartEngine({ width: WIDTH, height: HEIGHT });
+const info = engine.getEngineInfo();
 engine.defineSeries({ id: "candles", type: "candles", paneId: "price", scaleId: "price" });
 engine.setSeriesData("candles", { timeMs, open, high, low, close });
 
@@ -71,8 +70,8 @@ const report = {
   runId: new Date().toISOString().replace(/[:.]/g, "-"),
   scenarioId: "baseline-1m",
   seed: 0,
-  engineVersion: pkg.version,
-  engineContractVersion: pkg.version,
+  engineVersion: info.engineVersion,
+  engineContractVersion: info.engineContractVersion,
   runnerVersion: "bench-0.1",
   hardwareProfile: {
     cpu: os.cpus()[0]?.model ?? "unknown",

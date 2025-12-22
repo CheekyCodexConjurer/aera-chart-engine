@@ -1,5 +1,5 @@
 {
-  "runId": "2025-12-22T15-31-34-378Z",
+  "runId": "2025-12-22T16-40-39-870Z",
   "scenarioId": "baseline-1m",
   "seed": 0,
   "engineVersion": "0.1.0",
@@ -23,16 +23,16 @@
   },
   "metrics": {
     "frameTimeMs": {
-      "p50": 0.008600000000001273,
-      "p95": 0.010599999999982401,
-      "p99": 0.016899999999992588
+      "p50": 0.008499999999997954,
+      "p95": 0.011299999999977217,
+      "p99": 0.01290000000000191
     },
     "inputLatencyMs": {
-      "p50": 0.008600000000001273,
-      "p95": 0.010599999999982401
+      "p50": 0.008499999999997954,
+      "p95": 0.011299999999977217
     },
     "memoryDeltaMB": {
-      "cpu": 0.535736083984375,
+      "cpu": 0.5332260131835938,
       "gpu": 0
     },
     "drawCalls": 0,
@@ -47,7 +47,7 @@
   "artifacts": {
     "traceIds": []
   },
-  "timestamp": "2025-12-22T15:31:34.382Z",
+  "timestamp": "2025-12-22T16:40:39.872Z",
   "renderer": "null",
   "notes": "Headless Node run using NullRenderer; input latency is proxied by frame time."
 }

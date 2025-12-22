@@ -49,6 +49,58 @@ export type Diagnostic = {
   context?: Record<string, unknown>;
 };
 
+export type EngineInfo = {
+  engineVersion: string;
+  engineContractVersion: string;
+};
+
+export type LogLevel = "debug" | "info" | "warn" | "error" | "fatal";
+
+export type LogEvent = {
+  timestamp: string;
+  sessionId: string;
+  chartId: string;
+  engineVersion: string;
+  engineContractVersion: string;
+  level: LogLevel;
+  eventType: string;
+  context?: Record<string, unknown>;
+};
+
+export type RendererMetrics = {
+  frameCount: number;
+  lastFrame: {
+    drawCalls: number;
+    bufferUploads: number;
+    bufferAllocations: number;
+    bufferBytes: number;
+  };
+  totals: {
+    drawCalls: number;
+    bufferUploads: number;
+    bufferAllocations: number;
+    bufferBytes: number;
+  };
+  textAtlas: {
+    pages: number;
+    glyphs: number;
+    capacity: number;
+    occupancy: number;
+  };
+};
+
+export type EngineMetrics = {
+  lodCacheHits: number;
+  lodCacheMisses: number;
+  renderCacheHits: number;
+  renderCacheMisses: number;
+};
+
+export type EngineMetricsSnapshot = {
+  renderer: RendererMetrics | null;
+  engine: EngineMetrics;
+};
+
 export type ReplayMode = "off" | "arming" | "paused" | "playing";
 
 export type ReplayState = {
@@ -162,6 +214,17 @@ export type SeriesUpdate = {
   data: SeriesData;
 };
 
+export type ComputePriority = "low" | "normal" | "high";
+
+export type ComputeRequest = {
+  indicatorId: string;
+  windowId: string;
+  version: number;
+  payload: unknown;
+  seriesId?: string;
+  priority?: ComputePriority;
+};
+
 export type OverlayLayer = "below" | "above" | "ui";
 
 export type OverlayPrimitiveType =
@@ -272,6 +335,14 @@ export type OverlayBatch = {
   overlays: OverlayPrimitive[];
 };
 
+export type ComputeResult = {
+  indicatorId: string;
+  windowId: string;
+  version: number;
+  batch: OverlayBatch;
+  seriesId?: string;
+};
+
 export type OverlayLayoutItem =
   | {
       type: "table";
@@ -334,4 +405,82 @@ export type ChartEngineOptions = {
   crosshairSync?: boolean;
   keyboardPanFraction?: number;
   keyboardZoomFactor?: number;
+  chartId?: string;
+  sessionId?: string;
+  logEventLimit?: number;
+};
+
+export type ReproTimeAxisConfig = {
+  tickCount?: number;
+};
+
+export type ReproScaleSnapshot = {
+  scaleId: ScaleId;
+  position: AxisPosition;
+  visible: boolean;
+  tickCount?: number;
+  autoScale: boolean;
+  domain?: { min: number; max: number };
+};
+
+export type ReproPaneSnapshot = {
+  paneId: PaneId;
+  layoutWeight: number;
+  visibleRange: Range;
+  renderWindow?: Range | null;
+  primaryScaleId: ScaleId;
+  scales: ReproScaleSnapshot[];
+};
+
+export type ReproSeriesSnapshot = {
+  definition: SeriesDefinition;
+  data: SeriesData;
+  version: number;
+};
+
+export type ReproEngineOptions = {
+  width?: number;
+  height?: number;
+  devicePixelRatio?: number;
+  rightGutterWidth?: number;
+  leftGutterWidth?: number;
+  axisLabelCharWidth?: number;
+  axisLabelPadding?: number;
+  axisLabelHeight?: number;
+  prefetchRatio?: number;
+  paneGap?: number;
+  hitTestRadiusPx?: number;
+  lodHysteresisRatio?: number;
+  lodCacheEntries?: number;
+  crosshairSync?: boolean;
+  keyboardPanFraction?: number;
+  keyboardZoomFactor?: number;
+  timeAxisConfig?: ReproTimeAxisConfig;
+  chartId?: string;
+  sessionId?: string;
+  logEventLimit?: number;
+};
+
+export type ReproBundle = {
+  bundleFormatVersion: string;
+  meta: {
+    engineVersion: string;
+    engineContractVersion: string;
+    timestamp: string;
+    sessionId: string;
+    chartId: string;
+    platform: string;
+  };
+  options: ReproEngineOptions;
+  view: {
+    panes: ReproPaneSnapshot[];
+    replayState: ReplayState;
+  };
+  inputs: {
+    series: ReproSeriesSnapshot[];
+    overlays: OverlayBatch[];
+  };
+  events: LogEvent[];
+  diagnostics: Diagnostic[];
+  metrics: EngineMetricsSnapshot;
 };

@@ -4,3 +4,4 @@ export { NullRenderer } from "./rendering/null-renderer.js";
 export { WebGL2Renderer } from "./rendering/webgl2-renderer.js";
 export { CanvasTextLayer } from "./rendering/text-layer.js";
 export type { TextLayer } from "./rendering/text-layer.js";
+export { ComputePipeline } from "./compute/pipeline.js";

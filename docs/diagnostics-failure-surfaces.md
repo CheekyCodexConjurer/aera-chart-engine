@@ -15,26 +15,27 @@ This document defines error surfaces, diagnostic expectations, and reproducibili
 - Context includes `paneId`, `seriesId`, `version`, and time domain where relevant.
 
 ## Diagnostic code policy
-- Codes are stable, kebab-case identifiers.
-- Prefix by domain: `data/*`, `render/*`, `replay/*`, `worker/*`, `api/*`.
+- Codes are stable identifiers.
+- Most domains use dot-separated namespaces; legacy render codes use `render/<code>`.
+- Prefix by domain: `data.*`, `render/*`, `replay.*`, `compute.*`, `overlay.*`, `axis.*`, `api.*`.
 - Any new code requires a doc update in this file.
 
-**Minimum required codes**
-- `data/invalid-time-domain`
-- `data/out-of-order-update`
-- `data/duplicate-timestamp`
-- `data/invalid-ohlc`
+**Minimum required codes (implemented)**
+- `axis.scale.overlap`
+- `data.window.incomplete`
+- `lod.level.changed`
+- `overlay.unsupported`
+- `overlay.points.capped`
 - `render/context-lost`
 - `render/context-restored`
 - `render/buffer-allocation-failed`
 - `render/buffer-rebuild`
 - `render/series-cache-evicted`
-- `render/unsupported-primitive`
-- `replay/cutoff-violation`
-- `replay/window-out-of-range`
-- `worker/unavailable`
-- `worker/offscreen-unavailable`
-- `api/invalid-command`
+- `compute.queue.overrun`
+- `compute.request.canceled`
+- `compute.result.canceled`
+- `compute.result.stale`
+- `compute.result.untracked`
 
 ## Failure surfaces (must be explicit)
 - Data validation failures (ordering, NaN, duplicates).

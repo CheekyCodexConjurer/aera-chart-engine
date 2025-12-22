@@ -10,7 +10,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "check": "npm run build",
-    "test:ui:smoke": "npm run build && node ./tests/ui-smoke.mjs"
+    "test:ui:smoke": "npm run build && node ./tests/ui-smoke.mjs",
+    "bench:baseline": "npm run build && node ./tools/bench/baseline-1m.mjs",
+    "bench:gate": "node ./tools/bench/check-baseline.mjs",
+    "bench:interaction": "npm run build && node ./tools/bench/interaction-latency.mjs"
   },
   "devDependencies": {
     "typescript": "^5.5.4"

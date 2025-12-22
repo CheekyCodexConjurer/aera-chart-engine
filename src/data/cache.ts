@@ -1,6 +1,6 @@
 export class LruCache<K, V> {
   private map = new Map<K, V>();
-  constructor(private capacity: number) {}
+  constructor(private capacity: number, private onEvict?: (key: K, value: V) => void) {}
 
   get(key: K): V | undefined {
     const value = this.map.get(key);
@@ -19,6 +19,10 @@ export class LruCache<K, V> {
     if (this.map.size > this.capacity) {
       const firstKey = this.map.keys().next().value;
       if (firstKey !== undefined) {
+        const evicted = this.map.get(firstKey);
+        if (evicted !== undefined) {
+          this.onEvict?.(firstKey, evicted);
+        }
         this.map.delete(firstKey);
       }
     }

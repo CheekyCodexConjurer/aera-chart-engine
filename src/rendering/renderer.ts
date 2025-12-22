@@ -1,6 +1,6 @@
 import { PlotArea, ScaleDomain } from "../core/transform.js";
 import { OverlayRenderItem } from "../core/overlays.js";
-import { AxisPosition, Diagnostic, Range, SeriesType, TimeMs } from "../api/public-types.js";
+import { AxisPosition, Diagnostic, Range, RendererMetrics, SeriesType, TimeMs } from "../api/public-types.js";
 import { AxisTick } from "../core/axis.js";
 
 export type RenderSeries = {
@@ -62,4 +62,5 @@ export interface Renderer {
   render(frame: RenderFrame): void;
   removeSeries?(seriesId: string): void;
   setDiagnostics?(handler: (diag: Diagnostic) => void): void;
+  getMetrics?(): RendererMetrics;
 }

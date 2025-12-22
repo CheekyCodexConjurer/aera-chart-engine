@@ -2,9 +2,11 @@ import { Diagnostic, DiagnosticSeverity } from "../api/public-types.js";
 
 export class DiagnosticsStore {
   private diagnostics: Diagnostic[] = [];
+  constructor(private onAdd?: (diagnostic: Diagnostic) => void) {}
 
   add(diagnostic: Diagnostic): void {
     this.diagnostics.push(diagnostic);
+    this.onAdd?.(diagnostic);
   }
 
   addError(code: string, message: string, context?: Record<string, unknown>): void {

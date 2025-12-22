@@ -12,29 +12,29 @@ Use this mapping to validate T8.x completion in `ROADMAP.md`.
 - Evidence: diagnostics for context loss and buffer rebuilds are implemented.
 
 **T8.2 Axes and multi-scale completion**
-- Evidence: tick collision tests and gutter stability tests pass.
-- Evidence: multi-pane + multi-scale invariants documented and enforced.
-- Evidence: coordinate conversion contract validated via harness.
+- Evidence: tick collision + gutter stability tests pass (`tests/axis-layout.mjs`).
+- Evidence: multi-pane + multi-scale invariants documented and enforced (`docs/data-model.md`, `docs/public-api-contract.md`).
+- Evidence: coordinate conversion contract validated (`tests/coordinate-contract.mjs`).
 
 **T8.3 Data pipeline and LOD completion**
-- Evidence: LOD determinism and hysteresis tests pass.
-- Evidence: window request/response contract tests pass.
-- Evidence: append/prepend/patch behaviors verified under load.
+- Evidence: LOD determinism + hysteresis tests pass (`tests/data-pipeline.mjs`).
+- Evidence: window request/response contract tests pass (`tests/data-pipeline.mjs`).
+- Evidence: append/prepend/patch behaviors verified under load (`tests/data-pipeline.mjs`).
 
 **T8.4 Interaction and hit-testing completion**
-- Evidence: interaction SLOs met for pan/zoom/crosshair/replay scrub.
-- Evidence: hit-testing stable under replay and gaps.
-- Evidence: input priority rules verified via perf traces.
+- Evidence: interaction SLOs met for pan/zoom/crosshair/replay scrub (`tools/bench/interaction-latency.mjs`).
+- Evidence: hit-testing stable under replay and gaps (`tests/interaction-hit-testing.mjs`).
+- Evidence: input priority rules verified via perf traces (`tools/bench/reports/interaction-latency.json`).
 
 **T8.5 Compute and indicator integration completion**
-- Evidence: worker cancellation and backpressure tests pass.
-- Evidence: stale result dropping verified via versioned outputs.
-- Evidence: indicator output caps enforced with diagnostics.
+- Evidence: worker cancellation and backpressure tests pass (`tests/compute-pipeline.mjs`).
+- Evidence: stale result dropping verified via versioned outputs (`tests/compute-pipeline.mjs`).
+- Evidence: indicator output caps enforced with diagnostics (`tests/overlay-caps.mjs`).
 
 **T8.6 Observability and regression gate completion**
-- Evidence: repro bundle capture/replay works for baseline scenarios.
-- Evidence: benchmark gates running in CI with thresholds enforced.
-- Evidence: diagnostics taxonomy implemented and surfaced.
+- Evidence: repro bundle capture/replay works (`tests/repro-bundle.mjs`).
+- Evidence: benchmark gates running in CI with thresholds enforced (`tools/bench/check-baseline.mjs`, `package.json`).
+- Evidence: diagnostics taxonomy implemented and surfaced (`docs/diagnostics-failure-surfaces.md`).
 
 ## Legacy phases
 

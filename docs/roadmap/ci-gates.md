@@ -6,7 +6,7 @@ This spec defines the minimum CI pipeline and gating policy.
 - Typecheck and build (`npm run check`).
 - Unit tests for data/LOD/replay (when added).
 - Harness smoke tests (playground headless).
-- Benchmark suite (when available).
+- Benchmark suite (`npm run bench:baseline`, `npm run bench:interaction`).
  - Contract tests (doc-first, enforce version bumps).
 
 ## Gate policy
@@ -32,7 +32,9 @@ This spec defines the minimum CI pipeline and gating policy.
 - `npm run check`
 - `npm run test:ui:smoke`
 - `npm run harness:smoke` (planned)
-- `npm run bench` (planned)
+- `npm run bench:baseline`
+- `npm run bench:interaction`
+- `npm run bench:gate`
 
 ## References
 - `performance-gates.md`

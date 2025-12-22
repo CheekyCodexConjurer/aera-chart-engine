@@ -235,35 +235,35 @@ Transform the chart engine into a quant-lab-ready, contract-driven system with d
   - Risks: GPU regressions; Mitigation: perf gates from M2.
   - Deps: M2.
 
-- [ ] T8.2 Axes and multi-scale completion.
+- [x] T8.2 Axes and multi-scale completion.
   - Context: stable layout is required for host overlays.
   - Changes: `docs/roadmap/legacy-workstreams.md`.
   - DoD: Phase 2 exit criteria satisfied.
   - Risks: label jitter; Mitigation: tick collision tests.
   - Deps: M0.
 
-- [ ] T8.3 Data pipeline and LOD completion.
+- [x] T8.3 Data pipeline and LOD completion.
   - Context: large datasets must be deterministic.
   - Changes: `docs/roadmap/legacy-workstreams.md`.
   - DoD: Phase 3 exit criteria satisfied.
   - Risks: LOD flicker; Mitigation: hysteresis policy.
   - Deps: M2.
 
-- [ ] T8.4 Interaction and hit-testing completion.
+- [x] T8.4 Interaction and hit-testing completion.
   - Context: stable UX is mandatory.
   - Changes: `docs/roadmap/legacy-workstreams.md`.
   - DoD: Phase 4 exit criteria satisfied.
   - Risks: jitter under load; Mitigation: input priority rules.
   - Deps: M1.
 
-- [ ] T8.5 Compute and indicator integration completion.
+- [x] T8.5 Compute and indicator integration completion.
   - Context: heavy indicators must not block.
   - Changes: `docs/roadmap/legacy-workstreams.md`.
   - DoD: Phase 5 exit criteria satisfied.
   - Risks: worker backpressure issues; Mitigation: cancellation policy.
   - Deps: M5.
 
-- [ ] T8.6 Observability and regression gate completion.
+- [x] T8.6 Observability and regression gate completion.
   - Context: production usage requires diagnostics.
   - Changes: `docs/roadmap/legacy-workstreams.md`.
   - DoD: Phase 6 exit criteria satisfied.

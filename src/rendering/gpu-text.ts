@@ -86,6 +86,10 @@ export class GpuTextRenderer {
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, null);
   }
 
+  getMetrics(): { pages: number; glyphs: number; capacity: number; occupancy: number } {
+    return this.atlas.getMetrics();
+  }
+
   private initialize(): void {
     const program = createProgram(this.gl, TEXT_VERT, TEXT_FRAG);
     if (!program) return;

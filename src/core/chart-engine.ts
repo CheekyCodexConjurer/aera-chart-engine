@@ -3,14 +3,19 @@ import {
   ChartEngineOptions,
   CrosshairEvent,
   DataWindowRequestEvent,
+  Diagnostic,
+  EngineMetricsSnapshot,
   HitTestEvent,
   KeyCommand,
   LayoutChangeEvent,
+  LogEvent,
+  LogLevel,
   OverlayBatch,
   OverlayLayoutEvent,
   OverlayLayoutItem,
   PaneLayout,
   Range,
+  ReproBundle,
   ScaleConfig,
   RightLabelOverlayData,
   ReplayState,
@@ -23,11 +28,14 @@ import {
   TableOverlayData,
   TimeAxisConfig,
   TimeMs,
-  VisibleRangeEvent
+  VisibleRangeEvent,
+  ComputeRequest,
+  ComputeResult
 } from "../api/public-types.js";
 import { DiagnosticsStore } from "./diagnostics.js";
 import { EventEmitter } from "./events.js";
 import { FrameScheduler } from "./scheduler.js";
+import { LogStore } from "./log-store.js";
 import { computeDataWindow, rangeContains, rangeSpan, sliceSnapshot } from "../data/window.js";
 import { validateSeriesData } from "../data/validation.js";
 import { appendSnapshot, createSnapshot, patchSnapshot, prependSnapshot } from "../data/snapshot.js";
@@ -38,12 +46,14 @@ import { LruCache } from "../data/cache.js";
 import { LodLevel, LodSelection, policyForSeries, selectLod } from "../data/lod-policy.js";
 import { InteractionStateMachine } from "../interaction/state-machine.js";
 import { PointerState } from "../interaction/pointer.js";
-import { clipOverlay, isOverlaySupported, OverlayRenderItem, OverlayStore, validateOverlay } from "./overlays.js";
+import { clipOverlay, enforceOverlayCaps, isOverlaySupported, OverlayRenderItem, OverlayStore, validateOverlay } from "./overlays.js";
 import { PlotArea, ScaleDomain, timeToX, xToTime, priceToY, yToPrice } from "./transform.js";
 import { RenderCrosshair, Renderer, RenderFrame, RenderSeries } from "../rendering/renderer.js";
 import { NullRenderer } from "../rendering/null-renderer.js";
 import { clamp } from "../util/math.js";
 import { AxisTick, generateNumericTicks, generateTimeTicks } from "./axis.js";
+import { ComputePipeline } from "../compute/pipeline.js";
+import { ENGINE_CONTRACT_VERSION, ENGINE_VERSION, REPRO_BUNDLE_VERSION } from "./version.js";
 
 const RENDER_WINDOW_GUARD_RATIO = 0.5;
 const RENDER_WINDOW_SPAN_TOLERANCE = 0.02;
@@ -53,12 +63,17 @@ export type ChartEngineInitOptions = ChartEngineOptions & {
 };
 
 export class ChartEngine {
-  private diagnostics = new DiagnosticsStore();
+  private diagnostics: DiagnosticsStore;
+  private logStore: LogStore;
+  private chartId: string;
+  private sessionId: string;
+  private logEventLimit: number;
   private renderer: Renderer;
   private scheduler: FrameScheduler;
   private panes = new Map<string, PaneState>();
   private series = new Map<string, SeriesState>();
   private overlays = new OverlayStore();
+  private computePipeline: ComputePipeline;
   private renderCache = new Map<string, RenderSeriesCache>();
   private lodCache: LruCache<string, RenderSeries>;
   private lodState = new Map<string, LodState>();
@@ -71,6 +86,12 @@ export class ChartEngine {
   private pendingCrosshairMove: CrosshairEvent | null = null;
   private crosshairMoveScheduled = false;
   private crosshairState: CrosshairEvent | null = null;
+  private engineMetrics = {
+    lodCacheHits: 0,
+    lodCacheMisses: 0,
+    renderCacheHits: 0,
+    renderCacheMisses: 0
+  };
 
   private visibleRangeEmitter = new EventEmitter<VisibleRangeEvent>();
   private transformEmitter = new EventEmitter<{ paneId: string }>();
@@ -99,6 +120,7 @@ export class ChartEngine {
   private pendingHitTest: HitTestEvent | null = null;
   private hitTestScheduled = false;
   private lodHysteresisRatio: number;
+  private lodCacheEntries: number;
   private crosshairSync: boolean;
   private keyboardPanFraction: number;
   private keyboardZoomFactor: number;
@@ -107,6 +129,10 @@ export class ChartEngine {
     this.width = options.width ?? 800;
     this.height = options.height ?? 600;
     this.devicePixelRatio = options.devicePixelRatio ?? 1;
+    this.chartId = options.chartId ?? "chart";
+    this.sessionId = options.sessionId ?? generateSessionId();
+    this.logEventLimit = options.logEventLimit ?? 512;
+    this.logStore = new LogStore(this.logEventLimit);
     this.baseRightGutterWidth = options.rightGutterWidth ?? 60;
     this.baseLeftGutterWidth = options.leftGutterWidth ?? 0;
     this.axisLabelCharWidth = options.axisLabelCharWidth ?? 7;
@@ -118,14 +144,28 @@ export class ChartEngine {
     this.paneGap = options.paneGap ?? 0;
     this.hitTestRadiusPx = options.hitTestRadiusPx ?? 8;
     this.lodHysteresisRatio = options.lodHysteresisRatio ?? 0.15;
-    this.lodCache = new LruCache<string, RenderSeries>(options.lodCacheEntries ?? 64);
+    this.lodCacheEntries = options.lodCacheEntries ?? 64;
+    this.lodCache = new LruCache<string, RenderSeries>(
+      this.lodCacheEntries,
+      (key) => {
+        this.recordLog("info", "cache_evicted", { cache: "lod", key });
+      }
+    );
     this.crosshairSync = options.crosshairSync ?? true;
     this.keyboardPanFraction = options.keyboardPanFraction ?? 0.1;
     this.keyboardZoomFactor = options.keyboardZoomFactor ?? 1.2;
+    this.diagnostics = new DiagnosticsStore((diag) => this.recordDiagnostic(diag));
     this.renderer = options.renderer ?? new NullRenderer();
     this.renderer.setDiagnostics?.((diag) => {
       this.diagnostics.add(diag);
       this.diagnosticsEmitter.emit();
+    });
+    this.computePipeline = new ComputePipeline({
+      applyOverlays: (batch) => this.setOverlays(batch),
+      emitDiagnostic: (diag) => {
+        this.diagnostics.add(diag);
+        this.diagnosticsEmitter.emit();
+      }
     });
 
     this.scheduler = new FrameScheduler(() => this.renderFrame());
@@ -172,6 +212,148 @@ export class ChartEngine {
 
   getDiagnostics(): ReadonlyArray<ReturnType<DiagnosticsStore["getAll"]>[number]> {
     return this.diagnostics.getAll();
+  }
+
+  getEngineInfo(): { engineVersion: string; engineContractVersion: string } {
+    return { engineVersion: ENGINE_VERSION, engineContractVersion: ENGINE_CONTRACT_VERSION };
+  }
+
+  getLogs(): ReadonlyArray<LogEvent> {
+    return this.logStore.getAll();
+  }
+
+  getMetrics(): EngineMetricsSnapshot {
+    return {
+      renderer: this.renderer.getMetrics?.() ?? null,
+      engine: { ...this.engineMetrics }
+    };
+  }
+
+  captureReproBundle(): ReproBundle {
+    const panes = Array.from(this.panes.values()).map((pane) => {
+      const scales = Array.from(pane.scaleConfigs.entries()).map(([scaleId, config]) => {
+        const domain = pane.scaleDomains.get(scaleId);
+        return {
+          scaleId,
+          position: config.position,
+          visible: config.visible,
+          tickCount: config.tickCount,
+          autoScale: pane.autoScale.get(scaleId) ?? true,
+          domain: domain ? { min: domain.min, max: domain.max } : undefined
+        };
+      });
+      return {
+        paneId: pane.id,
+        layoutWeight: pane.layoutWeight,
+        visibleRange: { ...pane.visibleRange },
+        renderWindow: pane.renderWindow ? { ...pane.renderWindow } : null,
+        primaryScaleId: pane.primaryScaleId,
+        scales
+      };
+    });
+
+    const seriesSnapshots = Array.from(this.series.values())
+      .filter((series) => series.snapshot)
+      .map((series) => {
+        const snapshot = series.snapshot!;
+        return {
+          definition: {
+            id: series.id,
+            type: series.type,
+            paneId: series.paneId,
+            scaleId: series.scaleId
+          },
+          data: this.snapshotToSeriesData(series.type, snapshot),
+          version: snapshot.version
+        };
+      });
+
+    return {
+      bundleFormatVersion: REPRO_BUNDLE_VERSION,
+      meta: {
+        engineVersion: ENGINE_VERSION,
+        engineContractVersion: ENGINE_CONTRACT_VERSION,
+        timestamp: new Date().toISOString(),
+        sessionId: this.sessionId,
+        chartId: this.chartId,
+        platform: getPlatform()
+      },
+      options: this.snapshotOptions(),
+      view: {
+        panes,
+        replayState: { ...this.replayState }
+      },
+      inputs: {
+        series: seriesSnapshots,
+        overlays: this.overlays.getBatches()
+      },
+      events: this.logStore.getAll(),
+      diagnostics: this.diagnostics.getAll(),
+      metrics: this.getMetrics()
+    };
+  }
+
+  applyReproBundle(bundle: ReproBundle): void {
+    const oldSeries = Array.from(this.series.keys());
+    for (const seriesId of oldSeries) {
+      this.renderer.removeSeries?.(seriesId);
+    }
+    this.series.clear();
+    this.renderCache.clear();
+    this.lodCache.clear();
+    this.lodState.clear();
+    this.overlays = new OverlayStore();
+    this.panes.clear();
+    this.paneOrderCounter = 0;
+
+    const options = bundle.options;
+    const width = options.width ?? this.width;
+    const height = options.height ?? this.height;
+    const dpr = options.devicePixelRatio ?? this.devicePixelRatio;
+    this.setViewportSize(width, height, dpr);
+
+    if (options.timeAxisConfig) {
+      this.setTimeAxisConfig(options.timeAxisConfig);
+    }
+
+    if (bundle.view.panes.length > 0) {
+      this.setPaneLayout(bundle.view.panes.map((pane) => ({ paneId: pane.paneId, weight: pane.layoutWeight })));
+    }
+
+    for (const series of bundle.inputs.series) {
+      this.defineSeries(series.definition);
+      this.setSeriesData(series.definition.id, series.data, "replace");
+    }
+
+    for (const pane of bundle.view.panes) {
+      for (const scale of pane.scales) {
+        this.setScaleConfig(pane.paneId, scale.scaleId, {
+          position: scale.position,
+          visible: scale.visible,
+          tickCount: scale.tickCount
+        });
+        if (scale.autoScale === false && scale.domain) {
+          this.setScaleDomain(pane.paneId, scale.scaleId, scale.domain);
+        }
+      }
+    }
+
+    this.setReplayState(bundle.view.replayState);
+    for (const pane of bundle.view.panes) {
+      this.setVisibleRange(pane.visibleRange, pane.paneId);
+    }
+
+    for (const batch of bundle.inputs.overlays) {
+      this.setOverlays(batch);
+    }
+
+    this.flush();
+  }
+
+  static fromReproBundle(bundle: ReproBundle): ChartEngine {
+    const engine = new ChartEngine(bundle.options);
+    engine.applyReproBundle(bundle);
+    return engine;
   }
 
   flush(): void {
@@ -455,6 +637,7 @@ export class ChartEngine {
 
   setOverlays(batch: OverlayBatch): void {
     const accepted: typeof batch.overlays = [];
+    let diagnosticsChanged = false;
     for (const overlay of batch.overlays) {
       if (!isOverlaySupported(overlay.type)) {
         this.diagnostics.addWarn("overlay.unsupported", "overlay type is not supported", {
@@ -462,9 +645,22 @@ export class ChartEngine {
           overlayId: overlay.id,
           type: overlay.type
         });
+        diagnosticsChanged = true;
         continue;
       }
-      const issues = validateOverlay(overlay);
+      const capped = enforceOverlayCaps(overlay);
+      const cappedOverlay = capped.overlay;
+      if (capped.capped) {
+        this.diagnostics.addWarn("overlay.points.capped", "overlay points capped to limit", {
+          batchId: batch.batchId,
+          overlayId: overlay.id,
+          type: overlay.type,
+          cap: capped.cap,
+          originalCount: capped.originalCount
+        });
+        diagnosticsChanged = true;
+      }
+      const issues = validateOverlay(cappedOverlay);
       if (issues.length > 0) {
         for (const issue of issues) {
           this.diagnostics.addError(issue.code, issue.message, {
@@ -473,32 +669,38 @@ export class ChartEngine {
             type: overlay.type,
             ...issue.context
           });
+          diagnosticsChanged = true;
         }
         continue;
       }
-      const paneId = overlay.paneId ?? "price";
+      const paneId = cappedOverlay.paneId ?? "price";
       const pane = this.panes.get(paneId);
       if (!pane) {
         this.diagnostics.addError("overlay.pane.missing", "overlay pane does not exist", {
           batchId: batch.batchId,
-          overlayId: overlay.id,
+          overlayId: cappedOverlay.id,
           paneId
         });
+        diagnosticsChanged = true;
         continue;
       }
-      const scaleId = overlay.scaleId ?? this.getPrimaryScaleId(paneId);
+      const scaleId = cappedOverlay.scaleId ?? this.getPrimaryScaleId(paneId);
       if (!pane.scaleDomains.has(scaleId)) {
         this.diagnostics.addError("overlay.scale.missing", "overlay scale does not exist", {
           batchId: batch.batchId,
-          overlayId: overlay.id,
+          overlayId: cappedOverlay.id,
           paneId,
           scaleId
         });
+        diagnosticsChanged = true;
         continue;
       }
-      accepted.push({ ...overlay, paneId, scaleId });
+      accepted.push({ ...cappedOverlay, paneId, scaleId });
     }
     this.overlays.setBatch({ ...batch, overlays: accepted });
+    if (diagnosticsChanged) {
+      this.diagnosticsEmitter.emit();
+    }
     this.requestRender();
   }
 
@@ -507,12 +709,47 @@ export class ChartEngine {
     this.requestRender();
   }
 
+  setComputePipeline(pipeline: ComputePipeline | null): void {
+    if (pipeline) {
+      this.computePipeline = pipeline;
+      return;
+    }
+    this.computePipeline = new ComputePipeline({
+      applyOverlays: (batch) => this.setOverlays(batch),
+      emitDiagnostic: (diag) => {
+        this.diagnostics.add(diag);
+        this.diagnosticsEmitter.emit();
+      }
+    });
+  }
+
+  postComputeRequest(request: ComputeRequest): void {
+    this.computePipeline.postRequest(request);
+  }
+
+  cancelComputeIndicator(indicatorId: string, version?: number): void {
+    this.computePipeline.cancelIndicator(indicatorId, version);
+  }
+
+  cancelComputeWindow(windowId: string): void {
+    this.computePipeline.cancelWindow(windowId);
+  }
+
+  applyComputeResult(result: ComputeResult): boolean {
+    return this.computePipeline.applyResult(result);
+  }
+
+  getComputeStatus(): { pendingIndicators: number; pendingSeries: number } {
+    return this.computePipeline.getStatus();
+  }
+
   setReplayState(state: ReplayState): void {
     this.replayState = state;
     for (const pane of this.panes.values()) {
       pane.visibleRange = this.clampRangeToReplay(pane.visibleRange, this.getPrimarySeries(pane.id));
       this.emitVisibleRange(pane.id, pane.visibleRange);
     }
+    this.recordLog("info", "replay_state_changed", { state: { ...state } });
     this.requestRender();
   }
 
@@ -782,9 +1019,10 @@ export class ChartEngine {
         });
       }
     }
+    const resolved = this.enforceSingleScalePerSide(pane, left, right);
     return {
-      left,
-      right,
+      left: resolved.left,
+      right: resolved.right,
       time: pane.timeTicks,
       primaryScaleId: pane.primaryScaleId,
       leftGutterWidth: pane.leftGutterWidth,
@@ -822,13 +1060,16 @@ export class ChartEngine {
       cache.maxPoints === maxPoints &&
       cache.cutoffTime === cutoffTime
     ) {
+      this.engineMetrics.renderCacheHits += 1;
       return cache.series;
     }
+    this.engineMetrics.renderCacheMisses += 1;
 
     const cutoffKey = cutoffTime ?? "none";
     const cacheKey = `${series.id}|${snapshot.version}|${renderRange.startMs}|${renderRange.endMs}|${maxPoints}|${cutoffKey}`;
     const cachedSeries = this.lodCache.get(cacheKey);
     if (cachedSeries) {
+      this.engineMetrics.lodCacheHits += 1;
       this.renderCache.set(series.id, {
         version: snapshot.version,
         windowStartMs: renderRange.startMs,
@@ -839,6 +1080,7 @@ export class ChartEngine {
       });
       return cachedSeries;
     }
+    this.engineMetrics.lodCacheMisses += 1;
 
     let timeMs = renderSlice.timeMs;
     let fields: Record<string, Float64Array> = {};
@@ -906,6 +1148,13 @@ export class ChartEngine {
           pointsPerPixel: selection.pointsPerPixel
         });
         this.diagnosticsEmitter.emit();
+        this.recordLog("info", "lod_level_changed", {
+          seriesId: series.id,
+          from: previous.level,
+          to: selection.level,
+          density: selection.density,
+          pointsPerPixel: selection.pointsPerPixel
+        });
       }
     }
     return selection;
@@ -1116,7 +1365,6 @@ export class ChartEngine {
         config.tickCount ?? targetCount,
         config.labelFormatter
       );
-      axisTicks.set(scaleId, ticks);
       for (const tick of ticks) {
         const width = this.measureLabelWidth(tick.label);
         if (config.position === "left") {
@@ -1125,6 +1373,7 @@ export class ChartEngine {
           maxRightLabel = Math.max(maxRightLabel, width);
         }
       }
+      axisTicks.set(scaleId, this.filterNumericTicks(pane, scaleId, ticks));
     }
 
     const leftGutterWidth = Math.max(this.baseLeftGutterWidth, maxLeftLabel + this.axisLabelPadding * 2);
@@ -1168,6 +1417,85 @@ export class ChartEngine {
     return result;
   }
 
+  private filterNumericTicks(pane: PaneState, scaleId: string, ticks: AxisTick[]): AxisTick[] {
+    if (ticks.length <= 2) return ticks;
+    const domain = pane.scaleDomains.get(scaleId);
+    if (!domain) return ticks;
+    const labelHeight = Math.max(8, this.axisLabelHeight);
+    const minGap = labelHeight + this.axisLabelPadding;
+    const candidates: { tick: AxisTick; y: number }[] = [];
+    for (const tick of ticks) {
+      const y = priceToY(domain, pane.plotArea, tick.value);
+      if (y === null) continue;
+      candidates.push({ tick, y });
+    }
+    if (candidates.length <= 2) return ticks;
+    candidates.sort((a, b) => a.y - b.y);
+    const kept = new Set<AxisTick>();
+    let lastBottom = -Infinity;
+    for (const candidate of candidates) {
+      const top = candidate.y - labelHeight / 2;
+      const bottom = candidate.y + labelHeight / 2;
+      if (top >= lastBottom + minGap) {
+        kept.add(candidate.tick);
+        lastBottom = bottom;
+      }
+    }
+    return ticks.filter((tick) => kept.has(tick));
+  }
+
+  private enforceSingleScalePerSide(
+    pane: PaneState,
+    left: PaneRenderState["axis"]["left"],
+    right: PaneRenderState["axis"]["right"]
+  ): { left: PaneRenderState["axis"]["left"]; right: PaneRenderState["axis"]["right"] } {
+    const leftVisible = left.filter((item) => item.visible);
+    const rightVisible = right.filter((item) => item.visible);
+    const nextConflictState = {
+      left: leftVisible.map((item) => item.scaleId),
+      right: rightVisible.map((item) => item.scaleId)
+    };
+    if (
+      pane.lastScaleConflict === null ||
+      !arraysEqual(pane.lastScaleConflict.left, nextConflictState.left) ||
+      !arraysEqual(pane.lastScaleConflict.right, nextConflictState.right)
+    ) {
+      if (leftVisible.length > 1) {
+        const kept = this.pickScaleToKeep(leftVisible, pane.primaryScaleId);
+        this.diagnostics.addWarn("axis.scale.overlap", "multiple visible scales on left side; hiding extras", {
+          paneId: pane.id,
+          side: "left",
+          visibleScaleIds: nextConflictState.left,
+          keptScaleId: kept
+        });
+        this.diagnosticsEmitter.emit();
+        for (const item of left) {
+          item.visible = item.scaleId === kept;
+        }
+      }
+      if (rightVisible.length > 1) {
+        const kept = this.pickScaleToKeep(rightVisible, pane.primaryScaleId);
+        this.diagnostics.addWarn("axis.scale.overlap", "multiple visible scales on right side; hiding extras", {
+          paneId: pane.id,
+          side: "right",
+          visibleScaleIds: nextConflictState.right,
+          keptScaleId: kept
+        });
+        this.diagnosticsEmitter.emit();
+        for (const item of right) {
+          item.visible = item.scaleId === kept;
+        }
+      }
+      pane.lastScaleConflict = nextConflictState;
+    }
+    return { left, right };
+  }
+
+  private pickScaleToKeep(scales: Array<{ scaleId: string }>, primaryScaleId: string): string {
+    const preferred = scales.find((scale) => scale.scaleId === primaryScaleId);
+    return preferred?.scaleId ?? scales[0]?.scaleId ?? primaryScaleId;
+  }
+
   private measureLabelWidth(text: string): number {
     if (this.axisLabelMeasure) {
       const measured = this.axisLabelMeasure(text);
@@ -1182,6 +1510,7 @@ export class ChartEngine {
       pane.lastEmittedRange = { ...range };
       this.visibleRangeEmitter.emit({ paneId, range });
       this.transformEmitter.emit({ paneId });
+      this.recordLog("info", "visible_range_changed", { paneId, range: { ...range } });
     }
     this.updateRenderWindow(pane, range);
     this.maybeRequestDataWindow(pane);
@@ -1192,7 +1521,15 @@ export class ChartEngine {
   private updateRenderWindow(pane: PaneState, range: Range): void {
     if (!this.shouldUpdateRenderWindow(pane, range)) return;
     const dataWindow = computeDataWindow(range, this.prefetchRatio);
+    const previous = pane.renderWindow ? { ...pane.renderWindow } : null;
     pane.renderWindow = { ...dataWindow.range };
+    if (!rangesEqual(previous, pane.renderWindow)) {
+      this.recordLog("info", "render_window_shifted", {
+        paneId: pane.id,
+        previous,
+        next: { ...pane.renderWindow }
+      });
+    }
   }
 
   private shouldUpdateRenderWindow(pane: PaneState, range: Range): boolean {
@@ -1231,6 +1568,11 @@ export class ChartEngine {
       pane.lastRequestedDataWindow = { ...target };
       pane.pendingDataWindow = { ...target };
       this.dataWindowEmitter.emit({ paneId: pane.id, range: target, prefetchRatio: this.prefetchRatio });
+      this.recordLog("info", "data_window_requested", {
+        paneId: pane.id,
+        range: { ...target },
+        prefetchRatio: this.prefetchRatio
+      });
     }
   }
 
@@ -1266,6 +1608,70 @@ export class ChartEngine {
 
   private requestRender(): void {
     this.scheduler.requestFrame();
+  }
+
+  private recordLog(level: LogLevel, eventType: string, context?: Record<string, unknown>): void {
+    this.logStore.add({
+      timestamp: new Date().toISOString(),
+      sessionId: this.sessionId,
+      chartId: this.chartId,
+      engineVersion: ENGINE_VERSION,
+      engineContractVersion: ENGINE_CONTRACT_VERSION,
+      level,
+      eventType,
+      context
+    });
+  }
+
+  private recordDiagnostic(diagnostic: Diagnostic): void {
+    const level = diagnostic.severity === "fatal" ? "fatal" : diagnostic.severity;
+    this.recordLog(level, "diagnostic_emitted", {
+      code: diagnostic.code,
+      message: diagnostic.message,
+      severity: diagnostic.severity,
+      recoverable: diagnostic.recoverable,
+      context: diagnostic.context
+    });
+  }
+
+  private snapshotOptions(): ReproBundle["options"] {
+    return {
+      width: this.width,
+      height: this.height,
+      devicePixelRatio: this.devicePixelRatio,
+      rightGutterWidth: this.baseRightGutterWidth,
+      leftGutterWidth: this.baseLeftGutterWidth,
+      axisLabelCharWidth: this.axisLabelCharWidth,
+      axisLabelPadding: this.axisLabelPadding,
+      axisLabelHeight: this.axisLabelHeight,
+      prefetchRatio: this.prefetchRatio,
+      paneGap: this.paneGap,
+      hitTestRadiusPx: this.hitTestRadiusPx,
+      lodHysteresisRatio: this.lodHysteresisRatio,
+      lodCacheEntries: this.lodCacheEntries,
+      crosshairSync: this.crosshairSync,
+      keyboardPanFraction: this.keyboardPanFraction,
+      keyboardZoomFactor: this.keyboardZoomFactor,
+      timeAxisConfig: this.timeAxisConfig.tickCount !== undefined ? { tickCount: this.timeAxisConfig.tickCount } : undefined,
+      chartId: this.chartId,
+      sessionId: this.sessionId,
+      logEventLimit: this.logEventLimit
+    };
+  }
+
+  private snapshotToSeriesData(type: SeriesState["type"], snapshot: SeriesSnapshot): SeriesData {
+    const timeMs = Array.from(snapshot.timeMs);
+    if (type === "candles") {
+      const open = Array.from(snapshot.fields.open ?? []);
+      const high = Array.from(snapshot.fields.high ?? []);
+      const low = Array.from(snapshot.fields.low ?? []);
+      const close = Array.from(snapshot.fields.close ?? []);
+      const volumeArray = snapshot.fields.volume ?? new Float64Array();
+      const volume = volumeArray.length > 0 ? Array.from(volumeArray) : undefined;
+      return { timeMs, open, high, low, close, volume };
+    }
+    const value = Array.from(snapshot.fields.value ?? []);
+    return { timeMs, value };
   }
 
   private queueCrosshairMove(event: CrosshairEvent): void {
@@ -1346,7 +1752,8 @@ export class ChartEngine {
       dataWindowCoverage: null,
       pendingDataWindow: null,
       lastRequestedDataWindow: null,
-      lastCoverageWarning: null
+      lastCoverageWarning: null,
+      lastScaleConflict: null
     };
     this.panes.set(paneId, pane);
     this.recomputeLayout();
@@ -1421,11 +1828,13 @@ export class ChartEngine {
     const times = snapshot.timeMs;
     let low = 0;
     let high = times.length - 1;
+    let maxIndex = high;
     const cutoff = this.getCutoffTime();
     if (cutoff !== undefined) {
       const lastIndex = upperBound(times, cutoff) - 1;
       if (lastIndex < 0) return null;
-      high = Math.min(high, lastIndex);
+      maxIndex = Math.min(high, lastIndex);
+      high = maxIndex;
     }
     while (low <= high) {
       const mid = (low + high) >> 1;
@@ -1434,8 +1843,8 @@ export class ChartEngine {
       if (value < timeMs) low = mid + 1;
       else high = mid - 1;
     }
-    const left = clamp(high, 0, times.length - 1);
-    const right = clamp(low, 0, times.length - 1);
+    const left = clamp(high, 0, maxIndex);
+    const right = clamp(low, 0, maxIndex);
     const leftDiff = Math.abs(times[left] - timeMs);
     const rightDiff = Math.abs(times[right] - timeMs);
     return leftDiff <= rightDiff ? times[left] : times[right];
@@ -1685,6 +2094,7 @@ type PaneState = {
   pendingDataWindow: Range | null;
   lastRequestedDataWindow: Range | null;
   lastCoverageWarning: Range | null;
+  lastScaleConflict: { left: string[]; right: string[] } | null;
 };
 
 type ScaleConfigState = {
@@ -1730,6 +2140,28 @@ function rangesEqual(a: Range | null, b: Range | null): boolean {
   return a.startMs === b.startMs && a.endMs === b.endMs;
 }
 
+function arraysEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+function generateSessionId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `session-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function getPlatform(): string {
+  if (typeof navigator !== "undefined" && navigator.userAgent) {
+    return navigator.userAgent;
+  }
+  return "node";
+}
+
 function upperBound(times: Float64Array, target: TimeMs): number {
   let low = 0;
   let high = times.length;
@@ -1770,10 +2202,12 @@ function findNearestIndex(times: Float64Array, timeMs: TimeMs, cutoff?: TimeMs):
   if (times.length === 0) return null;
   let low = 0;
   let high = times.length - 1;
+  let maxIndex = high;
   if (cutoff !== undefined) {
     const lastIndex = upperBound(times, cutoff) - 1;
     if (lastIndex < 0) return null;
-    high = Math.min(high, lastIndex);
+    maxIndex = Math.min(high, lastIndex);
+    high = maxIndex;
   }
   while (low <= high) {
     const mid = (low + high) >> 1;
@@ -1782,8 +2216,8 @@ function findNearestIndex(times: Float64Array, timeMs: TimeMs, cutoff?: TimeMs):
     if (value < timeMs) low = mid + 1;
     else high = mid - 1;
   }
-  const left = clamp(high, 0, times.length - 1);
-  const right = clamp(low, 0, times.length - 1);
+  const left = clamp(high, 0, maxIndex);
+  const right = clamp(low, 0, maxIndex);
   const leftDiff = Math.abs(times[left] - timeMs);
   const rightDiff = Math.abs(times[right] - timeMs);
   return leftDiff <= rightDiff ? left : right;

@@ -82,6 +82,7 @@ This document defines the core data entities, identity rules, and ownership boun
 ## Multi-pane and multi-axis invariants
 - All panes share a single time domain by default.
 - Each pane can have multiple Y scales, identified by `scaleId`.
+- Only one visible scale per side is allowed; additional visible scales on the same side are hidden with diagnostics.
 - Overlays must declare `paneId` and optional `scaleId`.
 - Different time domains per pane are disallowed unless explicitly configured.
 

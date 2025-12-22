@@ -35,6 +35,9 @@ Point: { x: number, y: number }
 - `axisLabelHeight`: label height used for tick density calculation.
 - `axisLabelMeasure`: optional `(text) => widthPx` for precise gutter sizing.
 - `timeAxisConfig`: optional time-axis tick and formatter overrides.
+- `chartId`: stable chart identifier for logs and repro bundles.
+- `sessionId`: optional session identifier (auto-generated if omitted).
+- `logEventLimit`: max log events retained for repro bundles.
 
 ## Viewport control (required)
 - `resetToLatest(paneId?)`
@@ -167,6 +170,19 @@ WorkerAdapter: {
 - Worker results are versioned and dropped if stale.
 - Fallback to main thread emits diagnostics and never happens silently.
 
+## Compute pipeline (implemented)
+- `postComputeRequest({ indicatorId, windowId, version, payload, seriesId?, priority? })`
+- `cancelComputeIndicator(indicatorId, version?)`
+- `cancelComputeWindow(windowId)`
+- `applyComputeResult({ indicatorId, windowId, version, batch, seriesId? })`
+- `getComputeStatus() -> { pendingIndicators, pendingSeries }`
+- `setComputePipeline(pipeline | null)`
+
+**Rules**
+- Results with versions older than the latest request are dropped deterministically.
+- Queue depth is capped (default 2 per indicator/series) with diagnostics on drop.
+- Cancellation is explicit and logged.
+
 ## Axis and scale configuration
 - `setScaleConfig(paneId, scaleId, { position?, visible?, tickCount?, labelFormatter? })`
 - `setTimeAxisConfig({ tickCount?, labelFormatter? })`
@@ -175,6 +191,7 @@ WorkerAdapter: {
 - `position` is `left` or `right`; invalid values emit diagnostics.
 - The engine computes gutter widths from tick labels and applies hysteresis.
 - Label formatters must be deterministic and side-effect free.
+- Only one visible scale per side is rendered; additional visible scales on the same side are hidden with diagnostics.
 
 ## Host overlay support (DOM overlays)
 - Host overlays are positioned via conversion APIs and plot area metrics.
@@ -240,3 +257,10 @@ WorkerAdapter: {
 ## Error and diagnostics surface
 - API errors are typed and include a severity and recoverability flag.
 - Unsupported calls or invalid inputs must emit diagnostics.
+
+## Observability helpers (implemented)
+- `getLogs() -> LogEvent[]`
+- `getMetrics() -> { renderer, engine }`
+- `captureReproBundle() -> ReproBundle`
+- `applyReproBundle(bundle)`
+- `ChartEngine.fromReproBundle(bundle)`

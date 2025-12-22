@@ -29,6 +29,7 @@ import {
   LineOverlayData,
   MarkerOverlayData,
   OverlayPrimitive,
+  RendererMetrics,
   Range,
   ZoneOverlayData
 } from "../api/public-types.js";
@@ -70,6 +71,12 @@ export class WebGL2Renderer implements Renderer {
   private hasContextListeners = false;
   private isContextLost = false;
   private contextLossCount = 0;
+  private metrics = {
+    frameCount: 0,
+    lastFrame: { drawCalls: 0, bufferUploads: 0, bufferAllocations: 0, bufferBytes: 0 },
+    totals: { drawCalls: 0, bufferUploads: 0, bufferAllocations: 0, bufferBytes: 0 },
+    textAtlas: { pages: 0, glyphs: 0, capacity: 0, occupancy: 0 }
+  };
 
   constructor(private canvas: HTMLCanvasElement, private options: WebGL2RendererOptions = {}) {
     this.diagnosticHandler = options.onDiagnostic;
@@ -235,6 +242,8 @@ export class WebGL2Renderer implements Renderer {
     ) {
       return;
     }
+    this.metrics.frameCount += 1;
+    this.resetFrameMetrics();
     const gl = this.gl;
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -267,6 +276,12 @@ export class WebGL2Renderer implements Renderer {
       }
     }
 
+    if (this.gpuText) {
+      this.metrics.textAtlas = this.gpuText.getMetrics();
+    } else {
+      this.metrics.textAtlas = { pages: 0, glyphs: 0, capacity: 0, occupancy: 0 };
+    }
+
     gl.disable(gl.SCISSOR_TEST);
   }
 
@@ -278,8 +293,41 @@ export class WebGL2Renderer implements Renderer {
     this.dropSeriesEntry(seriesId);
   }
 
+  getMetrics(): RendererMetrics {
+    return { ...this.metrics, lastFrame: { ...this.metrics.lastFrame }, totals: { ...this.metrics.totals } };
+  }
+
   private emitDiagnostic(diag: Diagnostic): void {
     this.diagnosticHandler?.(diag);
+  }
+
+  private resetFrameMetrics(): void {
+    this.metrics.lastFrame = { drawCalls: 0, bufferUploads: 0, bufferAllocations: 0, bufferBytes: 0 };
+  }
+
+  private recordDrawCalls(count: number): void {
+    if (count <= 0) return;
+    this.metrics.lastFrame.drawCalls += count;
+    this.metrics.totals.drawCalls += count;
+  }
+
+  private recordBufferUpload(uploader: GpuBuffer, before: number, after: number): void {
+    this.metrics.lastFrame.bufferUploads += 1;
+    this.metrics.totals.bufferUploads += 1;
+    if (after > before) {
+      const delta = after - before;
+      this.metrics.lastFrame.bufferAllocations += 1;
+      this.metrics.totals.bufferAllocations += 1;
+      this.metrics.lastFrame.bufferBytes += delta;
+      this.metrics.totals.bufferBytes += delta;
+    }
+  }
+
+  private uploadBuffer(gl: WebGL2RenderingContext, uploader: GpuBuffer, data: Float32Array, usage: number): void {
+    const before = uploader.getCapacityBytes();
+    uploader.upload(gl, data, usage);
+    const after = uploader.getCapacityBytes();
+    this.recordBufferUpload(uploader, before, after);
   }
 
   private emitBufferRebuild(context: BufferRebuildContext | undefined, before: number, after: number): void {
@@ -668,10 +716,11 @@ export class WebGL2Renderer implements Renderer {
     gl.useProgram(this.dynamicProgram);
     gl.bindVertexArray(this.dynamicVao);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.dynamicVbo);
-    this.dynamicGpuBuffer.upload(gl, data, gl.DYNAMIC_DRAW);
+    this.uploadBuffer(gl, this.dynamicGpuBuffer, data, gl.DYNAMIC_DRAW);
     for (const command of optimized) {
       gl.drawArrays(command.mode, command.first, command.count);
     }
+    this.recordDrawCalls(optimized.length);
     gl.bindVertexArray(null);
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
     this.dynamicBuffer.reset();
@@ -1043,7 +1092,7 @@ export class WebGL2Renderer implements Renderer {
     }
     const uploader = new GpuBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    uploader.upload(gl, data, gl.STATIC_DRAW);
+    this.uploadBuffer(gl, uploader, data, gl.STATIC_DRAW);
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
     return { buffer, uploader, count, stride: 4, data };
   }
@@ -1101,7 +1150,7 @@ export class WebGL2Renderer implements Renderer {
     }
     const before = existing.uploader.getCapacityBytes();
     gl.bindBuffer(gl.ARRAY_BUFFER, existing.buffer);
-    existing.uploader.upload(gl, payload.data, gl.STATIC_DRAW);
+    this.uploadBuffer(gl, existing.uploader, payload.data, gl.STATIC_DRAW);
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
     existing.count = payload.count;
     existing.data = payload.data;
@@ -1127,7 +1176,7 @@ export class WebGL2Renderer implements Renderer {
     }
     const before = existing.uploader.getCapacityBytes();
     gl.bindBuffer(gl.ARRAY_BUFFER, existing.buffer);
-    existing.uploader.upload(gl, payload.data, gl.STATIC_DRAW);
+    this.uploadBuffer(gl, existing.uploader, payload.data, gl.STATIC_DRAW);
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
     existing.count = payload.count;
     existing.stride = payload.stride;
@@ -1152,7 +1201,7 @@ export class WebGL2Renderer implements Renderer {
     }
     const uploader = new GpuBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    uploader.upload(gl, payload.data, gl.STATIC_DRAW);
+    this.uploadBuffer(gl, uploader, payload.data, gl.STATIC_DRAW);
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
     return { buffer, uploader, count: payload.count, stride: payload.stride, data: payload.data };
   }
@@ -1179,6 +1228,7 @@ export class WebGL2Renderer implements Renderer {
     gl.useProgram(this.lineProgram.program);
     this.bindLineBuffer(gl, this.lineProgram, buffer);
     gl.drawArrays(gl.LINE_STRIP, 0, buffer.count);
+    this.recordDrawCalls(1);
   }
 
   private drawAreaSeries(
@@ -1196,6 +1246,7 @@ export class WebGL2Renderer implements Renderer {
       gl.useProgram(this.lineProgram.program);
       this.bindLineBuffer(gl, this.lineProgram, fill);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, fill.count);
+      this.recordDrawCalls(1);
     }
     this.drawLineSeries(gl, pane, series, line, domain);
   }
@@ -1214,6 +1265,7 @@ export class WebGL2Renderer implements Renderer {
     gl.useProgram(this.barProgram.program);
     this.bindBarBuffer(gl, this.barProgram, buffer);
     gl.drawElementsInstanced(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0, buffer.count);
+    this.recordDrawCalls(1);
   }
 
   private drawCandleSeries(
@@ -1229,6 +1281,7 @@ export class WebGL2Renderer implements Renderer {
         gl.useProgram(this.lineProgram.program);
         this.bindLineBuffer(gl, this.lineProgram, buffers.wickUp);
         gl.drawArrays(gl.LINES, 0, buffers.wickUp.count);
+        this.recordDrawCalls(1);
       }
     }
     if (buffers.wickDown && buffers.wickDown.count > 1) {
@@ -1236,6 +1289,7 @@ export class WebGL2Renderer implements Renderer {
         gl.useProgram(this.lineProgram.program);
         this.bindLineBuffer(gl, this.lineProgram, buffers.wickDown);
         gl.drawArrays(gl.LINES, 0, buffers.wickDown.count);
+        this.recordDrawCalls(1);
       }
     }
     if (buffers.body && buffers.body.count > 0) {
@@ -1244,6 +1298,7 @@ export class WebGL2Renderer implements Renderer {
       gl.useProgram(this.quadProgram.program);
       this.bindQuadBuffer(gl, this.quadProgram, buffers.body);
       gl.drawElementsInstanced(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0, buffers.body.count);
+      this.recordDrawCalls(1);
     }
   }
 

@@ -16,6 +16,13 @@ This spec defines benchmark budgets and regression rules.
 - Last-candle streaming updates.
 - Pan/zoom across 1M bars.
 
+## Scenario mapping (harness ids)
+- `baseline-1m`: pan/zoom across 1M bars.
+- `overlay-storm`: indicator toggle storm.
+- `replay-scrub`: replay scrub with cutoff clamp.
+- `streaming-50hz`: last-candle streaming updates.
+- `baseline-100k`: timeframe switch under load.
+
 ## Benchmark harness
 - Headless runner with fixed dataset seeds.
 - Captures p50/p95 frame time, input latency, memory deltas.

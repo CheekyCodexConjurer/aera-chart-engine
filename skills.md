@@ -37,6 +37,7 @@ This file defines the skills required to build and maintain the charting engine.
 - `docs/skills/debuggability-observability.md` - diagnostics and observability.
 - `docs/skills/deterministic-interactions.md` - deterministic UI interactions.
 - `docs/skills/contract-drift-control.md` - contract authoring and drift control.
+- `docs/skills/roadmap-governance.md` - roadmap governance and milestone discipline.
 - `docs/skills/quant-lab-interop.md` - quant-lab interop skill.
 - `docs/skills/replay-semantics-stewardship.md` - replay semantics stewardship.
 - `docs/skills/large-dataset-budgeting.md` - large dataset budgeting.

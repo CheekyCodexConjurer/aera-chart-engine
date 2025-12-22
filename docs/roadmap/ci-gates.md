@@ -12,10 +12,12 @@ This spec defines the minimum CI pipeline and gating policy.
 - PRs fail if contract tests or smoke tests fail.
 - Performance regressions block merge once benchmarks are live.
 - Any contract change requires version bump and migration notes.
+- Contract tests must verify `engineContractVersion` against a golden spec.
 
 ## Local run guidance
 - `npm run check`
 - `npm run test:ui:smoke`
+- `npm run harness:smoke` (planned)
 - `npm run bench` (planned)
 
 ## References

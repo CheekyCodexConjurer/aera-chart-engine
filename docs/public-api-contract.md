@@ -15,6 +15,14 @@ Range: { startMs: TimeMs, endMs: TimeMs }
 Point: { x: number, y: number }
 ```
 
+## Engine metadata (required)
+- `getEngineInfo() -> { engineVersion: string, engineContractVersion: string }`
+
+**Rules**
+- `engineContractVersion` follows SemVer and is bumped on breaking changes.
+- `engineVersion` tracks the package version.
+- `engineContractVersion` must match the canonical value in `docs/roadmap/contracts-and-compat.md`.
+
 ## Engine options (selected)
 - `rightGutterWidth`: width reserved for Y-axis labels.
 - `leftGutterWidth`: minimum width reserved for left-axis labels.

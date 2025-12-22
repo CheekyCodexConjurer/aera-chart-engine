@@ -16,6 +16,7 @@ This index lists the contributor skills required by the engine and links to the 
 - `debuggability-observability.md` - diagnostics and observability.
 - `deterministic-interactions.md` - deterministic UI interactions.
 - `contract-drift-control.md` - contract authoring and drift control.
+- `roadmap-governance.md` - roadmap governance and milestone discipline.
 - `quant-lab-interop.md` - quant-lab interop skill.
 - `replay-semantics-stewardship.md` - replay semantics stewardship.
 - `large-dataset-budgeting.md` - large dataset budgeting.

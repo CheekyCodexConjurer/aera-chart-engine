@@ -15,6 +15,7 @@ This contract is non-negotiable. The engine is a pure charting engine. The host 
 - Orchestrate data paging and history prefetch.
 - Decide snapping rules and analysis workflow semantics.
 - Provide UI controls and host-level overlays.
+- Maintain an adapter layer that enforces `engineContractVersion` compatibility.
 
 ## Shared responsibilities (explicit interface only)
 - Contract versioning and migration notes.

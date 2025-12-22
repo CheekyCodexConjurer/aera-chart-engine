@@ -2,10 +2,14 @@ import {
   ChartEngineOptions,
   CrosshairEvent,
   HitTestEvent,
+  KeyCommand,
   LayoutChangeEvent,
   OverlayBatch,
+  OverlayLayoutEvent,
+  OverlayLayoutItem,
   PaneLayout,
   Range,
+  RightLabelOverlayData,
   ReplayState,
   SeriesHit,
   SeriesData,
@@ -13,6 +17,7 @@ import {
   OverlayHit,
   SeriesUpdate,
   SeriesUpdateType,
+  TableOverlayData,
   TimeMs,
   VisibleRangeEvent
 } from "../api/public-types.js";
@@ -24,11 +29,13 @@ import { validateSeriesData } from "../data/validation.js";
 import { appendSnapshot, createSnapshot, patchSnapshot, prependSnapshot } from "../data/snapshot.js";
 import { computeSeriesDomain, normalizeSeries, SeriesState, updateApproxBarInterval } from "./series.js";
 import { decimateCandles, decimateMinMax } from "../data/lod.js";
+import { LruCache } from "../data/cache.js";
+import { LodLevel, LodSelection, policyForSeries, selectLod } from "../data/lod-policy.js";
 import { InteractionStateMachine } from "../interaction/state-machine.js";
 import { PointerState } from "../interaction/pointer.js";
-import { clipOverlay, isOverlaySupported, OverlayStore, validateOverlay } from "./overlays.js";
+import { clipOverlay, isOverlaySupported, OverlayRenderItem, OverlayStore, validateOverlay } from "./overlays.js";
 import { PlotArea, ScaleDomain, timeToX, xToTime, priceToY, yToPrice } from "./transform.js";
-import { Renderer, RenderFrame, RenderSeries } from "../rendering/renderer.js";
+import { RenderCrosshair, Renderer, RenderFrame, RenderSeries } from "../rendering/renderer.js";
 import { NullRenderer } from "../rendering/null-renderer.js";
 import { clamp } from "../util/math.js";
 
@@ -50,6 +57,8 @@ export class ChartEngine {
   private series = new Map<string, SeriesState>();
   private overlays = new OverlayStore();
   private renderCache = new Map<string, RenderSeriesCache>();
+  private lodCache: LruCache<string, RenderSeries>;
+  private lodState = new Map<string, LodState>();
   private replayState: ReplayState = { mode: "off" };
   private frameId = 0;
   private interaction = new InteractionStateMachine();
@@ -62,6 +71,7 @@ export class ChartEngine {
   private visibleRangeEmitter = new EventEmitter<VisibleRangeEvent>();
   private transformEmitter = new EventEmitter<{ paneId: string }>();
   private layoutEmitter = new EventEmitter<LayoutChangeEvent>();
+  private overlayLayoutEmitter = new EventEmitter<OverlayLayoutEvent>();
   private crosshairMoveEmitter = new EventEmitter<CrosshairEvent>();
   private crosshairClickEmitter = new EventEmitter<CrosshairEvent>();
   private hitTestEmitter = new EventEmitter<HitTestEvent>();
@@ -78,6 +88,10 @@ export class ChartEngine {
   private hitTestRadiusPx: number;
   private pendingHitTest: HitTestEvent | null = null;
   private hitTestScheduled = false;
+  private lodHysteresisRatio: number;
+  private crosshairSync: boolean;
+  private keyboardPanFraction: number;
+  private keyboardZoomFactor: number;
 
   constructor(options: ChartEngineInitOptions = {}) {
     this.width = options.width ?? 800;
@@ -87,6 +101,11 @@ export class ChartEngine {
     this.prefetchRatio = options.prefetchRatio ?? 0.2;
     this.paneGap = options.paneGap ?? 0;
     this.hitTestRadiusPx = options.hitTestRadiusPx ?? 8;
+    this.lodHysteresisRatio = options.lodHysteresisRatio ?? 0.15;
+    this.lodCache = new LruCache<string, RenderSeries>(options.lodCacheEntries ?? 64);
+    this.crosshairSync = options.crosshairSync ?? true;
+    this.keyboardPanFraction = options.keyboardPanFraction ?? 0.1;
+    this.keyboardZoomFactor = options.keyboardZoomFactor ?? 1.2;
     this.renderer = options.renderer ?? new NullRenderer();
 
     this.scheduler = new FrameScheduler(() => this.renderFrame());
@@ -105,6 +124,10 @@ export class ChartEngine {
 
   onLayoutChange(listener: (event: LayoutChangeEvent) => void): () => void {
     return this.layoutEmitter.subscribe(listener);
+  }
+
+  onOverlayLayoutChange(listener: (event: OverlayLayoutEvent) => void): () => void {
+    return this.overlayLayoutEmitter.subscribe(listener);
   }
 
   onCrosshairMove(listener: (event: CrosshairEvent) => void): () => void {
@@ -153,6 +176,54 @@ export class ChartEngine {
     pane.autoScale.set(scaleId, enabled);
     if (enabled) {
       this.updateScaleDomain(paneId);
+    }
+  }
+
+  setCrosshairSync(enabled: boolean): void {
+    this.crosshairSync = enabled;
+    this.requestRender();
+  }
+
+  handleKeyCommand(paneId: string, command: KeyCommand, anchorTimeMs?: TimeMs): void {
+    const pane = this.ensurePane(paneId);
+    if (this.interaction.getState() === "disabled") return;
+    switch (command) {
+      case "pan-left":
+        this.panByFraction(pane, -this.keyboardPanFraction);
+        break;
+      case "pan-right":
+        this.panByFraction(pane, this.keyboardPanFraction);
+        break;
+      case "zoom-in": {
+        const centerX = pane.plotArea.x + pane.plotArea.width * 0.5;
+        this.zoomAt(paneId, centerX, this.keyboardZoomFactor);
+        break;
+      }
+      case "zoom-out": {
+        const centerX = pane.plotArea.x + pane.plotArea.width * 0.5;
+        this.zoomAt(paneId, centerX, 1 / this.keyboardZoomFactor);
+        break;
+      }
+      case "reset-latest":
+        this.resetToLatest(paneId);
+        break;
+      case "reset-anchor":
+        if (anchorTimeMs === undefined) {
+          this.diagnostics.addError("keyboard.anchor.missing", "anchor time is required for reset-anchor", {
+            paneId
+          });
+          this.diagnosticsEmitter.emit();
+          return;
+        }
+        this.resetAroundAnchor(anchorTimeMs, paneId);
+        break;
+      default:
+        this.diagnostics.addWarn("keyboard.command.unknown", "keyboard command not supported", {
+          paneId,
+          command
+        });
+        this.diagnosticsEmitter.emit();
+        break;
     }
   }
 
@@ -504,9 +575,10 @@ export class ChartEngine {
       frameId: this.frameId,
       panes,
       overlays,
-      crosshair: this.crosshairState
+      crosshairs: this.buildRenderCrosshairs()
     };
     this.renderer.render(frame);
+    this.emitOverlayLayout(overlays);
   }
 
   private collectSeriesForPane(paneId: string): RenderSeries[] {
@@ -530,8 +602,11 @@ export class ChartEngine {
       startMs: pane.visibleRange.startMs,
       endMs: cutoffTime !== undefined ? Math.min(pane.visibleRange.endMs, cutoffTime) : pane.visibleRange.endMs
     };
-    const maxPoints = this.maxPointsFor(series.type, pane.plotArea.width);
     const cache = this.renderCache.get(series.id);
+    const slice = sliceSnapshot(snapshot, effectiveRange, cutoffTime);
+    if (!slice || slice.timeMs.length === 0) return null;
+    const selection = this.selectLod(series, pane.plotArea.width, slice.timeMs.length);
+    const maxPoints = selection.maxPoints;
     if (
       cache &&
       cache.version === snapshot.version &&
@@ -543,17 +618,29 @@ export class ChartEngine {
       return cache.series;
     }
 
-    const window = sliceSnapshot(snapshot, effectiveRange, cutoffTime);
-    if (!window || window.timeMs.length === 0) return null;
-    let timeMs = window.timeMs;
+    const cacheKey = `${series.id}|${snapshot.version}|${effectiveRange.startMs}|${effectiveRange.endMs}|${maxPoints}`;
+    const cachedSeries = this.lodCache.get(cacheKey);
+    if (cachedSeries) {
+      this.renderCache.set(series.id, {
+        version: snapshot.version,
+        startMs: effectiveRange.startMs,
+        endMs: effectiveRange.endMs,
+        maxPoints,
+        cutoffTime,
+        series: cachedSeries
+      });
+      return cachedSeries;
+    }
+
+    let timeMs = slice.timeMs;
     let fields: Record<string, Float64Array> = {};
 
     if (series.type === "candles") {
-      const open = window.fields.open ?? new Float64Array();
-      const high = window.fields.high ?? new Float64Array();
-      const low = window.fields.low ?? new Float64Array();
-      const close = window.fields.close ?? new Float64Array();
-      const volume = window.fields.volume ?? new Float64Array();
+      const open = slice.fields.open ?? new Float64Array();
+      const high = slice.fields.high ?? new Float64Array();
+      const low = slice.fields.low ?? new Float64Array();
+      const close = slice.fields.close ?? new Float64Array();
+      const volume = slice.fields.volume ?? new Float64Array();
       const decimated = decimateCandles(timeMs, open, high, low, close, volume, maxPoints);
       timeMs = decimated.timeMs;
       fields = {
@@ -564,7 +651,7 @@ export class ChartEngine {
         volume: decimated.volume
       };
     } else {
-      const values = window.fields.value ?? new Float64Array();
+      const values = slice.fields.value ?? new Float64Array();
       const decimated = decimateMinMax(timeMs, values, maxPoints);
       timeMs = decimated.timeMs;
       fields = { value: decimated.values };
@@ -587,16 +674,157 @@ export class ChartEngine {
       cutoffTime,
       series: renderSeries
     });
+    this.lodCache.set(cacheKey, renderSeries);
 
     return renderSeries;
   }
 
-  private maxPointsFor(type: SeriesState["type"], width: number): number {
-    const pixelWidth = Math.max(1, Math.floor(width));
-    if (type === "candles" || type === "histogram") {
-      return Math.max(1, pixelWidth);
+  private selectLod(series: SeriesState, width: number, visibleCount: number): LodSelection {
+    const previous = this.lodState.get(series.id);
+    const policy = policyForSeries(series.type, this.lodHysteresisRatio);
+    const selection = selectLod(visibleCount, width, policy, previous?.level);
+    if (!previous || previous.level !== selection.level) {
+      this.lodState.set(series.id, {
+        level: selection.level,
+        density: selection.density,
+        pointsPerPixel: selection.pointsPerPixel
+      });
+      if (previous) {
+        this.diagnostics.addInfo("lod.level.changed", "lod level changed", {
+          seriesId: series.id,
+          from: previous.level,
+          to: selection.level,
+          density: selection.density.toFixed(3),
+          pointsPerPixel: selection.pointsPerPixel
+        });
+        this.diagnosticsEmitter.emit();
+      }
     }
-    return Math.max(2, pixelWidth * 2);
+    return selection;
+  }
+
+  private emitOverlayLayout(overlays: OverlayRenderItem[]): void {
+    if (!this.overlayLayoutEmitter.hasListeners()) return;
+    const items = this.buildOverlayLayoutItems(overlays);
+    this.overlayLayoutEmitter.emit({ frameId: this.frameId, items });
+  }
+
+  private buildOverlayLayoutItems(overlays: OverlayRenderItem[]): OverlayLayoutItem[] {
+    const items: OverlayLayoutItem[] = [];
+    for (const item of overlays) {
+      const overlay = item.overlay;
+      if (overlay.type === "table") {
+        const data = item.clippedData as TableOverlayData | null;
+        if (!data || !Array.isArray(data.rows) || data.rows.length === 0) continue;
+        const paneId = overlay.paneId ?? "price";
+        const pane = this.panes.get(paneId);
+        if (!pane) continue;
+        const position = data.position ?? "top-right";
+        items.push({
+          type: "table",
+          overlayId: overlay.id,
+          paneId,
+          position,
+          plotArea: { ...pane.plotArea },
+          rightGutterWidth: this.rightGutterWidth,
+          rows: data.rows,
+          anchorTimeMs: data.anchorTimeMs,
+          layer: overlay.layer,
+          zIndex: overlay.zIndex
+        });
+      }
+      if (overlay.type === "right-label") {
+        const data = item.clippedData as RightLabelOverlayData | null;
+        if (!data || !Array.isArray(data.labels) || data.labels.length === 0) continue;
+        const paneId = overlay.paneId ?? "price";
+        const pane = this.panes.get(paneId);
+        if (!pane) continue;
+        const scaleId = overlay.scaleId ?? this.getPrimaryScaleId(paneId);
+        const domain = pane.scaleDomains.get(scaleId);
+        if (!domain) {
+          this.diagnostics.addError("overlay.scale.missing", "overlay scale does not exist", {
+            overlayId: overlay.id,
+            paneId,
+            scaleId
+          });
+          this.diagnosticsEmitter.emit();
+          continue;
+        }
+        for (const label of data.labels) {
+          const y = priceToY(domain, pane.plotArea, label.price);
+          if (y === null) continue;
+          items.push({
+            type: "right-label",
+            overlayId: overlay.id,
+            labelId: label.id,
+            paneId,
+            scaleId,
+            plotArea: { ...pane.plotArea },
+            rightGutterWidth: this.rightGutterWidth,
+            price: label.price,
+            text: label.text,
+            timeMs: label.timeMs,
+            color: label.color,
+            sizePx: label.sizePx,
+            y,
+            layer: overlay.layer,
+            zIndex: overlay.zIndex
+          });
+        }
+      }
+    }
+    return items;
+  }
+
+  private buildRenderCrosshairs(): RenderCrosshair[] {
+    const active = this.crosshairState;
+    if (!active) return [];
+    const result: RenderCrosshair[] = [];
+    const bottomPaneId = this.findBottomPaneId();
+    result.push({
+      paneId: active.paneId,
+      timeMs: active.timeMs,
+      x: active.screen.x,
+      y: active.screen.y,
+      price: active.price,
+      showVertical: true,
+      showHorizontal: true,
+      showTimeLabel: active.paneId === bottomPaneId,
+      showPriceLabel: true
+    });
+
+    if (this.crosshairSync) {
+      for (const pane of this.panes.values()) {
+        if (pane.id === active.paneId) continue;
+        const x = timeToX(pane.visibleRange, pane.plotArea, active.timeMs);
+        if (x === null) continue;
+        result.push({
+          paneId: pane.id,
+          timeMs: active.timeMs,
+          x,
+          showVertical: true,
+          showHorizontal: false,
+          showTimeLabel: pane.id === bottomPaneId,
+          showPriceLabel: false
+        });
+      }
+    }
+    return result;
+  }
+
+  private findBottomPaneId(): string | null {
+    const panes = this.getOrderedPanes();
+    if (panes.length === 0) return null;
+    let bottom = panes[0];
+    let maxY = bottom.plotArea.y + bottom.plotArea.height;
+    for (const pane of panes) {
+      const y = pane.plotArea.y + pane.plotArea.height;
+      if (y > maxY) {
+        maxY = y;
+        bottom = pane;
+      }
+    }
+    return bottom.id;
   }
 
   private updateScaleDomain(paneId: string): void {
@@ -814,6 +1042,18 @@ export class ChartEngine {
     return clamp(span, minSpan, maxSpan);
   }
 
+  private panByFraction(pane: PaneState, fraction: number): void {
+    if (!Number.isFinite(fraction) || fraction === 0) return;
+    const span = pane.visibleRange.endMs - pane.visibleRange.startMs;
+    const delta = span * fraction;
+    const range: Range = {
+      startMs: pane.visibleRange.startMs + delta,
+      endMs: pane.visibleRange.endMs + delta
+    };
+    pane.visibleRange = this.clampRangeToReplay(range, this.getPrimarySeries(pane.id));
+    this.emitVisibleRange(pane.id, pane.visibleRange);
+  }
+
   private computeHitTest(paneId: string, timeMs: TimeMs, x: number, y: number): HitTestEvent {
     const pane = this.ensurePane(paneId);
     const seriesHits: SeriesHit[] = [];
@@ -1020,6 +1260,12 @@ type RenderSeriesCache = {
   maxPoints: number;
   cutoffTime?: TimeMs;
   series: RenderSeries;
+};
+
+type LodState = {
+  level: LodLevel;
+  density: number;
+  pointsPerPixel: number;
 };
 
 function rangesEqual(a: Range | null, b: Range | null): boolean {

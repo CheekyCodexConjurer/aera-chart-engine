@@ -96,6 +96,14 @@ export type HitTestEvent = {
   overlays: OverlayHit[];
 };
 
+export type KeyCommand =
+  | "pan-left"
+  | "pan-right"
+  | "zoom-in"
+  | "zoom-out"
+  | "reset-latest"
+  | "reset-anchor";
+
 export type SeriesType = "candles" | "line" | "area" | "histogram";
 
 export type SeriesDefinition = {
@@ -140,6 +148,48 @@ export type OverlayPrimitiveType =
   | "area"
   | "table"
   | "right-label";
+
+export type TableOverlayPosition =
+  | "top-left"
+  | "top-right"
+  | "bottom-left"
+  | "bottom-right"
+  | "top-center"
+  | "bottom-center"
+  | "middle-left"
+  | "middle-right"
+  | "middle-center";
+
+export type TableOverlayCell = {
+  id?: string;
+  text: string;
+  role?: "label" | "value";
+  variant?: string;
+};
+
+export type TableOverlayRow = {
+  id?: string;
+  cells: TableOverlayCell[];
+};
+
+export type TableOverlayData = {
+  position?: TableOverlayPosition;
+  anchorTimeMs?: TimeMs;
+  rows: TableOverlayRow[];
+};
+
+export type RightLabelEntry = {
+  id?: string;
+  price: number;
+  text: string;
+  timeMs?: TimeMs;
+  color?: string;
+  sizePx?: number;
+};
+
+export type RightLabelOverlayData = {
+  labels: RightLabelEntry[];
+};
 
 export type OverlayPoint = {
   timeMs: TimeMs;
@@ -196,6 +246,42 @@ export type OverlayBatch = {
   overlays: OverlayPrimitive[];
 };
 
+export type OverlayLayoutItem =
+  | {
+      type: "table";
+      overlayId: string;
+      paneId: PaneId;
+      position: TableOverlayPosition;
+      plotArea: PlotArea;
+      rightGutterWidth: number;
+      rows: TableOverlayRow[];
+      anchorTimeMs?: TimeMs;
+      layer?: OverlayLayer;
+      zIndex?: number;
+    }
+  | {
+      type: "right-label";
+      overlayId: string;
+      labelId?: string;
+      paneId: PaneId;
+      scaleId: ScaleId;
+      plotArea: PlotArea;
+      rightGutterWidth: number;
+      price: number;
+      text: string;
+      timeMs?: TimeMs;
+      color?: string;
+      sizePx?: number;
+      y: number;
+      layer?: OverlayLayer;
+      zIndex?: number;
+    };
+
+export type OverlayLayoutEvent = {
+  frameId: number;
+  items: OverlayLayoutItem[];
+};
+
 export type PaneLayoutEntry = {
   paneId: PaneId;
   weight?: number;
@@ -211,4 +297,9 @@ export type ChartEngineOptions = {
   prefetchRatio?: number;
   paneGap?: number;
   hitTestRadiusPx?: number;
+  lodHysteresisRatio?: number;
+  lodCacheEntries?: number;
+  crosshairSync?: boolean;
+  keyboardPanFraction?: number;
+  keyboardZoomFactor?: number;
 };

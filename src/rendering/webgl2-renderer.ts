@@ -1,4 +1,4 @@
-import { RenderFrame, RenderSeries, Renderer } from "./renderer.js";
+import { RenderCrosshair, RenderFrame, RenderSeries, Renderer } from "./renderer.js";
 import { createProgram } from "./gl-utils.js";
 import { GpuBuffer } from "./gpu-buffer.js";
 import {
@@ -117,10 +117,11 @@ export class WebGL2Renderer implements Renderer {
 
     const labels: TextLabel[] = [];
     const bottomPaneId = this.findBottomPaneId(frame.panes);
+    const crosshairs = frame.crosshairs ?? [];
     for (const pane of frame.panes) {
       const isBottom = pane.paneId === bottomPaneId;
-      const crosshair = frame.crosshair && frame.crosshair.paneId === pane.paneId ? frame.crosshair : null;
-      labels.push(...this.renderPane(gl, pane, frame.overlays, isBottom, crosshair));
+      const paneCrosshairs = crosshairs.filter((item) => item.paneId === pane.paneId);
+      labels.push(...this.renderPane(gl, pane, frame.overlays, isBottom, paneCrosshairs));
     }
 
     if (this.options.textLayer) {
@@ -143,7 +144,7 @@ export class WebGL2Renderer implements Renderer {
     pane: RenderFrame["panes"][number],
     overlays: OverlayRenderItem[],
     isBottomPane: boolean,
-    crosshair: CrosshairEvent | null
+    crosshairs: RenderCrosshair[]
   ): TextLabel[] {
     const plotArea = pane.plotArea;
     if (plotArea.width <= 0 || plotArea.height <= 0) return [];
@@ -167,8 +168,10 @@ export class WebGL2Renderer implements Renderer {
     }
     this.appendOverlays(pane, above, commands, labels);
     this.appendOverlays(pane, ui, commands, labels);
-    if (crosshair) {
-      this.appendCrosshair(pane, crosshair, commands, labels, isBottomPane);
+    if (crosshairs.length > 0) {
+      for (const crosshair of crosshairs) {
+        this.appendCrosshair(pane, crosshair, commands, labels);
+      }
     }
 
     const data = this.buffer.buffer;
@@ -504,34 +507,36 @@ export class WebGL2Renderer implements Renderer {
 
   private appendCrosshair(
     pane: RenderFrame["panes"][number],
-    crosshair: CrosshairEvent,
+    crosshair: RenderCrosshair,
     commands: DrawCommand[],
-    labels: TextLabel[],
-    isBottomPane: boolean
+    labels: TextLabel[]
   ): void {
     const plotArea = pane.plotArea;
-    const x = crosshair.screen.x;
-    const y = crosshair.screen.y;
+    const x = crosshair.x;
+    const y = crosshair.y ?? plotArea.y;
     if (x < plotArea.x || x > plotArea.x + plotArea.width) return;
-    if (y < plotArea.y || y > plotArea.y + plotArea.height) return;
+    if (crosshair.showHorizontal && (y < plotArea.y || y > plotArea.y + plotArea.height)) return;
 
     const start = this.buffer.vertexCount;
-    const [vx0, vy0] = this.toNdc(x, plotArea.y);
-    const [vx1, vy1] = this.toNdc(x, plotArea.y + plotArea.height);
-    this.buffer.pushVertex(vx0, vy0, DEFAULT_CROSSHAIR[0], DEFAULT_CROSSHAIR[1], DEFAULT_CROSSHAIR[2], DEFAULT_CROSSHAIR[3]);
-    this.buffer.pushVertex(vx1, vy1, DEFAULT_CROSSHAIR[0], DEFAULT_CROSSHAIR[1], DEFAULT_CROSSHAIR[2], DEFAULT_CROSSHAIR[3]);
-
-    const [hx0, hy0] = this.toNdc(plotArea.x, y);
-    const [hx1, hy1] = this.toNdc(plotArea.x + plotArea.width, y);
-    this.buffer.pushVertex(hx0, hy0, DEFAULT_CROSSHAIR[0], DEFAULT_CROSSHAIR[1], DEFAULT_CROSSHAIR[2], DEFAULT_CROSSHAIR[3]);
-    this.buffer.pushVertex(hx1, hy1, DEFAULT_CROSSHAIR[0], DEFAULT_CROSSHAIR[1], DEFAULT_CROSSHAIR[2], DEFAULT_CROSSHAIR[3]);
+    if (crosshair.showVertical) {
+      const [vx0, vy0] = this.toNdc(x, plotArea.y);
+      const [vx1, vy1] = this.toNdc(x, plotArea.y + plotArea.height);
+      this.buffer.pushVertex(vx0, vy0, DEFAULT_CROSSHAIR[0], DEFAULT_CROSSHAIR[1], DEFAULT_CROSSHAIR[2], DEFAULT_CROSSHAIR[3]);
+      this.buffer.pushVertex(vx1, vy1, DEFAULT_CROSSHAIR[0], DEFAULT_CROSSHAIR[1], DEFAULT_CROSSHAIR[2], DEFAULT_CROSSHAIR[3]);
+    }
+    if (crosshair.showHorizontal) {
+      const [hx0, hy0] = this.toNdc(plotArea.x, y);
+      const [hx1, hy1] = this.toNdc(plotArea.x + plotArea.width, y);
+      this.buffer.pushVertex(hx0, hy0, DEFAULT_CROSSHAIR[0], DEFAULT_CROSSHAIR[1], DEFAULT_CROSSHAIR[2], DEFAULT_CROSSHAIR[3]);
+      this.buffer.pushVertex(hx1, hy1, DEFAULT_CROSSHAIR[0], DEFAULT_CROSSHAIR[1], DEFAULT_CROSSHAIR[2], DEFAULT_CROSSHAIR[3]);
+    }
 
     const count = this.buffer.vertexCount - start;
     if (count > 0) {
       commands.push({ mode: this.glLines(), first: start, count });
     }
 
-    if (crosshair.price !== null && Number.isFinite(crosshair.price)) {
+    if (crosshair.showPriceLabel && crosshair.price != null && Number.isFinite(crosshair.price) && crosshair.showHorizontal) {
       labels.push({
         x: plotArea.x + plotArea.width + 6,
         y,
@@ -544,7 +549,7 @@ export class WebGL2Renderer implements Renderer {
       });
     }
 
-    if (isBottomPane) {
+    if (crosshair.showTimeLabel) {
       labels.push({
         x,
         y: plotArea.y + plotArea.height - 12,

@@ -14,6 +14,21 @@ This document defines the overlay primitive contract and the engine's responsibi
 | area | native | filled line with optional base value |
 | table / right-label | host overlay | DOM overlays positioned by API |
 
+## DOM overlay data contract (table / right-label)
+**table**
+- `position`: one of `top-left`, `top-right`, `bottom-left`, `bottom-right`, `top-center`, `bottom-center`, `middle-left`, `middle-right`, `middle-center`.
+- `rows`: array of `{ id?, cells: [{ id?, text, role?, variant? }] }`.
+- `anchorTimeMs`: optional time used for replay cutoff clipping.
+
+**right-label**
+- `labels`: array of `{ id?, price, text, timeMs?, color?, sizePx? }`.
+
+**Rules**
+- Engine does not render these primitives; host renders DOM overlays.
+- Engine emits `onOverlayLayoutChange` with plot areas and anchors.
+- If `anchorTimeMs` / `timeMs` is provided, the engine clips to replay cutoff.
+- If omitted, the host must ensure cutoff compliance before sending data.
+
 ## Unsupported primitive policy
 - Unsupported primitives are rejected with a typed diagnostic.
 - No silent drops and no implicit fallbacks.
@@ -42,6 +57,7 @@ This document defines the overlay primitive contract and the engine's responsibi
 ## Clipping and replay invariants
 - Global cutoff applies to all overlays and series without exception.
 - Markers, lines, zones, and labels are clipped to view and cutoff.
+- Table/right-label overlays are clipped when anchor times are supplied.
 - Out-of-domain primitives are omitted with diagnostics.
 
 ## Multi-pane targeting

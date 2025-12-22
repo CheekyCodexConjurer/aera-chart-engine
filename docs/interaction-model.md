@@ -42,6 +42,7 @@ This document defines the interaction state machine, pointer semantics, and mult
 - Keyboard pan and zoom are supported and consistent with pointer behavior.
 - Focus states are visible and deterministic.
 - Accessibility hooks expose cursor time and selection state.
+- Keyboard input uses `handleKeyCommand` with host-defined mapping.
 
 ## Multi-pane coordination
 - Crosshair can be synchronized across panes by time domain.

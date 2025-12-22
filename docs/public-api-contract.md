@@ -18,6 +18,9 @@ Point: { x: number, y: number }
 ## Engine options (selected)
 - `rightGutterWidth`: width reserved for Y-axis labels.
 - `paneGap`: vertical gap between panes in pixels.
+- `lodHysteresisRatio`: LOD switching hysteresis ratio (0.05 - 0.5).
+- `lodCacheEntries`: max entries in LOD render cache.
+- `crosshairSync`: synchronize crosshair time across panes (default true).
 
 ## Viewport control (required)
 - `resetToLatest(paneId?)`
@@ -82,11 +85,20 @@ Point: { x: number, y: number }
 - `endPan()`
 - `handleWheelZoom(paneId, x, deltaY, zoomSpeed?)`
 - `clearPointer(paneId?)`
+- `handleKeyCommand(paneId, command, anchorTimeMs?)`
 
 **Rules**
 - The host owns DOM events and feeds normalized inputs.
 - Wheel zoom is cursor-anchored and must not block the main thread.
 - `clearPointer` removes the crosshair and hover state.
+- Keyboard commands are host-mapped and engine-executed.
+
+## Keyboard command contract
+Supported commands:
+- `pan-left`, `pan-right`
+- `zoom-in`, `zoom-out`
+- `reset-latest`
+- `reset-anchor` (requires `anchorTimeMs`)
 
 ## Coordinate conversion contract
 - `timeToX(paneId, timeMs) -> number|null`
@@ -105,6 +117,7 @@ Point: { x: number, y: number }
 - Preferred update triggers:
   - `onTransformChange(callback(paneId))`
   - `onLayoutChange(callback(event))`
+- `onOverlayLayoutChange(callback(event))` emits precomputed layout anchors for `table` and `right-label`.
 - Polling every frame is discouraged by default.
 
 **Layout event payload**
@@ -114,6 +127,36 @@ Point: { x: number, y: number }
   plotArea: { x: number, y: number, width: number, height: number },
   index: number,
   count: number
+}
+```
+
+**Overlay layout event payload**
+```
+{
+  frameId: number,
+  items: [
+    {
+      type: "table",
+      overlayId: string,
+      paneId: string,
+      position: "top-right" | "top-left" | "bottom-right" | "bottom-left" | "top-center" | "bottom-center" | "middle-left" | "middle-right" | "middle-center",
+      plotArea: { x: number, y: number, width: number, height: number },
+      rightGutterWidth: number,
+      rows: [{ cells: [{ text: string }] }]
+    },
+    {
+      type: "right-label",
+      overlayId: string,
+      labelId?: string,
+      paneId: string,
+      scaleId: string,
+      plotArea: { x: number, y: number, width: number, height: number },
+      rightGutterWidth: number,
+      price: number,
+      text: string,
+      y: number
+    }
+  ]
 }
 ```
 

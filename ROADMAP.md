@@ -112,6 +112,7 @@ It is documentation-only and is the authoritative checklist for completion.
 - Z-order enforcement by pane, layer, zIndex.
 - Clip masks for pane and replay cutoff.
 - GPU memory budgeting and eviction policy for caches.
+- WebGL2 context loss/recovery with deterministic resource rebuild.
 
 ### Axes, grid, and labels
 - Dual-axis (left/right) support per pane.
@@ -138,7 +139,6 @@ It is documentation-only and is the authoritative checklist for completion.
 - Replay-aware hit-testing and snapping rules.
 
 ### Overlays and primitives
-- DOM overlay support for table/right-label with update events.
 - Overlay styles (line width, dash, fill, opacity, label style).
 - Overlay clipping to pane and replay cutoff.
 - Overlay hit-testing for all primitives.
@@ -149,23 +149,33 @@ It is documentation-only and is the authoritative checklist for completion.
 - TypedArray sharing or transfer strategy.
 - WASM integration guidelines and memory budgets.
 - Deterministic versioning for indicator outputs.
+- OffscreenCanvas/worker render loop option with parity to main-thread renderer.
 
 ### API and contracts
 - Stable public API versioning and deprecations.
 - Theme contract with precedence and partial updates.
 - Host overlay coordinate conversion events (no polling).
 - Replay contract enforced in runtime (cutoff/preview/clamp).
+- Release packaging targets (ESM/CJS) with migration notes and compatibility rules.
 
 ### Observability and QA
 - Perf counters (frame time, input latency, buffer churn).
 - Deterministic logging and trace ID propagation.
-- Repro bundle export/import utilities.
+- Repro bundle export/import utilities with automated capture hooks.
 - Unit tests for LOD, windowing, replay clipping, and hit-testing.
+- Benchmark harness with dataset generator and artifacted traces.
+- Visual regression harness (golden frames + diff tolerance).
 
 ### Integration with quant-lab
 - Adapter mapping for Plot API -> engine primitives.
 - Contract diff process when quant-lab changes.
 - Validation of replay semantics and overlay pipeline.
+
+### PineScript compatibility (host-owned execution)
+- Map PineScript drawings to engine primitives (line, box, label, polyline, table, fills).
+- Enforce PineScript limits/budgets in the adapter layer with engine diagnostics.
+- Ensure parity against `docs/pinescript/coverage/INDEX.md` for visual outputs.
+- Define versioned compatibility targets and regression tests for parity.
 
 ## Dependencies and blockers
 - Text atlas decision (SDF vs MSDF) is required before Phase 1 completion.

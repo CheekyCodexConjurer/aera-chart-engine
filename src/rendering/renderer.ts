@@ -1,6 +1,6 @@
 import { PlotArea, ScaleDomain } from "../core/transform.js";
 import { OverlayRenderItem } from "../core/overlays.js";
-import { CrosshairEvent, Range, SeriesType } from "../api/public-types.js";
+import { Range, SeriesType, TimeMs } from "../api/public-types.js";
 
 export type RenderSeries = {
   id: string;
@@ -23,7 +23,19 @@ export type RenderFrame = {
   frameId: number;
   panes: PaneRenderState[];
   overlays: OverlayRenderItem[];
-  crosshair?: CrosshairEvent | null;
+  crosshairs?: RenderCrosshair[];
+};
+
+export type RenderCrosshair = {
+  paneId: string;
+  timeMs: TimeMs;
+  x: number;
+  y?: number;
+  price?: number | null;
+  showVertical: boolean;
+  showHorizontal: boolean;
+  showTimeLabel: boolean;
+  showPriceLabel: boolean;
 };
 
 export interface Renderer {

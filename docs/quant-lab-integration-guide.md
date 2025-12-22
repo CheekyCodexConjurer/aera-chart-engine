@@ -34,6 +34,7 @@ This document describes how `quant-lab` uses the engine today. It is a coordinat
 - Host Plot API emits primitives (lines, zones, markers, labels).
 - Engine renders primitives and clips them to cutoff and view.
 - Host renders DOM overlays for tables and right labels.
+- Host uses `onOverlayLayoutChange` to position DOM overlays without polling.
 
 ## What the host must provide
 - Normalized data and indicator outputs in canonical time domain.

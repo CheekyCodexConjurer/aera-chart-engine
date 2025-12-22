@@ -8,6 +8,9 @@ import {
   OverlayBatch,
   OverlayPrimitive,
   OverlayPrimitiveType,
+  RightLabelOverlayData,
+  TableOverlayData,
+  TableOverlayPosition,
   TimeMs,
   ZoneOverlayData
 } from "../api/public-types.js";
@@ -25,11 +28,30 @@ const SUPPORTED_TYPES: Set<OverlayPrimitiveType> = new Set([
   "marker",
   "label",
   "area",
-  "histogram"
+  "histogram",
+  "table",
+  "right-label"
 ]);
 
 export function isOverlaySupported(type: OverlayPrimitiveType): boolean {
   return SUPPORTED_TYPES.has(type);
+}
+
+const TABLE_POSITIONS: Set<TableOverlayPosition> = new Set([
+  "top-left",
+  "top-right",
+  "bottom-left",
+  "bottom-right",
+  "top-center",
+  "bottom-center",
+  "middle-left",
+  "middle-right",
+  "middle-center"
+]);
+
+function isTablePosition(value: unknown): value is TableOverlayPosition {
+  if (typeof value !== "string") return false;
+  return TABLE_POSITIONS.has(value as TableOverlayPosition);
 }
 
 export class OverlayStore {
@@ -145,6 +167,94 @@ export function validateOverlay(overlay: OverlayPrimitive): OverlayValidationIss
       }
       return issues;
     }
+    case "table": {
+      const data = overlay.data as TableOverlayData;
+      if (data.position !== undefined && !isTablePosition(data.position)) {
+        issues.push({ code: "overlay.table.position", message: "table position is invalid" });
+      }
+      if (data.anchorTimeMs !== undefined && !isFiniteNumber(data.anchorTimeMs)) {
+        issues.push({ code: "overlay.table.anchor", message: "table anchorTimeMs must be finite" });
+      }
+      const rows = data.rows;
+      if (!Array.isArray(rows) || rows.length === 0) {
+        issues.push({ code: "overlay.table.rows", message: "table rows are required" });
+        return issues;
+      }
+      for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+        const row = rows[rowIndex];
+        if (!row || typeof row !== "object") {
+          issues.push({ code: "overlay.table.row.invalid", message: "table row is invalid", context: { rowIndex } });
+          break;
+        }
+        const cells = (row as TableOverlayData["rows"][number]).cells;
+        if (!Array.isArray(cells) || cells.length === 0) {
+          issues.push({
+            code: "overlay.table.cells",
+            message: "table row must contain cells",
+            context: { rowIndex }
+          });
+          break;
+        }
+        for (let cellIndex = 0; cellIndex < cells.length; cellIndex += 1) {
+          const cell = cells[cellIndex];
+          const text = (cell as TableOverlayData["rows"][number]["cells"][number]).text;
+          if (typeof text !== "string" || text.trim().length === 0) {
+            issues.push({
+              code: "overlay.table.cell.text",
+              message: "table cell text must be a non-empty string",
+              context: { rowIndex, cellIndex }
+            });
+            rowIndex = rows.length;
+            break;
+          }
+        }
+      }
+      return issues;
+    }
+    case "right-label": {
+      const data = overlay.data as RightLabelOverlayData;
+      const labels = data.labels;
+      if (!Array.isArray(labels) || labels.length === 0) {
+        issues.push({ code: "overlay.rightLabel.labels", message: "right-label labels are required" });
+        return issues;
+      }
+      for (let i = 0; i < labels.length; i += 1) {
+        const label = labels[i];
+        if (!isFiniteNumber(label.price)) {
+          issues.push({
+            code: "overlay.rightLabel.price",
+            message: "right-label price must be finite",
+            context: { index: i, price: label.price }
+          });
+          break;
+        }
+        if (typeof label.text !== "string" || label.text.trim().length === 0) {
+          issues.push({
+            code: "overlay.rightLabel.text",
+            message: "right-label text must be a non-empty string",
+            context: { index: i }
+          });
+          break;
+        }
+        if (label.timeMs !== undefined && !isFiniteNumber(label.timeMs)) {
+          issues.push({
+            code: "overlay.rightLabel.time",
+            message: "right-label timeMs must be finite",
+            context: { index: i, timeMs: label.timeMs }
+          });
+          break;
+        }
+        if (label.sizePx !== undefined && !isFiniteNumber(label.sizePx)) {
+          issues.push({
+            code: "overlay.rightLabel.size",
+            message: "right-label sizePx must be finite",
+            context: { index: i, sizePx: label.sizePx }
+          });
+          break;
+        }
+      }
+      return issues;
+    }
     default:
       return issues;
   }
@@ -194,6 +304,25 @@ export function clipOverlay(overlay: OverlayPrimitive, cutoffTimeMs?: TimeMs): O
       }
       const toTimeMs = data.toTimeMs && cutoffTimeMs ? Math.min(data.toTimeMs, cutoffTimeMs) : data.toTimeMs;
       return { overlay, clippedData: { ...data, toTimeMs } };
+    }
+    case "table": {
+      const data = overlay.data as TableOverlayData;
+      if (cutoffTimeMs !== undefined && data.anchorTimeMs !== undefined && data.anchorTimeMs > cutoffTimeMs) {
+        return { overlay, clippedData: null };
+      }
+      return { overlay, clippedData: data };
+    }
+    case "right-label": {
+      const data = overlay.data as RightLabelOverlayData;
+      const labels = data.labels ?? [];
+      if (cutoffTimeMs === undefined) {
+        return { overlay, clippedData: data };
+      }
+      const filtered = labels.filter((label) => label.timeMs === undefined || label.timeMs <= cutoffTimeMs);
+      if (filtered.length === 0) {
+        return { overlay, clippedData: null };
+      }
+      return { overlay, clippedData: { ...data, labels: filtered } };
     }
     default:
       return { overlay, clippedData: overlay.data };

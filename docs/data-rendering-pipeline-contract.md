@@ -7,6 +7,10 @@ This document defines the invariant contract between data processing and renderi
 - LOD outputs are deterministic for a given input window.
 - LOD transitions use hysteresis and do not flicker.
 - LOD selection is based on pixel density, not dataset size.
+- Default policies:
+  - candles/histogram: 0.5 - 1.0 points per pixel
+  - line/area: 1.0 - 2.0 points per pixel
+  - hysteresis ratio: 0.15 (configurable)
 
 ## Invalidation rules
 | Change | Allowed invalidation |
@@ -20,6 +24,7 @@ This document defines the invariant contract between data processing and renderi
 ## Stability requirements
 - Geometry buffers are immutable per version.
 - Switching LOD does not change visible data meaning.
+- LOD selections are cached and evicted via LRU.
 
 ## References
 - `progressive-rendering-guarantees.md` for coarse-to-fine behavior.

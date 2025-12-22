@@ -50,6 +50,11 @@ engine.flush();
 assert.ok(crosshairEvent, "crosshair move should emit");
 assert.equal(crosshairEvent.nearestTimeMs, 10000);
 
+let overlayLayout = null;
+engine.onOverlayLayoutChange((event) => {
+  overlayLayout = event;
+});
+
 engine.setReplayState({ mode: "paused", cutoffTimeMs: 5000 });
 engine.setOverlays({
   batchId: "indicator-1",
@@ -65,7 +70,38 @@ engine.setOverlays({
     {
       id: "table-1",
       type: "table",
-      data: { rows: [] }
+      data: {
+        position: "top-right",
+        anchorTimeMs: 4000,
+        rows: [{ cells: [{ text: "Status" }, { text: "OK" }] }]
+      }
+    },
+    {
+      id: "right-label-1",
+      type: "right-label",
+      data: { labels: [{ price: 12, text: "R1", timeMs: 4000 }] }
+    }
+  ]
+});
+engine.flush();
+
+assert.ok(overlayLayout, "overlay layout event should fire");
+assert.ok(
+  overlayLayout.items.some((item) => item.type === "table"),
+  "overlay layout should include table"
+);
+assert.ok(
+  overlayLayout.items.some((item) => item.type === "right-label"),
+  "overlay layout should include right-label"
+);
+
+engine.setOverlays({
+  batchId: "indicator-unsupported",
+  overlays: [
+    {
+      id: "polyline-1",
+      type: "polyline",
+      data: {}
     }
   ]
 });

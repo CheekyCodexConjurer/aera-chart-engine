@@ -41,6 +41,9 @@ This spec defines deterministic update invariants and replay harness expectation
   - First/last visible times per series and overlay.
 - Use SHA-256 for hashing.
 
+**Implementation note**
+- Headless harness computes hashes in `tools/harness/headless/state-hash.mjs`.
+
 ## Replay harness expectations
 - Identical inputs produce identical hash sequences.
 - Harness captures inputs, view state, engine version, and contract version.

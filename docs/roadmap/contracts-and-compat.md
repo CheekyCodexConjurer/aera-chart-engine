@@ -7,6 +7,7 @@ This spec defines contract versioning, compatibility rules, and adapter guidance
 - Contract version is independent of package version but must be compatible.
 - Breaking changes require a major bump of `engineContractVersion`.
 - Initial contract version should match the package version until the first breaking change.
+- Canonical engineContractVersion: `0.1.0`.
 
 ## Source of truth (required)
 - The canonical contract version lives in documentation and is exposed via `getEngineInfo()`.

@@ -2,3 +2,5 @@ node_modules/
 dist/
 .agent-docs/
 artifacts/
+tools/harness/reports/
+tools/harness/datasets/generated/

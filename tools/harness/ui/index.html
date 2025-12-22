@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chart Engine Harness</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="toolbar">
+        <label class="field">
+          Scenario
+          <select id="scenarioSelect"></select>
+        </label>
+        <button id="resetBtn" type="button">Reset</button>
+        <button id="panLeftBtn" type="button">Pan Left</button>
+        <button id="panRightBtn" type="button">Pan Right</button>
+        <button id="zoomInBtn" type="button">Zoom In</button>
+        <button id="zoomOutBtn" type="button">Zoom Out</button>
+        <button id="replayToggleBtn" type="button">Replay Off</button>
+        <label class="field">
+          Cutoff
+          <input id="replaySlider" type="range" min="0" max="1" step="1" value="0" />
+        </label>
+        <label class="field">
+          <input id="overlaysToggle" type="checkbox" checked />
+          Overlays
+        </label>
+      </header>
+      <div id="stage">
+        <canvas id="glCanvas"></canvas>
+        <canvas id="textCanvas"></canvas>
+      </div>
+      <div id="status"></div>
+    </div>
+    <script type="module" src="./app.mjs"></script>
+  </body>
+</html>

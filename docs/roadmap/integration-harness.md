@@ -2,14 +2,22 @@
 
 This spec defines a minimal host harness that exercises the engine without coupling to quant-lab.
 
+## Design note (M9 implementation)
+Owners: Integration Agent (harness UI/headless), Data Pipeline Agent (dataset schema/seed rules), Architecture Agent (boundary review).
+- Harness lives under `tools/harness/` and runs outside the engine runtime; no engine contract or lifecycle changes.
+- Deterministic datasets are generated from seeded specs with versioned manifests; numeric payloads are packed in binary files.
+- Headless runner produces JSON reports + replay hashes; UI harness uses the same scenario registry and dataset generator.
+
 ## Goals
 - Provide a deterministic, repeatable environment for pan/zoom/replay/overlay flows.
 - Exercise windowing, LOD, replay cutoff, and overlay layout paths.
 - Support automated smoke tests and benchmark drivers.
 
-## Harness layout (planned)
+## Harness layout (implemented)
 - Primary location: `tools/harness/`.
 - Modules: `scenarios/`, `datasets/`, `ui/`, `headless/`, `reports/`.
+- Dataset tooling: `datasets/generator.mjs`, `datasets/registry.mjs`, `datasets/node-io.mjs`.
+- Headless runner: `headless/runner.mjs`, `headless/run.mjs`.
 - No coupling to host UI frameworks; keep DOM minimal and engine-focused.
 
 ## Required features
@@ -40,11 +48,12 @@ This spec defines a minimal host harness that exercises the engine without coupl
 - Canonical input format: JSON manifest + binary payloads.
 - Manifest fields:
   - `scenarioId`, `seed`, `timeDomain` (UTC ms), `barCount`, `visibleTarget`.
+  - `generatorVersion`, `datasetHash` for dataset determinism tracking.
   - `series`: list of series ids with type and field names.
   - `overlays`: list of overlay batches with stable ids.
 - Binary payloads:
   - `timeMs`, `open`, `high`, `low`, `close`, `volume` as TypedArray blobs.
-  - Overlay points encoded as compact float arrays.
+  - Overlay points encoded as packed float arrays (`stride` + `fields`).
 
 ## Seed and determinism
 - Every scenario has a fixed `seed` in the manifest.
@@ -59,10 +68,11 @@ This spec defines a minimal host harness that exercises the engine without coupl
 - `overlay-storm`
 - `replay-scrub`
 
-## Entrypoints (planned)
+## Entrypoints (implemented)
 - `npm run harness:dev` (interactive harness).
 - `npm run harness:smoke` (headless smoke flow).
 - `npm run harness:bench` (benchmark runner).
+- `npm run harness:datasets` (generate datasets to disk).
 
 ## Automation hooks
 - Headless mode for automated smoke/benchmark runs.
@@ -80,7 +90,7 @@ This spec defines a minimal host harness that exercises the engine without coupl
   - Assertions passed/failed with timestamps.
   - Diagnostics summary and counts by severity.
   - `stateHashes`: ordered list of SHA-256 hashes per replay step (see `determinism-replay.md`).
-- Stores artifacts in `tools/harness/reports/` with a stable filename pattern.
+- Stores artifacts in `tools/harness/reports/` with `scenarioId-<runId>.json` filenames.
 
 ## Smoke test flow (headless)
 - Load `baseline-10k` and assert visible range + data window events.

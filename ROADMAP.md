@@ -307,28 +307,28 @@ M0–M8 establish the contract and documentation baseline. The milestones below 
 ### M9 - Integration harness + CI (implementation)
 **Goal**: Build the host-simulating harness and wire CI gates for real runs.
 
-- [ ] T9.1 Implement the harness app and core scenarios.
+- [x] T9.1 Implement the harness app and core scenarios.
   - Context: specs exist; no executable harness yet.
   - Changes: new `playground/` (or equivalent), scenario registry, wiring to engine API.
   - DoD: pan/zoom/replay/overlay scenarios run deterministically with a fixed seed.
   - Risks: scenario drift; Mitigation: scenario ids + golden configs.
   - Deps: M1.
 
-- [ ] T9.2 Implement deterministic dataset generator + loader.
+- [x] T9.2 Implement deterministic dataset generator + loader.
   - Context: benchmarks and smoke require reproducible data.
   - Changes: dataset generator, fixtures, loader contract used by harness.
   - DoD: dataset ids produce stable hashes across runs; artifacts stored.
   - Risks: non-determinism; Mitigation: fixed seeds + snapshot hashes.
   - Deps: T9.1.
 
-- [ ] T9.3 Implement UI smoke test using the harness.
+- [x] T9.3 Implement UI smoke test using the harness.
   - Context: current smoke does not exercise real host flows.
   - Changes: headless harness runner + snapshot assertions.
   - DoD: `npm run test:ui:smoke` runs the harness scenarios and outputs artifacts.
   - Risks: brittle tests; Mitigation: stable scenarios + tolerances.
   - Deps: T9.1.
 
-- [ ] T9.4 Add CI pipeline with contract + smoke gates.
+- [x] T9.4 Add CI pipeline with contract + smoke gates.
   - Context: gate rules exist only in docs.
   - Changes: CI workflow (typecheck, smoke, contract tests).
   - DoD: PRs fail on contract drift or smoke failures.

@@ -1,0 +1,105 @@
+# PineScript Coverage: data request
+
+Source: `D:\aera-chart-engine\docs\pinescript\catalog\data-request.md`
+Count: 94
+
+## Defaults
+- owner: host
+- status: planned
+- notes: host data requests
+
+## Entries
+- adjustment.dividends | host | planned | host data requests
+- adjustment.none | host | planned | host data requests
+- adjustment.splits | host | planned | host data requests
+- backadjustment.inherit | host | planned | host data requests
+- backadjustment.off | host | planned | host data requests
+- backadjustment.on | host | planned | host data requests
+- barmerge.gaps_off | host | planned | host data requests
+- barmerge.gaps_on | host | planned | host data requests
+- barmerge.lookahead_off | host | planned | host data requests
+- barmerge.lookahead_on | host | planned | host data requests
+- currency.AUD | host | planned | host data requests
+- currency.BTC | host | planned | host data requests
+- currency.CAD | host | planned | host data requests
+- currency.CHF | host | planned | host data requests
+- currency.EGP | host | planned | host data requests
+- currency.ETH | host | planned | host data requests
+- currency.EUR | host | planned | host data requests
+- currency.GBP | host | planned | host data requests
+- currency.HKD | host | planned | host data requests
+- currency.INR | host | planned | host data requests
+- currency.JPY | host | planned | host data requests
+- currency.KRW | host | planned | host data requests
+- currency.MYR | host | planned | host data requests
+- currency.NOK | host | planned | host data requests
+- currency.NONE | host | planned | host data requests
+- currency.NZD | host | planned | host data requests
+- currency.PKR | host | planned | host data requests
+- currency.PLN | host | planned | host data requests
+- currency.RUB | host | planned | host data requests
+- currency.SEK | host | planned | host data requests
+- currency.SGD | host | planned | host data requests
+- currency.TRY | host | planned | host data requests
+- currency.USD | host | planned | host data requests
+- currency.USDT | host | planned | host data requests
+- currency.ZAR | host | planned | host data requests
+- dividends.future_amount | host | planned | host data requests
+- dividends.future_ex_date | host | planned | host data requests
+- dividends.future_pay_date | host | planned | host data requests
+- dividends.gross | host | planned | host data requests
+- dividends.net | host | planned | host data requests
+- earnings.actual | host | planned | host data requests
+- earnings.estimate | host | planned | host data requests
+- earnings.future_eps | host | planned | host data requests
+- earnings.future_period_end_time | host | planned | host data requests
+- earnings.future_revenue | host | planned | host data requests
+- earnings.future_time | host | planned | host data requests
+- earnings.standardized | host | planned | host data requests
+- request.currency_rate() | host | planned | host data requests
+- request.dividends() | host | planned | host data requests
+- request.earnings() | host | planned | host data requests
+- request.economic() | host | planned | host data requests
+- request.financial() | host | planned | host data requests
+- request.quandl() | host | planned | host data requests
+- request.security_lower_tf() | host | planned | host data requests
+- request.security() | host | planned | host data requests
+- request.seed() | host | planned | host data requests
+- request.splits() | host | planned | host data requests
+- session.extended | host | planned | host data requests
+- session.isfirstbar | host | planned | host data requests
+- session.isfirstbar_regular | host | planned | host data requests
+- session.islastbar | host | planned | host data requests
+- session.islastbar_regular | host | planned | host data requests
+- session.ismarket | host | planned | host data requests
+- session.ispostmarket | host | planned | host data requests
+- session.ispremarket | host | planned | host data requests
+- session.regular | host | planned | host data requests
+- settlement_as_close.inherit | host | planned | host data requests
+- settlement_as_close.off | host | planned | host data requests
+- settlement_as_close.on | host | planned | host data requests
+- splits.denominator | host | planned | host data requests
+- splits.numerator | host | planned | host data requests
+- ticker.heikinashi() | host | planned | host data requests
+- ticker.inherit() | host | planned | host data requests
+- ticker.kagi() | host | planned | host data requests
+- ticker.linebreak() | host | planned | host data requests
+- ticker.modify() | host | planned | host data requests
+- ticker.new() | host | planned | host data requests
+- ticker.pointfigure() | host | planned | host data requests
+- ticker.renko() | host | planned | host data requests
+- ticker.standard() | host | planned | host data requests
+- timeframe.change() | host | planned | host data requests
+- timeframe.from_seconds() | host | planned | host data requests
+- timeframe.in_seconds() | host | planned | host data requests
+- timeframe.isdaily | host | planned | host data requests
+- timeframe.isdwm | host | planned | host data requests
+- timeframe.isintraday | host | planned | host data requests
+- timeframe.isminutes | host | planned | host data requests
+- timeframe.ismonthly | host | planned | host data requests
+- timeframe.isseconds | host | planned | host data requests
+- timeframe.isticks | host | planned | host data requests
+- timeframe.isweekly | host | planned | host data requests
+- timeframe.main_period | host | planned | host data requests
+- timeframe.multiplier | host | planned | host data requests
+- timeframe.period | host | planned | host data requests

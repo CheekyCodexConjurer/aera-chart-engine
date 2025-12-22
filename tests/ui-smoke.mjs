@@ -46,6 +46,7 @@ engine.onCrosshairMove((event) => {
   crosshairEvent = event;
 });
 engine.handlePointerMove("price", x ?? 0, 50);
+engine.flush();
 assert.ok(crosshairEvent, "crosshair move should emit");
 assert.equal(crosshairEvent.nearestTimeMs, 10000);
 

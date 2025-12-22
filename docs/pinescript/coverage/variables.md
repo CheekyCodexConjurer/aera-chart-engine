@@ -1,0 +1,171 @@
+# PineScript Coverage: variables
+
+Source: `D:\aera-chart-engine\docs\pinescript\catalog\variables.md`
+Count: 160
+
+## Defaults
+- owner: host
+- status: planned
+- notes: built-in variables
+
+## Entries
+- ask | host | planned | built-in variables
+- bar_index | host | planned | built-in variables
+- barstate.isconfirmed | host | planned | built-in variables
+- barstate.isfirst | host | planned | built-in variables
+- barstate.ishistory | host | planned | built-in variables
+- barstate.islast | host | planned | built-in variables
+- barstate.islastconfirmedhistory | host | planned | built-in variables
+- barstate.isnew | host | planned | built-in variables
+- barstate.isrealtime | host | planned | built-in variables
+- bid | host | planned | built-in variables
+- box.all | host+engine | planned | host normalizes; engine renders box/zone
+- chart.bg_color | host | planned | built-in variables
+- chart.fg_color | host | planned | built-in variables
+- chart.is_heikinashi | host | planned | built-in variables
+- chart.is_kagi | host | planned | built-in variables
+- chart.is_linebreak | host | planned | built-in variables
+- chart.is_pnf | host | planned | built-in variables
+- chart.is_range | host | planned | built-in variables
+- chart.is_renko | host | planned | built-in variables
+- chart.is_standard | host | planned | built-in variables
+- chart.left_visible_bar_time | host | planned | built-in variables
+- chart.right_visible_bar_time | host | planned | built-in variables
+- close | host | planned | built-in variables
+- dayofmonth | host | planned | built-in variables
+- dayofweek | host | planned | built-in variables
+- dividends.future_amount | host | planned | built-in variables
+- dividends.future_ex_date | host | planned | built-in variables
+- dividends.future_pay_date | host | planned | built-in variables
+- earnings.future_eps | host | planned | built-in variables
+- earnings.future_period_end_time | host | planned | built-in variables
+- earnings.future_revenue | host | planned | built-in variables
+- earnings.future_time | host | planned | built-in variables
+- high | host | planned | built-in variables
+- hl2 | host | planned | built-in variables
+- hlc3 | host | planned | built-in variables
+- hlcc4 | host | planned | built-in variables
+- hour | host | planned | built-in variables
+- label.all | host+engine | planned | host normalizes; engine renders label
+- last_bar_index | host | planned | built-in variables
+- last_bar_time | host | planned | built-in variables
+- line.all | host+engine | planned | host normalizes; engine renders line
+- linefill.all | host+engine | planned | host normalizes; engine renders fill
+- low | host | planned | built-in variables
+- minute | host | planned | built-in variables
+- month | host | planned | built-in variables
+- na | host | planned | built-in variables
+- ohlc4 | host | planned | built-in variables
+- open | host | planned | built-in variables
+- polyline.all | host+engine | planned | host normalizes; engine renders polyline
+- second | host | planned | built-in variables
+- session.isfirstbar | host | planned | built-in variables
+- session.isfirstbar_regular | host | planned | built-in variables
+- session.islastbar | host | planned | built-in variables
+- session.islastbar_regular | host | planned | built-in variables
+- session.ismarket | host | planned | built-in variables
+- session.ispostmarket | host | planned | built-in variables
+- session.ispremarket | host | planned | built-in variables
+- strategy.account_currency | host | planned | built-in variables
+- strategy.avg_losing_trade | host | planned | built-in variables
+- strategy.avg_losing_trade_percent | host | planned | built-in variables
+- strategy.avg_trade | host | planned | built-in variables
+- strategy.avg_trade_percent | host | planned | built-in variables
+- strategy.avg_winning_trade | host | planned | built-in variables
+- strategy.avg_winning_trade_percent | host | planned | built-in variables
+- strategy.closedtrades | host | planned | built-in variables
+- strategy.closedtrades.first_index | host | planned | built-in variables
+- strategy.equity | host | planned | built-in variables
+- strategy.eventrades | host | planned | built-in variables
+- strategy.grossloss | host | planned | built-in variables
+- strategy.grossloss_percent | host | planned | built-in variables
+- strategy.grossprofit | host | planned | built-in variables
+- strategy.grossprofit_percent | host | planned | built-in variables
+- strategy.initial_capital | host | planned | built-in variables
+- strategy.losstrades | host | planned | built-in variables
+- strategy.margin_liquidation_price | host | planned | built-in variables
+- strategy.max_contracts_held_all | host | planned | built-in variables
+- strategy.max_contracts_held_long | host | planned | built-in variables
+- strategy.max_contracts_held_short | host | planned | built-in variables
+- strategy.max_drawdown | host | planned | built-in variables
+- strategy.max_drawdown_percent | host | planned | built-in variables
+- strategy.max_runup | host | planned | built-in variables
+- strategy.max_runup_percent | host | planned | built-in variables
+- strategy.netprofit | host | planned | built-in variables
+- strategy.netprofit_percent | host | planned | built-in variables
+- strategy.openprofit | host | planned | built-in variables
+- strategy.openprofit_percent | host | planned | built-in variables
+- strategy.opentrades | host | planned | built-in variables
+- strategy.opentrades.capital_held | host | planned | built-in variables
+- strategy.position_avg_price | host | planned | built-in variables
+- strategy.position_entry_name | host | planned | built-in variables
+- strategy.position_size | host | planned | built-in variables
+- strategy.wintrades | host | planned | built-in variables
+- syminfo.basecurrency | host | planned | built-in variables
+- syminfo.country | host | planned | built-in variables
+- syminfo.currency | host | planned | built-in variables
+- syminfo.current_contract | host | planned | built-in variables
+- syminfo.description | host | planned | built-in variables
+- syminfo.employees | host | planned | built-in variables
+- syminfo.expiration_date | host | planned | built-in variables
+- syminfo.industry | host | planned | built-in variables
+- syminfo.main_tickerid | host | planned | built-in variables
+- syminfo.mincontract | host | planned | built-in variables
+- syminfo.minmove | host | planned | built-in variables
+- syminfo.mintick | host | planned | built-in variables
+- syminfo.pointvalue | host | planned | built-in variables
+- syminfo.prefix | host | planned | built-in variables
+- syminfo.pricescale | host | planned | built-in variables
+- syminfo.recommendations_buy | host | planned | built-in variables
+- syminfo.recommendations_buy_strong | host | planned | built-in variables
+- syminfo.recommendations_date | host | planned | built-in variables
+- syminfo.recommendations_hold | host | planned | built-in variables
+- syminfo.recommendations_sell | host | planned | built-in variables
+- syminfo.recommendations_sell_strong | host | planned | built-in variables
+- syminfo.recommendations_total | host | planned | built-in variables
+- syminfo.root | host | planned | built-in variables
+- syminfo.sector | host | planned | built-in variables
+- syminfo.session | host | planned | built-in variables
+- syminfo.shareholders | host | planned | built-in variables
+- syminfo.shares_outstanding_float | host | planned | built-in variables
+- syminfo.shares_outstanding_total | host | planned | built-in variables
+- syminfo.target_price_average | host | planned | built-in variables
+- syminfo.target_price_date | host | planned | built-in variables
+- syminfo.target_price_estimates | host | planned | built-in variables
+- syminfo.target_price_high | host | planned | built-in variables
+- syminfo.target_price_low | host | planned | built-in variables
+- syminfo.target_price_median | host | planned | built-in variables
+- syminfo.ticker | host | planned | built-in variables
+- syminfo.tickerid | host | planned | built-in variables
+- syminfo.timezone | host | planned | built-in variables
+- syminfo.type | host | planned | built-in variables
+- syminfo.volumetype | host | planned | built-in variables
+- ta.accdist | host | planned | built-in variables
+- ta.iii | host | planned | built-in variables
+- ta.nvi | host | planned | built-in variables
+- ta.obv | host | planned | built-in variables
+- ta.pvi | host | planned | built-in variables
+- ta.pvt | host | planned | built-in variables
+- ta.tr | host | planned | built-in variables
+- ta.vwap | host | planned | built-in variables
+- ta.wad | host | planned | built-in variables
+- ta.wvad | host | planned | built-in variables
+- table.all | host+engine | planned | host DOM overlay; engine provides coordinates
+- time | host | planned | built-in variables
+- time_close | host | planned | built-in variables
+- time_tradingday | host | planned | built-in variables
+- timeframe.isdaily | host | planned | built-in variables
+- timeframe.isdwm | host | planned | built-in variables
+- timeframe.isintraday | host | planned | built-in variables
+- timeframe.isminutes | host | planned | built-in variables
+- timeframe.ismonthly | host | planned | built-in variables
+- timeframe.isseconds | host | planned | built-in variables
+- timeframe.isticks | host | planned | built-in variables
+- timeframe.isweekly | host | planned | built-in variables
+- timeframe.main_period | host | planned | built-in variables
+- timeframe.multiplier | host | planned | built-in variables
+- timeframe.period | host | planned | built-in variables
+- timenow | host | planned | built-in variables
+- volume | host | planned | built-in variables
+- weekofyear | host | planned | built-in variables
+- year | host | planned | built-in variables

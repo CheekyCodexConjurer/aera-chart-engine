@@ -1,0 +1,103 @@
+# PineScript Coverage: system
+
+Source: `D:\aera-chart-engine\docs\pinescript\catalog\system.md`
+Count: 92
+
+## Defaults
+- owner: host
+- status: planned
+- notes: host runtime state
+
+## Entries
+- alert.freq_all | host | planned | host runtime state
+- alert.freq_once_per_bar | host | planned | host runtime state
+- alert.freq_once_per_bar_close | host | planned | host runtime state
+- barstate.isconfirmed | host | planned | host runtime state
+- barstate.isfirst | host | planned | host runtime state
+- barstate.ishistory | host | planned | host runtime state
+- barstate.islast | host | planned | host runtime state
+- barstate.islastconfirmedhistory | host | planned | host runtime state
+- barstate.isnew | host | planned | host runtime state
+- barstate.isrealtime | host | planned | host runtime state
+- chart.bg_color | host | planned | host runtime state
+- chart.fg_color | host | planned | host runtime state
+- chart.is_heikinashi | host | planned | host runtime state
+- chart.is_kagi | host | planned | host runtime state
+- chart.is_linebreak | host | planned | host runtime state
+- chart.is_pnf | host | planned | host runtime state
+- chart.is_range | host | planned | host runtime state
+- chart.is_renko | host | planned | host runtime state
+- chart.is_standard | host | planned | host runtime state
+- chart.left_visible_bar_time | host | planned | host runtime state
+- chart.point | host | planned | host runtime state
+- chart.point.copy() | host | planned | host runtime state
+- chart.point.from_index() | host | planned | host runtime state
+- chart.point.from_time() | host | planned | host runtime state
+- chart.point.new() | host | planned | host runtime state
+- chart.point.now() | host | planned | host runtime state
+- chart.right_visible_bar_time | host | planned | host runtime state
+- dayofweek.friday | host | planned | host runtime state
+- dayofweek.monday | host | planned | host runtime state
+- dayofweek.saturday | host | planned | host runtime state
+- dayofweek.sunday | host | planned | host runtime state
+- dayofweek.thursday | host | planned | host runtime state
+- dayofweek.tuesday | host | planned | host runtime state
+- dayofweek.wednesday | host | planned | host runtime state
+- input.bool() | host | planned | host runtime state
+- input.color() | host | planned | host runtime state
+- input.enum() | host | planned | host runtime state
+- input.float() | host | planned | host runtime state
+- input.int() | host | planned | host runtime state
+- input.price() | host | planned | host runtime state
+- input.session() | host | planned | host runtime state
+- input.source() | host | planned | host runtime state
+- input.string() | host | planned | host runtime state
+- input.symbol() | host | planned | host runtime state
+- input.text_area() | host | planned | host runtime state
+- input.time() | host | planned | host runtime state
+- input.timeframe() | host | planned | host runtime state
+- log.error() | host | planned | host runtime state
+- log.info() | host | planned | host runtime state
+- log.warning() | host | planned | host runtime state
+- runtime.error() | host | planned | host runtime state
+- syminfo.basecurrency | host | planned | host runtime state
+- syminfo.country | host | planned | host runtime state
+- syminfo.currency | host | planned | host runtime state
+- syminfo.current_contract | host | planned | host runtime state
+- syminfo.description | host | planned | host runtime state
+- syminfo.employees | host | planned | host runtime state
+- syminfo.expiration_date | host | planned | host runtime state
+- syminfo.industry | host | planned | host runtime state
+- syminfo.main_tickerid | host | planned | host runtime state
+- syminfo.mincontract | host | planned | host runtime state
+- syminfo.minmove | host | planned | host runtime state
+- syminfo.mintick | host | planned | host runtime state
+- syminfo.pointvalue | host | planned | host runtime state
+- syminfo.prefix | host | planned | host runtime state
+- syminfo.prefix() | host | planned | host runtime state
+- syminfo.pricescale | host | planned | host runtime state
+- syminfo.recommendations_buy | host | planned | host runtime state
+- syminfo.recommendations_buy_strong | host | planned | host runtime state
+- syminfo.recommendations_date | host | planned | host runtime state
+- syminfo.recommendations_hold | host | planned | host runtime state
+- syminfo.recommendations_sell | host | planned | host runtime state
+- syminfo.recommendations_sell_strong | host | planned | host runtime state
+- syminfo.recommendations_total | host | planned | host runtime state
+- syminfo.root | host | planned | host runtime state
+- syminfo.sector | host | planned | host runtime state
+- syminfo.session | host | planned | host runtime state
+- syminfo.shareholders | host | planned | host runtime state
+- syminfo.shares_outstanding_float | host | planned | host runtime state
+- syminfo.shares_outstanding_total | host | planned | host runtime state
+- syminfo.target_price_average | host | planned | host runtime state
+- syminfo.target_price_date | host | planned | host runtime state
+- syminfo.target_price_estimates | host | planned | host runtime state
+- syminfo.target_price_high | host | planned | host runtime state
+- syminfo.target_price_low | host | planned | host runtime state
+- syminfo.target_price_median | host | planned | host runtime state
+- syminfo.ticker | host | planned | host runtime state
+- syminfo.ticker() | host | planned | host runtime state
+- syminfo.tickerid | host | planned | host runtime state
+- syminfo.timezone | host | planned | host runtime state
+- syminfo.type | host | planned | host runtime state
+- syminfo.volumetype | host | planned | host runtime state

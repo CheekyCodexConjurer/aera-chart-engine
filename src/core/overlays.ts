@@ -1,4 +1,6 @@
 import {
+  AreaOverlayData,
+  HistogramOverlayData,
   HLineOverlayData,
   LabelOverlayData,
   LineOverlayData,
@@ -9,6 +11,7 @@ import {
   TimeMs,
   ZoneOverlayData
 } from "../api/public-types.js";
+import { isFiniteNumber } from "../util/math.js";
 
 export type OverlayRenderItem = {
   overlay: OverlayPrimitive;
@@ -20,7 +23,9 @@ const SUPPORTED_TYPES: Set<OverlayPrimitiveType> = new Set([
   "hline",
   "zone",
   "marker",
-  "label"
+  "label",
+  "area",
+  "histogram"
 ]);
 
 export function isOverlaySupported(type: OverlayPrimitiveType): boolean {
@@ -47,6 +52,104 @@ export class OverlayStore {
   }
 }
 
+export type OverlayValidationIssue = {
+  code: string;
+  message: string;
+  context?: Record<string, unknown>;
+};
+
+export function validateOverlay(overlay: OverlayPrimitive): OverlayValidationIssue[] {
+  const issues: OverlayValidationIssue[] = [];
+  if (!overlay.data || typeof overlay.data !== "object") {
+    issues.push({ code: "overlay.data.invalid", message: "overlay data must be an object" });
+    return issues;
+  }
+  switch (overlay.type) {
+    case "line":
+    case "area":
+    case "histogram":
+    case "marker":
+    case "label": {
+      const points = (overlay.data as LineOverlayData).points;
+      if (!Array.isArray(points) || points.length === 0) {
+        issues.push({ code: "overlay.points.missing", message: "overlay points are missing" });
+        return issues;
+      }
+      for (let i = 0; i < points.length; i += 1) {
+        const point = points[i];
+        if (!isFiniteNumber(point.timeMs) || !isFiniteNumber(point.value)) {
+          issues.push({
+            code: "overlay.point.invalid",
+            message: "overlay point values must be finite",
+            context: { index: i, timeMs: point.timeMs, value: point.value }
+          });
+          break;
+        }
+      }
+      if (overlay.type === "label") {
+        const labelPoints = (overlay.data as LabelOverlayData).points;
+        for (let i = 0; i < labelPoints.length; i += 1) {
+          if (!labelPoints[i].text) {
+            issues.push({
+              code: "overlay.label.text",
+              message: "label text is required",
+              context: { index: i }
+            });
+            break;
+          }
+        }
+      }
+      if (overlay.type === "area") {
+        const baseValue = (overlay.data as AreaOverlayData).baseValue;
+        if (baseValue !== undefined && !isFiniteNumber(baseValue)) {
+          issues.push({ code: "overlay.area.base", message: "area baseValue must be finite" });
+        }
+      }
+      if (overlay.type === "histogram") {
+        const baseValue = (overlay.data as HistogramOverlayData).baseValue;
+        if (baseValue !== undefined && !isFiniteNumber(baseValue)) {
+          issues.push({ code: "overlay.histogram.base", message: "histogram baseValue must be finite" });
+        }
+      }
+      return issues;
+    }
+    case "zone": {
+      const points = (overlay.data as ZoneOverlayData).points;
+      if (!Array.isArray(points) || points.length === 0) {
+        issues.push({ code: "overlay.points.missing", message: "zone points are missing" });
+        return issues;
+      }
+      for (let i = 0; i < points.length; i += 1) {
+        const point = points[i];
+        if (!isFiniteNumber(point.timeMs) || !isFiniteNumber(point.top) || !isFiniteNumber(point.bottom)) {
+          issues.push({
+            code: "overlay.zone.invalid",
+            message: "zone points must be finite",
+            context: { index: i }
+          });
+          break;
+        }
+      }
+      return issues;
+    }
+    case "hline": {
+      const data = overlay.data as HLineOverlayData;
+      if (!isFiniteNumber(data.value)) {
+        issues.push({ code: "overlay.hline.value", message: "hline value must be finite" });
+      }
+      if (data.fromTimeMs !== undefined && !isFiniteNumber(data.fromTimeMs)) {
+        issues.push({ code: "overlay.hline.from", message: "hline fromTimeMs must be finite" });
+      }
+      if (data.toTimeMs !== undefined && !isFiniteNumber(data.toTimeMs)) {
+        issues.push({ code: "overlay.hline.to", message: "hline toTimeMs must be finite" });
+      }
+      return issues;
+    }
+    default:
+      return issues;
+  }
+}
+
 function clipPoints(points: { timeMs: TimeMs }[], cutoffTimeMs?: TimeMs): { timeMs: TimeMs }[] {
   if (cutoffTimeMs === undefined) return points;
   return points.filter((point) => point.timeMs <= cutoffTimeMs);
@@ -57,6 +160,16 @@ export function clipOverlay(overlay: OverlayPrimitive, cutoffTimeMs?: TimeMs): O
     case "line": {
       const data = overlay.data as LineOverlayData;
       const points = clipPoints(data.points, cutoffTimeMs) as LineOverlayData["points"];
+      return { overlay, clippedData: { ...data, points } };
+    }
+    case "area": {
+      const data = overlay.data as AreaOverlayData;
+      const points = clipPoints(data.points, cutoffTimeMs) as AreaOverlayData["points"];
+      return { overlay, clippedData: { ...data, points } };
+    }
+    case "histogram": {
+      const data = overlay.data as HistogramOverlayData;
+      const points = clipPoints(data.points, cutoffTimeMs) as HistogramOverlayData["points"];
       return { overlay, clippedData: { ...data, points } };
     }
     case "marker": {

@@ -10,8 +10,8 @@ This document defines the overlay primitive contract and the engine's responsibi
 | zone | native | filled band between two lines |
 | marker | native | point markers with fixed size |
 | label | native | text labels anchored to data |
-| histogram | planned | requires bar batching |
-| area | planned | requires fill triangulation |
+| histogram | native | vertical bars with optional base value |
+| area | native | filled line with optional base value |
 | table / right-label | host overlay | DOM overlays positioned by API |
 
 ## Unsupported primitive policy

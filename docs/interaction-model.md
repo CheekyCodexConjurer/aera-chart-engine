@@ -16,17 +16,22 @@ This document defines the interaction state machine, pointer semantics, and mult
 - Pan translates view window by pixel delta mapped to time domain.
 - Zoom is cursor-anchored unless explicitly locked.
 - Inertia is optional and must be explicitly enabled.
+- Wheel zoom uses an exponential factor derived from scroll delta.
 
 ## Crosshair and hit-testing
 - Crosshair uses nearest visible data in the active pane.
 - Hit-testing is deterministic and stable across frames.
 - Gaps are respected; no inferred points.
+- The engine renders a crosshair when pointer state is active.
+- Host clears pointer state via `clearPointer` when the cursor leaves the plot.
+- Hit-testing uses a pixel radius and returns series + overlay hits.
 
 ## Pointer semantics (replay aware)
 - The engine emits continuous `timeMs` under the cursor.
 - The engine also emits `nearestTimeMs` for snapping decisions.
 - Snapping to bars is host-owned unless explicitly configured.
 - Pointer events are coalesced and run on the main thread.
+- Pointer input is provided via `handlePointerMove` and `handlePointerClick`.
 
 ## Over gaps and between bars
 - Continuous time is derived from axis transform.

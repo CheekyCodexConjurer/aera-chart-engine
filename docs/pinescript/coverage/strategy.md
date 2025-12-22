@@ -1,0 +1,118 @@
+# PineScript Coverage: strategy
+
+Source: `D:\aera-chart-engine\docs\pinescript\catalog\strategy.md`
+Count: 107
+
+## Defaults
+- owner: host
+- status: planned
+- notes: strategy runtime; engine renders outputs
+
+## Entries
+- order.ascending | host | planned | strategy runtime; engine renders outputs
+- order.descending | host | planned | strategy runtime; engine renders outputs
+- position.bottom_center | host | planned | strategy runtime; engine renders outputs
+- position.bottom_left | host | planned | strategy runtime; engine renders outputs
+- position.bottom_right | host | planned | strategy runtime; engine renders outputs
+- position.middle_center | host | planned | strategy runtime; engine renders outputs
+- position.middle_left | host | planned | strategy runtime; engine renders outputs
+- position.middle_right | host | planned | strategy runtime; engine renders outputs
+- position.top_center | host | planned | strategy runtime; engine renders outputs
+- position.top_left | host | planned | strategy runtime; engine renders outputs
+- position.top_right | host | planned | strategy runtime; engine renders outputs
+- strategy.account_currency | host | planned | strategy runtime; engine renders outputs
+- strategy.avg_losing_trade | host | planned | strategy runtime; engine renders outputs
+- strategy.avg_losing_trade_percent | host | planned | strategy runtime; engine renders outputs
+- strategy.avg_trade | host | planned | strategy runtime; engine renders outputs
+- strategy.avg_trade_percent | host | planned | strategy runtime; engine renders outputs
+- strategy.avg_winning_trade | host | planned | strategy runtime; engine renders outputs
+- strategy.avg_winning_trade_percent | host | planned | strategy runtime; engine renders outputs
+- strategy.cancel_all() | host | planned | strategy runtime; engine renders outputs
+- strategy.cancel() | host | planned | strategy runtime; engine renders outputs
+- strategy.cash | host | planned | strategy runtime; engine renders outputs
+- strategy.close_all() | host | planned | strategy runtime; engine renders outputs
+- strategy.close() | host | planned | strategy runtime; engine renders outputs
+- strategy.closedtrades | host | planned | strategy runtime; engine renders outputs
+- strategy.closedtrades.commission() | host | planned | strategy runtime; engine renders outputs
+- strategy.closedtrades.entry_bar_index() | host | planned | strategy runtime; engine renders outputs
+- strategy.closedtrades.entry_comment() | host | planned | strategy runtime; engine renders outputs
+- strategy.closedtrades.entry_id() | host | planned | strategy runtime; engine renders outputs
+- strategy.closedtrades.entry_price() | host | planned | strategy runtime; engine renders outputs
+- strategy.closedtrades.entry_time() | host | planned | strategy runtime; engine renders outputs
+- strategy.closedtrades.exit_bar_index() | host | planned | strategy runtime; engine renders outputs
+- strategy.closedtrades.exit_comment() | host | planned | strategy runtime; engine renders outputs
+- strategy.closedtrades.exit_id() | host | planned | strategy runtime; engine renders outputs
+- strategy.closedtrades.exit_price() | host | planned | strategy runtime; engine renders outputs
+- strategy.closedtrades.exit_time() | host | planned | strategy runtime; engine renders outputs
+- strategy.closedtrades.first_index | host | planned | strategy runtime; engine renders outputs
+- strategy.closedtrades.max_drawdown_percent() | host | planned | strategy runtime; engine renders outputs
+- strategy.closedtrades.max_drawdown() | host | planned | strategy runtime; engine renders outputs
+- strategy.closedtrades.max_runup_percent() | host | planned | strategy runtime; engine renders outputs
+- strategy.closedtrades.max_runup() | host | planned | strategy runtime; engine renders outputs
+- strategy.closedtrades.profit_percent() | host | planned | strategy runtime; engine renders outputs
+- strategy.closedtrades.profit() | host | planned | strategy runtime; engine renders outputs
+- strategy.closedtrades.size() | host | planned | strategy runtime; engine renders outputs
+- strategy.commission.cash_per_contract | host | planned | strategy runtime; engine renders outputs
+- strategy.commission.cash_per_order | host | planned | strategy runtime; engine renders outputs
+- strategy.commission.percent | host | planned | strategy runtime; engine renders outputs
+- strategy.convert_to_account() | host | planned | strategy runtime; engine renders outputs
+- strategy.convert_to_symbol() | host | planned | strategy runtime; engine renders outputs
+- strategy.default_entry_qty() | host | planned | strategy runtime; engine renders outputs
+- strategy.direction.all | host | planned | strategy runtime; engine renders outputs
+- strategy.direction.long | host | planned | strategy runtime; engine renders outputs
+- strategy.direction.short | host | planned | strategy runtime; engine renders outputs
+- strategy.entry() | host | planned | strategy runtime; engine renders outputs
+- strategy.equity | host | planned | strategy runtime; engine renders outputs
+- strategy.eventrades | host | planned | strategy runtime; engine renders outputs
+- strategy.exit() | host | planned | strategy runtime; engine renders outputs
+- strategy.fixed | host | planned | strategy runtime; engine renders outputs
+- strategy.grossloss | host | planned | strategy runtime; engine renders outputs
+- strategy.grossloss_percent | host | planned | strategy runtime; engine renders outputs
+- strategy.grossprofit | host | planned | strategy runtime; engine renders outputs
+- strategy.grossprofit_percent | host | planned | strategy runtime; engine renders outputs
+- strategy.initial_capital | host | planned | strategy runtime; engine renders outputs
+- strategy.long | host | planned | strategy runtime; engine renders outputs
+- strategy.losstrades | host | planned | strategy runtime; engine renders outputs
+- strategy.margin_liquidation_price | host | planned | strategy runtime; engine renders outputs
+- strategy.max_contracts_held_all | host | planned | strategy runtime; engine renders outputs
+- strategy.max_contracts_held_long | host | planned | strategy runtime; engine renders outputs
+- strategy.max_contracts_held_short | host | planned | strategy runtime; engine renders outputs
+- strategy.max_drawdown | host | planned | strategy runtime; engine renders outputs
+- strategy.max_drawdown_percent | host | planned | strategy runtime; engine renders outputs
+- strategy.max_runup | host | planned | strategy runtime; engine renders outputs
+- strategy.max_runup_percent | host | planned | strategy runtime; engine renders outputs
+- strategy.netprofit | host | planned | strategy runtime; engine renders outputs
+- strategy.netprofit_percent | host | planned | strategy runtime; engine renders outputs
+- strategy.oca.cancel | host | planned | strategy runtime; engine renders outputs
+- strategy.oca.none | host | planned | strategy runtime; engine renders outputs
+- strategy.oca.reduce | host | planned | strategy runtime; engine renders outputs
+- strategy.openprofit | host | planned | strategy runtime; engine renders outputs
+- strategy.openprofit_percent | host | planned | strategy runtime; engine renders outputs
+- strategy.opentrades | host | planned | strategy runtime; engine renders outputs
+- strategy.opentrades.capital_held | host | planned | strategy runtime; engine renders outputs
+- strategy.opentrades.commission() | host | planned | strategy runtime; engine renders outputs
+- strategy.opentrades.entry_bar_index() | host | planned | strategy runtime; engine renders outputs
+- strategy.opentrades.entry_comment() | host | planned | strategy runtime; engine renders outputs
+- strategy.opentrades.entry_id() | host | planned | strategy runtime; engine renders outputs
+- strategy.opentrades.entry_price() | host | planned | strategy runtime; engine renders outputs
+- strategy.opentrades.entry_time() | host | planned | strategy runtime; engine renders outputs
+- strategy.opentrades.max_drawdown_percent() | host | planned | strategy runtime; engine renders outputs
+- strategy.opentrades.max_drawdown() | host | planned | strategy runtime; engine renders outputs
+- strategy.opentrades.max_runup_percent() | host | planned | strategy runtime; engine renders outputs
+- strategy.opentrades.max_runup() | host | planned | strategy runtime; engine renders outputs
+- strategy.opentrades.profit_percent() | host | planned | strategy runtime; engine renders outputs
+- strategy.opentrades.profit() | host | planned | strategy runtime; engine renders outputs
+- strategy.opentrades.size() | host | planned | strategy runtime; engine renders outputs
+- strategy.order() | host | planned | strategy runtime; engine renders outputs
+- strategy.percent_of_equity | host | planned | strategy runtime; engine renders outputs
+- strategy.position_avg_price | host | planned | strategy runtime; engine renders outputs
+- strategy.position_entry_name | host | planned | strategy runtime; engine renders outputs
+- strategy.position_size | host | planned | strategy runtime; engine renders outputs
+- strategy.risk.allow_entry_in() | host | planned | strategy runtime; engine renders outputs
+- strategy.risk.max_cons_loss_days() | host | planned | strategy runtime; engine renders outputs
+- strategy.risk.max_drawdown() | host | planned | strategy runtime; engine renders outputs
+- strategy.risk.max_intraday_filled_orders() | host | planned | strategy runtime; engine renders outputs
+- strategy.risk.max_intraday_loss() | host | planned | strategy runtime; engine renders outputs
+- strategy.risk.max_position_size() | host | planned | strategy runtime; engine renders outputs
+- strategy.short | host | planned | strategy runtime; engine renders outputs
+- strategy.wintrades | host | planned | strategy runtime; engine renders outputs

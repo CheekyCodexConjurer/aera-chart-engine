@@ -15,15 +15,21 @@ Range: { startMs: TimeMs, endMs: TimeMs }
 Point: { x: number, y: number }
 ```
 
+## Engine options (selected)
+- `rightGutterWidth`: width reserved for Y-axis labels.
+- `paneGap`: vertical gap between panes in pixels.
+
 ## Viewport control (required)
 - `resetToLatest(paneId?)`
 - `resetAroundAnchor(timeMs, paneId?)`
 - `focusTime(timeMs, paneId?)`
 - `setVisibleRange(range, paneId?)`
+- `setPaneLayout([{ paneId, weight }])`
 
 **Rules**
 - All inputs are in the canonical time domain.
 - The engine clamps navigation to replay cutoff when active.
+- Pane layout weights are relative; unspecified panes default to weight 1.
 
 ## Visible range subscription (time domain)
 - `onVisibleRangeChange(callback(range, paneId))`
@@ -33,6 +39,7 @@ Point: { x: number, y: number }
 ## Pointer events contract
 - `onCrosshairMove(callback(event))`
 - `onCrosshairClick(callback(event))`
+- `onHitTest(callback(event))`
 
 **Event payload**
 ```
@@ -50,6 +57,37 @@ Point: { x: number, y: number }
 - Snapping to bars is a host decision unless explicitly configured.
 - Events are coalesced and must not exceed frame rate.
 
+## Hit-test contract (host overlays + tooltips)
+**Event payload**
+```
+{
+  paneId: PaneId,
+  timeMs: TimeMs,
+  screen: Point,
+  series: [{ seriesId, scaleId, timeMs, index, value?, open?, high?, low?, close?, distancePx? }],
+  overlays: [{ overlayId, type, scaleId, timeMs?, value?, text?, distancePx? }]
+}
+```
+
+**Rules**
+- Hit-test uses a configurable pixel radius (`hitTestRadiusPx`).
+- Series hits are sorted by proximity (lowest `distancePx` first).
+- Overlay hits are optional and best-effort (no blocking).
+
+## Interaction input (host-driven)
+- `handlePointerMove(paneId, x, y)`
+- `handlePointerClick(paneId, x, y)`
+- `beginPan(paneId, x)`
+- `updatePan(paneId, x)`
+- `endPan()`
+- `handleWheelZoom(paneId, x, deltaY, zoomSpeed?)`
+- `clearPointer(paneId?)`
+
+**Rules**
+- The host owns DOM events and feeds normalized inputs.
+- Wheel zoom is cursor-anchored and must not block the main thread.
+- `clearPointer` removes the crosshair and hover state.
+
 ## Coordinate conversion contract
 - `timeToX(paneId, timeMs) -> number|null`
 - `priceToY(paneId, scaleId, price) -> number|null`
@@ -66,8 +104,18 @@ Point: { x: number, y: number }
 - Host overlays are positioned via conversion APIs and plot area metrics.
 - Preferred update triggers:
   - `onTransformChange(callback(paneId))`
-  - `onLayoutChange(callback(paneId))`
+  - `onLayoutChange(callback(event))`
 - Polling every frame is discouraged by default.
+
+**Layout event payload**
+```
+{
+  paneId: PaneId,
+  plotArea: { x: number, y: number, width: number, height: number },
+  index: number,
+  count: number
+}
+```
 
 ## Theme and styling precedence
 - Global theme -> pane theme -> series defaults -> plot overrides.

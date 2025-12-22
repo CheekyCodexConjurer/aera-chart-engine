@@ -1,11 +1,16 @@
 import {
   ChartEngineOptions,
   CrosshairEvent,
+  HitTestEvent,
+  LayoutChangeEvent,
   OverlayBatch,
+  PaneLayout,
   Range,
   ReplayState,
+  SeriesHit,
   SeriesData,
   SeriesDefinition,
+  OverlayHit,
   SeriesUpdate,
   SeriesUpdateType,
   TimeMs,
@@ -14,13 +19,14 @@ import {
 import { DiagnosticsStore } from "./diagnostics.js";
 import { EventEmitter } from "./events.js";
 import { FrameScheduler } from "./scheduler.js";
-import { computeDataWindow } from "../data/window.js";
+import { computeDataWindow, sliceSnapshot } from "../data/window.js";
 import { validateSeriesData } from "../data/validation.js";
 import { appendSnapshot, createSnapshot, patchSnapshot, prependSnapshot } from "../data/snapshot.js";
 import { computeSeriesDomain, normalizeSeries, SeriesState, updateApproxBarInterval } from "./series.js";
+import { decimateCandles, decimateMinMax } from "../data/lod.js";
 import { InteractionStateMachine } from "../interaction/state-machine.js";
 import { PointerState } from "../interaction/pointer.js";
-import { clipOverlay, isOverlaySupported, OverlayStore } from "./overlays.js";
+import { clipOverlay, isOverlaySupported, OverlayStore, validateOverlay } from "./overlays.js";
 import { PlotArea, ScaleDomain, timeToX, xToTime, priceToY, yToPrice } from "./transform.js";
 import { Renderer, RenderFrame, RenderSeries } from "../rendering/renderer.js";
 import { NullRenderer } from "../rendering/null-renderer.js";
@@ -43,16 +49,22 @@ export class ChartEngine {
   private panes = new Map<string, PaneState>();
   private series = new Map<string, SeriesState>();
   private overlays = new OverlayStore();
+  private renderCache = new Map<string, RenderSeriesCache>();
   private replayState: ReplayState = { mode: "off" };
   private frameId = 0;
   private interaction = new InteractionStateMachine();
   private pointer = new PointerState();
   private panAnchor: { paneId: string; range: Range; screenX: number } | null = null;
+  private pendingCrosshairMove: CrosshairEvent | null = null;
+  private crosshairMoveScheduled = false;
+  private crosshairState: CrosshairEvent | null = null;
 
   private visibleRangeEmitter = new EventEmitter<VisibleRangeEvent>();
   private transformEmitter = new EventEmitter<{ paneId: string }>();
+  private layoutEmitter = new EventEmitter<LayoutChangeEvent>();
   private crosshairMoveEmitter = new EventEmitter<CrosshairEvent>();
   private crosshairClickEmitter = new EventEmitter<CrosshairEvent>();
+  private hitTestEmitter = new EventEmitter<HitTestEvent>();
   private diagnosticsEmitter = new EventEmitter<void>();
   private dataWindowEmitter = new EventEmitter<DataWindowRequestEvent>();
 
@@ -61,6 +73,11 @@ export class ChartEngine {
   private devicePixelRatio: number;
   private rightGutterWidth: number;
   private prefetchRatio: number;
+  private paneGap: number;
+  private paneOrderCounter = 0;
+  private hitTestRadiusPx: number;
+  private pendingHitTest: HitTestEvent | null = null;
+  private hitTestScheduled = false;
 
   constructor(options: ChartEngineInitOptions = {}) {
     this.width = options.width ?? 800;
@@ -68,6 +85,8 @@ export class ChartEngine {
     this.devicePixelRatio = options.devicePixelRatio ?? 1;
     this.rightGutterWidth = options.rightGutterWidth ?? 60;
     this.prefetchRatio = options.prefetchRatio ?? 0.2;
+    this.paneGap = options.paneGap ?? 0;
+    this.hitTestRadiusPx = options.hitTestRadiusPx ?? 8;
     this.renderer = options.renderer ?? new NullRenderer();
 
     this.scheduler = new FrameScheduler(() => this.renderFrame());
@@ -84,12 +103,20 @@ export class ChartEngine {
     return this.transformEmitter.subscribe(listener);
   }
 
+  onLayoutChange(listener: (event: LayoutChangeEvent) => void): () => void {
+    return this.layoutEmitter.subscribe(listener);
+  }
+
   onCrosshairMove(listener: (event: CrosshairEvent) => void): () => void {
     return this.crosshairMoveEmitter.subscribe(listener);
   }
 
   onCrosshairClick(listener: (event: CrosshairEvent) => void): () => void {
     return this.crosshairClickEmitter.subscribe(listener);
+  }
+
+  onHitTest(listener: (event: HitTestEvent) => void): () => void {
+    return this.hitTestEmitter.subscribe(listener);
   }
 
   onDiagnostics(listener: () => void): () => void {
@@ -106,6 +133,7 @@ export class ChartEngine {
 
   flush(): void {
     this.scheduler.flush();
+    this.flushPendingCrosshairMove();
   }
 
   setViewportSize(width: number, height: number, devicePixelRatio?: number): void {
@@ -114,12 +142,35 @@ export class ChartEngine {
     if (devicePixelRatio !== undefined) {
       this.devicePixelRatio = devicePixelRatio;
     }
-    for (const pane of this.panes.values()) {
-      pane.plotArea = this.computePlotArea();
-    }
+    this.recomputeLayout();
     this.renderer.resize?.(this.width, this.height, this.devicePixelRatio);
     this.transformEmitter.emit({ paneId: "price" });
     this.requestRender();
+  }
+
+  setAutoScale(paneId: string, scaleId: string, enabled: boolean): void {
+    const pane = this.ensurePane(paneId);
+    pane.autoScale.set(scaleId, enabled);
+    if (enabled) {
+      this.updateScaleDomain(paneId);
+    }
+  }
+
+  setPaneLayout(layout: PaneLayout): void {
+    if (!Array.isArray(layout)) return;
+    for (const entry of layout) {
+      const pane = this.ensurePane(entry.paneId);
+      const weight = entry.weight ?? 1;
+      if (!Number.isFinite(weight) || weight <= 0) {
+        this.diagnostics.addError("pane.layout.invalid", "pane layout weight must be positive", {
+          paneId: entry.paneId,
+          weight
+        });
+        continue;
+      }
+      pane.layoutWeight = weight;
+    }
+    this.recomputeLayout();
   }
 
   getPlotArea(paneId: string): PlotArea {
@@ -174,10 +225,12 @@ export class ChartEngine {
 
   removeSeries(seriesId: string): void {
     this.series.delete(seriesId);
+    this.renderCache.delete(seriesId);
     this.requestRender();
   }
 
   setOverlays(batch: OverlayBatch): void {
+    const accepted: typeof batch.overlays = [];
     for (const overlay of batch.overlays) {
       if (!isOverlaySupported(overlay.type)) {
         this.diagnostics.addWarn("overlay.unsupported", "overlay type is not supported", {
@@ -185,9 +238,43 @@ export class ChartEngine {
           overlayId: overlay.id,
           type: overlay.type
         });
+        continue;
       }
+      const issues = validateOverlay(overlay);
+      if (issues.length > 0) {
+        for (const issue of issues) {
+          this.diagnostics.addError(issue.code, issue.message, {
+            batchId: batch.batchId,
+            overlayId: overlay.id,
+            type: overlay.type,
+            ...issue.context
+          });
+        }
+        continue;
+      }
+      const paneId = overlay.paneId ?? "price";
+      const pane = this.panes.get(paneId);
+      if (!pane) {
+        this.diagnostics.addError("overlay.pane.missing", "overlay pane does not exist", {
+          batchId: batch.batchId,
+          overlayId: overlay.id,
+          paneId
+        });
+        continue;
+      }
+      const scaleId = overlay.scaleId ?? this.getPrimaryScaleId(paneId);
+      if (!pane.scaleDomains.has(scaleId)) {
+        this.diagnostics.addError("overlay.scale.missing", "overlay scale does not exist", {
+          batchId: batch.batchId,
+          overlayId: overlay.id,
+          paneId,
+          scaleId
+        });
+        continue;
+      }
+      accepted.push({ ...overlay, paneId, scaleId });
     }
-    this.overlays.setBatch(batch);
+    this.overlays.setBatch({ ...batch, overlays: accepted });
     this.requestRender();
   }
 
@@ -198,6 +285,10 @@ export class ChartEngine {
 
   setReplayState(state: ReplayState): void {
     this.replayState = state;
+    for (const pane of this.panes.values()) {
+      pane.visibleRange = this.clampRangeToReplay(pane.visibleRange, this.getPrimarySeries(pane.id));
+      this.emitVisibleRange(pane.id, pane.visibleRange);
+    }
     this.requestRender();
   }
 
@@ -267,19 +358,30 @@ export class ChartEngine {
   handlePointerMove(paneId: string, x: number, y: number): void {
     const pane = this.ensurePane(paneId);
     if (this.interaction.getState() === "disabled") return;
+    if (!isPointInside(pane.plotArea, x, y)) {
+      this.clearPointer(paneId);
+      return;
+    }
     this.interaction.setState("hover");
     this.pointer.update({ x, y });
     const timeMs = this.xToTime(paneId, x);
-    if (timeMs === null) return;
+    if (timeMs === null) {
+      this.clearPointer(paneId);
+      return;
+    }
     const price = this.yToPrice(paneId, this.getPrimaryScaleId(paneId), y);
     const nearest = this.findNearestTime(paneId, timeMs);
-    this.crosshairMoveEmitter.emit({
+    const event: CrosshairEvent = {
       paneId,
       timeMs,
       nearestTimeMs: nearest,
       price,
       screen: { x, y }
-    });
+    };
+    this.crosshairState = event;
+    this.queueCrosshairMove(event);
+    this.queueHitTest(this.computeHitTest(paneId, timeMs, x, y));
+    this.requestRender();
   }
 
   handlePointerClick(paneId: string, x: number, y: number): void {
@@ -296,6 +398,19 @@ export class ChartEngine {
       price,
       screen: { x, y }
     });
+  }
+
+  clearPointer(paneId?: string): void {
+    if (paneId && this.crosshairState?.paneId !== paneId) return;
+    this.pointer.clear();
+    this.crosshairState = null;
+    if (!paneId) {
+      this.pendingHitTest = null;
+    }
+    if (this.interaction.getState() === "hover") {
+      this.interaction.setState("idle");
+    }
+    this.requestRender();
   }
 
   beginPan(paneId: string, x: number): void {
@@ -319,6 +434,38 @@ export class ChartEngine {
     this.emitVisibleRange(paneId, pane.visibleRange);
   }
 
+  handleWheelZoom(paneId: string, x: number, deltaY: number, zoomSpeed = 0.002): void {
+    if (this.interaction.getState() === "disabled") return;
+    if (!Number.isFinite(deltaY)) return;
+    const speed = Math.max(0.0001, zoomSpeed);
+    const factor = Math.exp(-deltaY * speed);
+    if (!Number.isFinite(factor) || factor <= 0) return;
+    this.zoomAt(paneId, x, factor);
+  }
+
+  zoomAt(paneId: string, x: number, zoomFactor: number): void {
+    if (!Number.isFinite(zoomFactor) || zoomFactor <= 0) {
+      this.diagnostics.addError("zoom.invalid", "zoom factor must be a positive number", {
+        paneId,
+        zoomFactor
+      });
+      this.diagnosticsEmitter.emit();
+      return;
+    }
+    const pane = this.ensurePane(paneId);
+    const range = pane.visibleRange;
+    const anchorTime = this.xToTime(paneId, x) ?? (range.startMs + range.endMs) * 0.5;
+    const span = range.endMs - range.startMs;
+    const nextSpan = this.clampZoomSpan(span / zoomFactor, this.getPrimarySeries(paneId));
+    const ratio = span > 0 ? (anchorTime - range.startMs) / span : 0.5;
+    const startMs = anchorTime - ratio * nextSpan;
+    const endMs = startMs + nextSpan;
+    this.interaction.setState("active-zoom");
+    pane.visibleRange = this.clampRangeToReplay({ startMs, endMs }, this.getPrimarySeries(paneId));
+    this.emitVisibleRange(paneId, pane.visibleRange);
+    this.interaction.setState("idle");
+  }
+
   endPan(): void {
     if (this.interaction.getState() === "active-drag") {
       this.interaction.setState("idle");
@@ -329,6 +476,7 @@ export class ChartEngine {
   setScaleDomain(paneId: string, scaleId: string, domain: ScaleDomain): void {
     const pane = this.ensurePane(paneId);
     pane.scaleDomains.set(scaleId, domain);
+    pane.autoScale.set(scaleId, false);
     this.transformEmitter.emit({ paneId });
     this.requestRender();
   }
@@ -344,7 +492,8 @@ export class ChartEngine {
       panes.push({
         paneId: pane.id,
         plotArea: pane.plotArea,
-        scaleDomain: pane.scaleDomains.get(this.getPrimaryScaleId(pane.id)) ?? { min: 0, max: 1 },
+        visibleRange: { ...pane.visibleRange },
+        scaleDomains: Object.fromEntries(pane.scaleDomains.entries()),
         series: this.collectSeriesForPane(pane.id)
       });
     }
@@ -352,32 +501,113 @@ export class ChartEngine {
     const frame: RenderFrame = {
       frameId: this.frameId,
       panes,
-      overlays
+      overlays,
+      crosshair: this.crosshairState
     };
     this.renderer.render(frame);
   }
 
   private collectSeriesForPane(paneId: string): RenderSeries[] {
     const result: RenderSeries[] = [];
+    const pane = this.ensurePane(paneId);
     for (const series of this.series.values()) {
-      if (series.paneId !== paneId || !series.snapshot) continue;
-      result.push({
-        id: series.id,
-        type: series.type,
-        paneId: series.paneId,
-        scaleId: series.scaleId,
-        timeMs: series.snapshot.timeMs,
-        fields: series.snapshot.fields
-      });
+      if (series.paneId !== paneId) continue;
+      const renderSeries = this.buildRenderSeries(series, pane);
+      if (renderSeries) {
+        result.push(renderSeries);
+      }
     }
     return result;
+  }
+
+  private buildRenderSeries(series: SeriesState, pane: PaneState): RenderSeries | null {
+    const snapshot = series.snapshot;
+    if (!snapshot) return null;
+    const cutoffTime = this.getCutoffTime();
+    const effectiveRange: Range = {
+      startMs: pane.visibleRange.startMs,
+      endMs: cutoffTime !== undefined ? Math.min(pane.visibleRange.endMs, cutoffTime) : pane.visibleRange.endMs
+    };
+    const maxPoints = this.maxPointsFor(series.type, pane.plotArea.width);
+    const cache = this.renderCache.get(series.id);
+    if (
+      cache &&
+      cache.version === snapshot.version &&
+      cache.startMs === effectiveRange.startMs &&
+      cache.endMs === effectiveRange.endMs &&
+      cache.maxPoints === maxPoints &&
+      cache.cutoffTime === cutoffTime
+    ) {
+      return cache.series;
+    }
+
+    const window = sliceSnapshot(snapshot, effectiveRange, cutoffTime);
+    if (!window || window.timeMs.length === 0) return null;
+    let timeMs = window.timeMs;
+    let fields: Record<string, Float64Array> = {};
+
+    if (series.type === "candles") {
+      const open = window.fields.open ?? new Float64Array();
+      const high = window.fields.high ?? new Float64Array();
+      const low = window.fields.low ?? new Float64Array();
+      const close = window.fields.close ?? new Float64Array();
+      const volume = window.fields.volume ?? new Float64Array();
+      const decimated = decimateCandles(timeMs, open, high, low, close, volume, maxPoints);
+      timeMs = decimated.timeMs;
+      fields = {
+        open: decimated.open,
+        high: decimated.high,
+        low: decimated.low,
+        close: decimated.close,
+        volume: decimated.volume
+      };
+    } else {
+      const values = window.fields.value ?? new Float64Array();
+      const decimated = decimateMinMax(timeMs, values, maxPoints);
+      timeMs = decimated.timeMs;
+      fields = { value: decimated.values };
+    }
+
+    const renderSeries: RenderSeries = {
+      id: series.id,
+      type: series.type,
+      paneId: series.paneId,
+      scaleId: series.scaleId,
+      timeMs,
+      fields
+    };
+
+    this.renderCache.set(series.id, {
+      version: snapshot.version,
+      startMs: effectiveRange.startMs,
+      endMs: effectiveRange.endMs,
+      maxPoints,
+      cutoffTime,
+      series: renderSeries
+    });
+
+    return renderSeries;
+  }
+
+  private maxPointsFor(type: SeriesState["type"], width: number): number {
+    const pixelWidth = Math.max(1, Math.floor(width));
+    if (type === "candles" || type === "histogram") {
+      return Math.max(1, pixelWidth);
+    }
+    return Math.max(2, pixelWidth * 2);
   }
 
   private updateScaleDomain(paneId: string): void {
     const pane = this.ensurePane(paneId);
     const series = this.getPrimarySeries(paneId);
     if (!series) return;
-    const domain = computeSeriesDomain(series, pane.visibleRange);
+    if (pane.autoScale.get(series.scaleId) === false) return;
+    const cutoffTime = this.getCutoffTime();
+    const range: Range = {
+      startMs: pane.visibleRange.startMs,
+      endMs: cutoffTime !== undefined ? Math.min(pane.visibleRange.endMs, cutoffTime) : pane.visibleRange.endMs
+    };
+    const domain = computeSeriesDomain(series, range);
     if (domain) {
       pane.scaleDomains.set(series.scaleId, domain);
       this.transformEmitter.emit({ paneId });
@@ -385,9 +615,18 @@ export class ChartEngine {
   }
 
   private emitVisibleRange(paneId: string, range: Range): void {
-    this.visibleRangeEmitter.emit({ paneId, range });
+    const pane = this.ensurePane(paneId);
+    if (!rangesEqual(pane.lastEmittedRange, range)) {
+      pane.lastEmittedRange = { ...range };
+      this.visibleRangeEmitter.emit({ paneId, range });
+      this.transformEmitter.emit({ paneId });
+    }
     const dataWindow = computeDataWindow(range, this.prefetchRatio);
-    this.dataWindowEmitter.emit({ paneId, range: dataWindow.range, prefetchRatio: dataWindow.prefetchRatio });
+    if (!rangesEqual(pane.lastEmittedDataWindow, dataWindow.range)) {
+      pane.lastEmittedDataWindow = { ...dataWindow.range };
+      this.dataWindowEmitter.emit({ paneId, range: dataWindow.range, prefetchRatio: dataWindow.prefetchRatio });
+    }
+    this.updateScaleDomain(paneId);
     this.requestRender();
   }
 
@@ -395,26 +634,110 @@ export class ChartEngine {
     this.scheduler.requestFrame();
   }
 
+  private queueCrosshairMove(event: CrosshairEvent): void {
+    this.pendingCrosshairMove = event;
+    if (this.crosshairMoveScheduled) return;
+    this.crosshairMoveScheduled = true;
+    const emit = () => {
+      this.crosshairMoveScheduled = false;
+      const pending = this.pendingCrosshairMove;
+      this.pendingCrosshairMove = null;
+      if (pending) {
+        this.crosshairMoveEmitter.emit(pending);
+      }
+    };
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(emit);
+    } else {
+      queueMicrotask(emit);
+    }
+  }
+
+  private queueHitTest(event: HitTestEvent): void {
+    this.pendingHitTest = event;
+    if (this.hitTestScheduled) return;
+    this.hitTestScheduled = true;
+    const emit = () => {
+      this.hitTestScheduled = false;
+      const pending = this.pendingHitTest;
+      this.pendingHitTest = null;
+      if (pending) {
+        this.hitTestEmitter.emit(pending);
+      }
+    };
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(emit);
+    } else {
+      queueMicrotask(emit);
+    }
+  }
+
+  private flushPendingCrosshairMove(): void {
+    const pending = this.pendingCrosshairMove;
+    if (!pending) {
+      this.crosshairMoveScheduled = false;
+      return;
+    }
+    this.pendingCrosshairMove = null;
+    this.crosshairMoveScheduled = false;
+    this.crosshairMoveEmitter.emit(pending);
+  }
+
   private ensurePane(paneId: string): PaneState {
     const existing = this.panes.get(paneId);
     if (existing) return existing;
     const pane: PaneState = {
       id: paneId,
-      plotArea: this.computePlotArea(),
+      order: this.paneOrderCounter++,
+      layoutWeight: 1,
+      plotArea: {
+        x: 0,
+        y: 0,
+        width: Math.max(0, this.width - this.rightGutterWidth),
+        height: this.height
+      },
       visibleRange: { startMs: 0, endMs: 1 },
-      scaleDomains: new Map([["price", { min: 0, max: 1 }]])
+      scaleDomains: new Map([["price", { min: 0, max: 1 }]]),
+      autoScale: new Map([["price", true]]),
+      lastEmittedRange: null,
+      lastEmittedDataWindow: null
     };
     this.panes.set(paneId, pane);
+    this.recomputeLayout();
     return pane;
   }
 
-  private computePlotArea(): PlotArea {
-    return {
-      x: 0,
-      y: 0,
-      width: Math.max(0, this.width - this.rightGutterWidth),
-      height: this.height
-    };
+  private recomputeLayout(): void {
+    const panes = this.getOrderedPanes();
+    if (panes.length === 0) return;
+    const totalGap = this.paneGap * Math.max(0, panes.length - 1);
+    const availableHeight = Math.max(1, this.height - totalGap);
+    let weightSum = 0;
+    for (const pane of panes) {
+      weightSum += pane.layoutWeight;
+    }
+    if (weightSum <= 0) weightSum = panes.length;
+    let yOffset = 0;
+    for (let i = 0; i < panes.length; i += 1) {
+      const pane = panes[i];
+      const weight = pane.layoutWeight > 0 ? pane.layoutWeight : 1;
+      const height = i === panes.length - 1
+        ? Math.max(1, this.height - yOffset)
+        : Math.max(1, Math.round((availableHeight * weight) / weightSum));
+      pane.plotArea = {
+        x: 0,
+        y: yOffset,
+        width: Math.max(0, this.width - this.rightGutterWidth),
+        height
+      };
+      yOffset += height + this.paneGap;
+      this.layoutEmitter.emit({ paneId: pane.id, plotArea: pane.plotArea, index: i, count: panes.length });
+      this.transformEmitter.emit({ paneId: pane.id });
+    }
+  }
+
+  private getOrderedPanes(): PaneState[] {
+    return Array.from(this.panes.values()).sort((a, b) => a.order - b.order);
   }
 
   private getPrimarySeries(paneId: string): SeriesState | null {
@@ -436,6 +759,12 @@ export class ChartEngine {
     const times = snapshot.timeMs;
     let low = 0;
     let high = times.length - 1;
+    const cutoff = this.getCutoffTime();
+    if (cutoff !== undefined) {
+      const lastIndex = upperBound(times, cutoff) - 1;
+      if (lastIndex < 0) return null;
+      high = Math.min(high, lastIndex);
+    }
     while (low <= high) {
       const mid = (low + high) >> 1;
       const value = times[mid];
@@ -469,18 +798,317 @@ export class ChartEngine {
     const startMs = Math.min(range.startMs, endMs - span);
     return { startMs, endMs };
   }
+
+  private clampZoomSpan(span: number, series: SeriesState | null): number {
+    const minSpan = Math.max(1, (series?.approxBarIntervalMs ?? 1) * 2);
+    let maxSpan = Math.max(minSpan, span);
+    const snapshot = series?.snapshot;
+    if (snapshot && snapshot.timeMs.length > 1) {
+      const fullSpan = snapshot.timeMs[snapshot.timeMs.length - 1] - snapshot.timeMs[0];
+      if (Number.isFinite(fullSpan) && fullSpan > 0) {
+        maxSpan = Math.max(minSpan, fullSpan);
+      }
+    }
+    return clamp(span, minSpan, maxSpan);
+  }
+
+  private computeHitTest(paneId: string, timeMs: TimeMs, x: number, y: number): HitTestEvent {
+    const pane = this.ensurePane(paneId);
+    const seriesHits: SeriesHit[] = [];
+    for (const series of this.series.values()) {
+      if (series.paneId !== paneId || !series.snapshot) continue;
+      const hit = this.hitTestSeries(series, pane, timeMs, x, y);
+      if (hit) {
+        seriesHits.push(hit);
+      }
+    }
+    seriesHits.sort((a, b) => (a.distancePx ?? 0) - (b.distancePx ?? 0));
+
+    const overlayHits: OverlayHit[] = [];
+    for (const overlay of this.overlays.getAll()) {
+      if ((overlay.paneId ?? "price") !== paneId) continue;
+      const clipped = clipOverlay(overlay, this.getCutoffTime()).clippedData;
+      const hit = this.hitTestOverlay(overlay, clipped, pane, timeMs, x, y);
+      if (hit) {
+        overlayHits.push(hit);
+      }
+    }
+    overlayHits.sort((a, b) => (a.distancePx ?? 0) - (b.distancePx ?? 0));
+
+    return {
+      paneId,
+      timeMs,
+      screen: { x, y },
+      series: seriesHits,
+      overlays: overlayHits
+    };
+  }
+
+  private hitTestSeries(
+    series: SeriesState,
+    pane: PaneState,
+    timeMs: TimeMs,
+    x: number,
+    y: number
+  ): SeriesHit | null {
+    const snapshot = series.snapshot;
+    if (!snapshot) return null;
+    const index = findNearestIndex(snapshot.timeMs, timeMs, this.getCutoffTime());
+    if (index === null) return null;
+    const timeValue = snapshot.timeMs[index];
+    const xValue = timeToX(pane.visibleRange, pane.plotArea, timeValue);
+    if (xValue === null) return null;
+    const distanceX = Math.abs(xValue - x);
+    if (distanceX > this.hitTestRadiusPx) return null;
+    const domain = pane.scaleDomains.get(series.scaleId);
+    const baseHit: SeriesHit = {
+      seriesId: series.id,
+      paneId: series.paneId,
+      scaleId: series.scaleId,
+      timeMs: timeValue,
+      index,
+      distancePx: distanceX
+    };
+    if (!domain) return baseHit;
+
+    if (series.type === "candles") {
+      const open = snapshot.fields.open?.[index];
+      const high = snapshot.fields.high?.[index];
+      const low = snapshot.fields.low?.[index];
+      const close = snapshot.fields.close?.[index];
+      if (
+        open === undefined ||
+        high === undefined ||
+        low === undefined ||
+        close === undefined
+      ) {
+        return baseHit;
+      }
+      const highY = priceToY(domain, pane.plotArea, high);
+      const lowY = priceToY(domain, pane.plotArea, low);
+      if (highY !== null && lowY !== null) {
+        const minY = Math.min(highY, lowY) - this.hitTestRadiusPx;
+        const maxY = Math.max(highY, lowY) + this.hitTestRadiusPx;
+        if (y < minY || y > maxY) return null;
+      }
+      return {
+        ...baseHit,
+        open,
+        high,
+        low,
+        close
+      };
+    }
+
+    const value = snapshot.fields.value?.[index];
+    if (value === undefined) return baseHit;
+    const valueY = priceToY(domain, pane.plotArea, value);
+    if (valueY !== null) {
+      const distanceY = Math.abs(valueY - y);
+      const distance = Math.hypot(distanceX, distanceY);
+      if (distance > this.hitTestRadiusPx) return null;
+      baseHit.distancePx = distance;
+    }
+    return { ...baseHit, value };
+  }
+
+  private hitTestOverlay(
+    overlay: { id: string; type: string; paneId?: string; scaleId?: string },
+    data: unknown,
+    pane: PaneState,
+    timeMs: TimeMs,
+    x: number,
+    y: number
+  ): OverlayHit | null {
+    const scaleId = overlay.scaleId ?? "price";
+    const domain = pane.scaleDomains.get(scaleId);
+    if (!domain) return null;
+    if (!data || typeof data !== "object") return null;
+    const type = overlay.type;
+    if (type === "marker" || type === "label" || type === "line" || type === "area" || type === "histogram") {
+      const points = (data as { points?: { timeMs: TimeMs; value: number; text?: string }[] }).points;
+      if (!Array.isArray(points) || points.length === 0) return null;
+      const nearest = findNearestPoint(points, timeMs);
+      if (!nearest) return null;
+      const xValue = timeToX(pane.visibleRange, pane.plotArea, nearest.timeMs);
+      const yValue = priceToY(domain, pane.plotArea, nearest.value);
+      if (xValue === null || yValue === null) return null;
+      const distance = Math.hypot(xValue - x, yValue - y);
+      if (distance > this.hitTestRadiusPx) return null;
+      return {
+        overlayId: overlay.id,
+        paneId: pane.id,
+        scaleId,
+        type: overlay.type as OverlayHit["type"],
+        timeMs: nearest.timeMs,
+        value: nearest.value,
+        text: nearest.text,
+        distancePx: distance
+      };
+    }
+    if (type === "hline") {
+      const value = (data as { value?: number }).value;
+      if (value === undefined) return null;
+      const yValue = priceToY(domain, pane.plotArea, value);
+      if (yValue === null) return null;
+      const distance = Math.abs(yValue - y);
+      if (distance > this.hitTestRadiusPx) return null;
+      return {
+        overlayId: overlay.id,
+        paneId: pane.id,
+        scaleId,
+        type: overlay.type as OverlayHit["type"],
+        value,
+        distancePx: distance
+      };
+    }
+    if (type === "zone") {
+      const points = (data as { points?: { timeMs: TimeMs; top: number; bottom: number }[] }).points;
+      if (!Array.isArray(points) || points.length === 0) return null;
+      const nearest = findNearestZone(points, timeMs);
+      if (!nearest) return null;
+      const xValue = timeToX(pane.visibleRange, pane.plotArea, nearest.timeMs);
+      if (xValue === null) return null;
+      const topY = priceToY(domain, pane.plotArea, nearest.top);
+      const bottomY = priceToY(domain, pane.plotArea, nearest.bottom);
+      if (topY === null || bottomY === null) return null;
+      const minY = Math.min(topY, bottomY) - this.hitTestRadiusPx;
+      const maxY = Math.max(topY, bottomY) + this.hitTestRadiusPx;
+      if (y < minY || y > maxY) return null;
+      const distance = Math.abs(xValue - x);
+      if (distance > this.hitTestRadiusPx) return null;
+      return {
+        overlayId: overlay.id,
+        paneId: pane.id,
+        scaleId,
+        type: overlay.type as OverlayHit["type"],
+        timeMs: nearest.timeMs,
+        value: nearest.top,
+        distancePx: distance
+      };
+    }
+    return null;
+  }
 }
 
 type PaneState = {
   id: string;
+  order: number;
+  layoutWeight: number;
   plotArea: PlotArea;
   visibleRange: Range;
   scaleDomains: Map<string, ScaleDomain>;
+  autoScale: Map<string, boolean>;
+  lastEmittedRange: Range | null;
+  lastEmittedDataWindow: Range | null;
 };
 
 type PaneRenderState = {
   paneId: string;
   plotArea: PlotArea;
-  scaleDomain: ScaleDomain;
+  visibleRange: Range;
+  scaleDomains: Record<string, ScaleDomain>;
   series: RenderSeries[];
 };
+
+type RenderSeriesCache = {
+  version: number;
+  startMs: TimeMs;
+  endMs: TimeMs;
+  maxPoints: number;
+  cutoffTime?: TimeMs;
+  series: RenderSeries;
+};
+
+function rangesEqual(a: Range | null, b: Range | null): boolean {
+  if (!a || !b) return false;
+  return a.startMs === b.startMs && a.endMs === b.endMs;
+}
+
+function upperBound(times: Float64Array, target: TimeMs): number {
+  let low = 0;
+  let high = times.length;
+  while (low < high) {
+    const mid = (low + high) >> 1;
+    if (times[mid] <= target) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+  return low;
+}
+
+function isPointInside(plotArea: PlotArea, x: number, y: number): boolean {
+  return (
+    x >= plotArea.x &&
+    x <= plotArea.x + plotArea.width &&
+    y >= plotArea.y &&
+    y <= plotArea.y + plotArea.height
+  );
+}
+
+function findNearestIndex(times: Float64Array, timeMs: TimeMs, cutoff?: TimeMs): number | null {
+  if (times.length === 0) return null;
+  let low = 0;
+  let high = times.length - 1;
+  if (cutoff !== undefined) {
+    const lastIndex = upperBound(times, cutoff) - 1;
+    if (lastIndex < 0) return null;
+    high = Math.min(high, lastIndex);
+  }
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    const value = times[mid];
+    if (value === timeMs) return mid;
+    if (value < timeMs) low = mid + 1;
+    else high = mid - 1;
+  }
+  const left = clamp(high, 0, times.length - 1);
+  const right = clamp(low, 0, times.length - 1);
+  const leftDiff = Math.abs(times[left] - timeMs);
+  const rightDiff = Math.abs(times[right] - timeMs);
+  return leftDiff <= rightDiff ? left : right;
+}
+
+function findNearestPoint(
+  points: { timeMs: TimeMs; value: number; text?: string }[],
+  timeMs: TimeMs
+): { timeMs: TimeMs; value: number; text?: string } | null {
+  if (points.length === 0) return null;
+  let low = 0;
+  let high = points.length - 1;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    const value = points[mid].timeMs;
+    if (value === timeMs) return points[mid];
+    if (value < timeMs) low = mid + 1;
+    else high = mid - 1;
+  }
+  const left = clamp(high, 0, points.length - 1);
+  const right = clamp(low, 0, points.length - 1);
+  const leftDiff = Math.abs(points[left].timeMs - timeMs);
+  const rightDiff = Math.abs(points[right].timeMs - timeMs);
+  return leftDiff <= rightDiff ? points[left] : points[right];
+}
+
+function findNearestZone(
+  points: { timeMs: TimeMs; top: number; bottom: number }[],
+  timeMs: TimeMs
+): { timeMs: TimeMs; top: number; bottom: number } | null {
+  if (points.length === 0) return null;
+  let low = 0;
+  let high = points.length - 1;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    const value = points[mid].timeMs;
+    if (value === timeMs) return points[mid];
+    if (value < timeMs) low = mid + 1;
+    else high = mid - 1;
+  }
+  const left = clamp(high, 0, points.length - 1);
+  const right = clamp(low, 0, points.length - 1);
+  const leftDiff = Math.abs(points[left].timeMs - timeMs);
+  const rightDiff = Math.abs(points[right].timeMs - timeMs);
+  return leftDiff <= rightDiff ? points[left] : points[right];
+}

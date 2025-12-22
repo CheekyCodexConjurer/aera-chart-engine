@@ -39,6 +39,7 @@ This index maps all canonical documentation for the chart engine. Each page is s
 ## PineScript compatibility (host-owned execution)
 - `pinescript/INDEX.md` - PineScript compatibility index and scope.
 - `pinescript/catalog/INDEX.md` - full PineScript catalog listing.
+- `pinescript/coverage/INDEX.md` - coverage matrix by entry.
 - `pinescript/compatibility-matrix.md` - feature map and ownership.
 - `pinescript/execution-model.md` - bar-by-bar semantics and replay alignment.
 - `pinescript/type-system.md` - series/simple/input rules.

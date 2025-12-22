@@ -21,3 +21,4 @@ PineScript -> host runtime -> Plot API normalization -> engine primitives
 - `limits-and-performance.md` - limits, budgets, and enforcement.
 - `interop-contract.md` - host and engine responsibilities for PineScript parity.
 - `catalog/INDEX.md` - full PineScript catalog (functions, variables, constants, keywords, types).
+- `coverage/INDEX.md` - full PineScript coverage matrix (owner/status per entry).

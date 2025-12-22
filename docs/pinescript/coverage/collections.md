@@ -1,0 +1,126 @@
+# PineScript Coverage: collections
+
+Source: `D:\aera-chart-engine\docs\pinescript\catalog\collections.md`
+Count: 115
+
+## Defaults
+- owner: host
+- status: planned
+- notes: host collections runtime
+
+## Entries
+- array.abs() | host | planned | host collections runtime
+- array.avg() | host | planned | host collections runtime
+- array.binary_search_leftmost() | host | planned | host collections runtime
+- array.binary_search_rightmost() | host | planned | host collections runtime
+- array.binary_search() | host | planned | host collections runtime
+- array.clear() | host | planned | host collections runtime
+- array.concat() | host | planned | host collections runtime
+- array.copy() | host | planned | host collections runtime
+- array.covariance() | host | planned | host collections runtime
+- array.every() | host | planned | host collections runtime
+- array.fill() | host | planned | host collections runtime
+- array.first() | host | planned | host collections runtime
+- array.from() | host | planned | host collections runtime
+- array.get() | host | planned | host collections runtime
+- array.includes() | host | planned | host collections runtime
+- array.indexof() | host | planned | host collections runtime
+- array.insert() | host | planned | host collections runtime
+- array.join() | host | planned | host collections runtime
+- array.last() | host | planned | host collections runtime
+- array.lastindexof() | host | planned | host collections runtime
+- array.max() | host | planned | host collections runtime
+- array.median() | host | planned | host collections runtime
+- array.min() | host | planned | host collections runtime
+- array.mode() | host | planned | host collections runtime
+- array.new_bool() | host | planned | host collections runtime
+- array.new_box() | host | planned | host collections runtime
+- array.new_color() | host | planned | host collections runtime
+- array.new_float() | host | planned | host collections runtime
+- array.new_int() | host | planned | host collections runtime
+- array.new_label() | host | planned | host collections runtime
+- array.new_line() | host | planned | host collections runtime
+- array.new_linefill() | host | planned | host collections runtime
+- array.new_string() | host | planned | host collections runtime
+- array.new_table() | host | planned | host collections runtime
+- array.new<type>() | host | planned | host collections runtime
+- array.percentile_linear_interpolation() | host | planned | host collections runtime
+- array.percentile_nearest_rank() | host | planned | host collections runtime
+- array.percentrank() | host | planned | host collections runtime
+- array.pop() | host | planned | host collections runtime
+- array.push() | host | planned | host collections runtime
+- array.range() | host | planned | host collections runtime
+- array.remove() | host | planned | host collections runtime
+- array.reverse() | host | planned | host collections runtime
+- array.set() | host | planned | host collections runtime
+- array.shift() | host | planned | host collections runtime
+- array.size() | host | planned | host collections runtime
+- array.slice() | host | planned | host collections runtime
+- array.some() | host | planned | host collections runtime
+- array.sort_indices() | host | planned | host collections runtime
+- array.sort() | host | planned | host collections runtime
+- array.standardize() | host | planned | host collections runtime
+- array.stdev() | host | planned | host collections runtime
+- array.sum() | host | planned | host collections runtime
+- array.unshift() | host | planned | host collections runtime
+- array.variance() | host | planned | host collections runtime
+- map.clear() | host | planned | host collections runtime
+- map.contains() | host | planned | host collections runtime
+- map.copy() | host | planned | host collections runtime
+- map.get() | host | planned | host collections runtime
+- map.keys() | host | planned | host collections runtime
+- map.new<type,type>() | host | planned | host collections runtime
+- map.put_all() | host | planned | host collections runtime
+- map.put() | host | planned | host collections runtime
+- map.remove() | host | planned | host collections runtime
+- map.size() | host | planned | host collections runtime
+- map.values() | host | planned | host collections runtime
+- matrix.add_col() | host | planned | host collections runtime
+- matrix.add_row() | host | planned | host collections runtime
+- matrix.avg() | host | planned | host collections runtime
+- matrix.col() | host | planned | host collections runtime
+- matrix.columns() | host | planned | host collections runtime
+- matrix.concat() | host | planned | host collections runtime
+- matrix.copy() | host | planned | host collections runtime
+- matrix.det() | host | planned | host collections runtime
+- matrix.diff() | host | planned | host collections runtime
+- matrix.eigenvalues() | host | planned | host collections runtime
+- matrix.eigenvectors() | host | planned | host collections runtime
+- matrix.elements_count() | host | planned | host collections runtime
+- matrix.fill() | host | planned | host collections runtime
+- matrix.get() | host | planned | host collections runtime
+- matrix.inv() | host | planned | host collections runtime
+- matrix.is_antidiagonal() | host | planned | host collections runtime
+- matrix.is_antisymmetric() | host | planned | host collections runtime
+- matrix.is_binary() | host | planned | host collections runtime
+- matrix.is_diagonal() | host | planned | host collections runtime
+- matrix.is_identity() | host | planned | host collections runtime
+- matrix.is_square() | host | planned | host collections runtime
+- matrix.is_stochastic() | host | planned | host collections runtime
+- matrix.is_symmetric() | host | planned | host collections runtime
+- matrix.is_triangular() | host | planned | host collections runtime
+- matrix.is_zero() | host | planned | host collections runtime
+- matrix.kron() | host | planned | host collections runtime
+- matrix.max() | host | planned | host collections runtime
+- matrix.median() | host | planned | host collections runtime
+- matrix.min() | host | planned | host collections runtime
+- matrix.mode() | host | planned | host collections runtime
+- matrix.mult() | host | planned | host collections runtime
+- matrix.new<type>() | host | planned | host collections runtime
+- matrix.pinv() | host | planned | host collections runtime
+- matrix.pow() | host | planned | host collections runtime
+- matrix.rank() | host | planned | host collections runtime
+- matrix.remove_col() | host | planned | host collections runtime
+- matrix.remove_row() | host | planned | host collections runtime
+- matrix.reshape() | host | planned | host collections runtime
+- matrix.reverse() | host | planned | host collections runtime
+- matrix.row() | host | planned | host collections runtime
+- matrix.rows() | host | planned | host collections runtime
+- matrix.set() | host | planned | host collections runtime
+- matrix.sort() | host | planned | host collections runtime
+- matrix.submatrix() | host | planned | host collections runtime
+- matrix.sum() | host | planned | host collections runtime
+- matrix.swap_columns() | host | planned | host collections runtime
+- matrix.swap_rows() | host | planned | host collections runtime
+- matrix.trace() | host | planned | host collections runtime
+- matrix.transpose() | host | planned | host collections runtime

@@ -1,5 +1,6 @@
 import { Range, SeriesDefinition, SeriesType } from "../api/public-types.js";
 import { SeriesSnapshot } from "../data/snapshot.js";
+import { findIndexRange } from "../data/window.js";
 
 export type SeriesState = SeriesDefinition & {
   paneId: string;
@@ -24,20 +25,14 @@ export function updateApproxBarInterval(series: SeriesState): void {
   series.approxBarIntervalMs = Math.max(1, last - prev);
 }
 
-function findRangeIndices(times: Float64Array, range: Range): { start: number; end: number } {
-  let start = 0;
-  let end = times.length - 1;
-  while (start < times.length && times[start] < range.startMs) start += 1;
-  while (end >= 0 && times[end] > range.endMs) end -= 1;
-  return { start, end };
-}
-
 export function computeSeriesDomain(series: SeriesState, range: Range): { min: number; max: number } | null {
   const snapshot = series.snapshot;
   if (!snapshot) return null;
   const times = snapshot.timeMs;
   if (times.length === 0) return null;
-  const { start, end } = findRangeIndices(times, range);
+  const indices = findIndexRange(times, range);
+  if (!indices) return null;
+  const { start, end } = indices;
   if (end < start) return null;
   if (series.type === "candles") {
     const low = snapshot.fields.low;

@@ -1,6 +1,7 @@
 import { PlotArea, ScaleDomain } from "../core/transform.js";
 import { OverlayRenderItem } from "../core/overlays.js";
-import { Range, SeriesType, TimeMs } from "../api/public-types.js";
+import { AxisPosition, Range, SeriesType, TimeMs } from "../api/public-types.js";
+import { AxisTick } from "../core/axis.js";
 
 export type RenderSeries = {
   id: string;
@@ -17,6 +18,23 @@ export type PaneRenderState = {
   visibleRange: Range;
   scaleDomains: Record<string, ScaleDomain>;
   series: RenderSeries[];
+  axis: AxisRenderState;
+};
+
+export type AxisScaleRender = {
+  scaleId: string;
+  position: AxisPosition;
+  ticks: AxisTick[];
+  visible: boolean;
+};
+
+export type AxisRenderState = {
+  left: AxisScaleRender[];
+  right: AxisScaleRender[];
+  time: AxisTick[];
+  primaryScaleId: string;
+  leftGutterWidth: number;
+  rightGutterWidth: number;
 };
 
 export type RenderFrame = {

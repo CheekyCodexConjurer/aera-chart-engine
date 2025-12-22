@@ -1,4 +1,5 @@
 import {
+  AxisLabelMeasure,
   ChartEngineOptions,
   CrosshairEvent,
   HitTestEvent,
@@ -9,6 +10,7 @@ import {
   OverlayLayoutItem,
   PaneLayout,
   Range,
+  ScaleConfig,
   RightLabelOverlayData,
   ReplayState,
   SeriesHit,
@@ -18,6 +20,7 @@ import {
   SeriesUpdate,
   SeriesUpdateType,
   TableOverlayData,
+  TimeAxisConfig,
   TimeMs,
   VisibleRangeEvent
 } from "../api/public-types.js";
@@ -38,6 +41,7 @@ import { PlotArea, ScaleDomain, timeToX, xToTime, priceToY, yToPrice } from "./t
 import { RenderCrosshair, Renderer, RenderFrame, RenderSeries } from "../rendering/renderer.js";
 import { NullRenderer } from "../rendering/null-renderer.js";
 import { clamp } from "../util/math.js";
+import { AxisTick, generateNumericTicks, generateTimeTicks } from "./axis.js";
 
 export type ChartEngineInitOptions = ChartEngineOptions & {
   renderer?: Renderer;
@@ -81,7 +85,13 @@ export class ChartEngine {
   private width: number;
   private height: number;
   private devicePixelRatio: number;
-  private rightGutterWidth: number;
+  private baseRightGutterWidth: number;
+  private baseLeftGutterWidth: number;
+  private axisLabelCharWidth: number;
+  private axisLabelPadding: number;
+  private axisLabelHeight: number;
+  private axisLabelMeasure?: AxisLabelMeasure;
+  private timeAxisConfig: TimeAxisConfig;
   private prefetchRatio: number;
   private paneGap: number;
   private paneOrderCounter = 0;
@@ -97,7 +107,13 @@ export class ChartEngine {
     this.width = options.width ?? 800;
     this.height = options.height ?? 600;
     this.devicePixelRatio = options.devicePixelRatio ?? 1;
-    this.rightGutterWidth = options.rightGutterWidth ?? 60;
+    this.baseRightGutterWidth = options.rightGutterWidth ?? 60;
+    this.baseLeftGutterWidth = options.leftGutterWidth ?? 0;
+    this.axisLabelCharWidth = options.axisLabelCharWidth ?? 7;
+    this.axisLabelPadding = options.axisLabelPadding ?? 6;
+    this.axisLabelHeight = options.axisLabelHeight ?? 12;
+    this.axisLabelMeasure = options.axisLabelMeasure;
+    this.timeAxisConfig = options.timeAxisConfig ?? {};
     this.prefetchRatio = options.prefetchRatio ?? 0.2;
     this.paneGap = options.paneGap ?? 0;
     this.hitTestRadiusPx = options.hitTestRadiusPx ?? 8;
@@ -166,6 +182,9 @@ export class ChartEngine {
       this.devicePixelRatio = devicePixelRatio;
     }
     this.recomputeLayout();
+    for (const pane of this.panes.values()) {
+      this.updateAxisLayout(pane.id);
+    }
     this.renderer.resize?.(this.width, this.height, this.devicePixelRatio);
     this.transformEmitter.emit({ paneId: "price" });
     this.requestRender();
@@ -173,6 +192,7 @@ export class ChartEngine {
 
   setAutoScale(paneId: string, scaleId: string, enabled: boolean): void {
     const pane = this.ensurePane(paneId);
+    this.ensureScale(paneId, scaleId);
     pane.autoScale.set(scaleId, enabled);
     if (enabled) {
       this.updateScaleDomain(paneId);
@@ -181,6 +201,38 @@ export class ChartEngine {
 
   setCrosshairSync(enabled: boolean): void {
     this.crosshairSync = enabled;
+    this.requestRender();
+  }
+
+  setScaleConfig(paneId: string, scaleId: string, config: ScaleConfig): void {
+    const pane = this.ensurePane(paneId);
+    this.ensureScale(paneId, scaleId);
+    const current = pane.scaleConfigs.get(scaleId) ?? { position: "right", visible: true };
+    const position = config.position ?? current.position;
+    if (position !== "left" && position !== "right") {
+      this.diagnostics.addError("scale.position.invalid", "scale position must be left or right", {
+        paneId,
+        scaleId,
+        position
+      });
+      this.diagnosticsEmitter.emit();
+      return;
+    }
+    pane.scaleConfigs.set(scaleId, {
+      position,
+      visible: config.visible ?? current.visible ?? true,
+      tickCount: config.tickCount ?? current.tickCount,
+      labelFormatter: config.labelFormatter ?? current.labelFormatter
+    });
+    this.updateAxisLayout(paneId);
+    this.requestRender();
+  }
+
+  setTimeAxisConfig(config: TimeAxisConfig): void {
+    this.timeAxisConfig = { ...this.timeAxisConfig, ...config };
+    for (const pane of this.panes.values()) {
+      this.updateAxisLayout(pane.id);
+    }
     this.requestRender();
   }
 
@@ -242,6 +294,9 @@ export class ChartEngine {
       pane.layoutWeight = weight;
     }
     this.recomputeLayout();
+    for (const pane of this.panes.values()) {
+      this.updateAxisLayout(pane.id);
+    }
   }
 
   getPlotArea(paneId: string): PlotArea {
@@ -249,14 +304,15 @@ export class ChartEngine {
     return { ...pane.plotArea };
   }
 
-  getRightGutterWidth(_paneId: string): number {
-    return this.rightGutterWidth;
+  getRightGutterWidth(paneId: string): number {
+    return this.ensurePane(paneId).rightGutterWidth;
   }
 
   defineSeries(definition: SeriesDefinition): void {
     const normalized = normalizeSeries(definition);
     this.series.set(definition.id, normalized);
     this.ensurePane(normalized.paneId);
+    this.ensureScale(normalized.paneId, normalized.scaleId);
     this.requestRender();
   }
 
@@ -548,9 +604,11 @@ export class ChartEngine {
 
   setScaleDomain(paneId: string, scaleId: string, domain: ScaleDomain): void {
     const pane = this.ensurePane(paneId);
+    this.ensureScale(paneId, scaleId);
     pane.scaleDomains.set(scaleId, domain);
     pane.autoScale.set(scaleId, false);
     this.transformEmitter.emit({ paneId });
+    this.updateAxisLayout(paneId);
     this.requestRender();
   }
 
@@ -567,7 +625,8 @@ export class ChartEngine {
         plotArea: pane.plotArea,
         visibleRange: { ...pane.visibleRange },
         scaleDomains: Object.fromEntries(pane.scaleDomains.entries()),
-        series: this.collectSeriesForPane(pane.id)
+        series: this.collectSeriesForPane(pane.id),
+        axis: this.buildAxisRenderState(pane)
       });
     }
 
@@ -592,6 +651,37 @@ export class ChartEngine {
       }
     }
     return result;
+  }
+
+  private buildAxisRenderState(pane: PaneState): PaneRenderState["axis"] {
+    const left: PaneRenderState["axis"]["left"] = [];
+    const right: PaneRenderState["axis"]["right"] = [];
+    for (const [scaleId, config] of pane.scaleConfigs.entries()) {
+      const ticks = pane.axisTicks.get(scaleId) ?? [];
+      if (config.position === "left") {
+        left.push({
+          scaleId,
+          position: "left",
+          ticks,
+          visible: config.visible
+        });
+      } else {
+        right.push({
+          scaleId,
+          position: "right",
+          ticks,
+          visible: config.visible
+        });
+      }
+    }
+    return {
+      left,
+      right,
+      time: pane.timeTicks,
+      primaryScaleId: pane.primaryScaleId,
+      leftGutterWidth: pane.leftGutterWidth,
+      rightGutterWidth: pane.rightGutterWidth
+    };
   }
 
   private buildRenderSeries(series: SeriesState, pane: PaneState): RenderSeries | null {
@@ -726,7 +816,7 @@ export class ChartEngine {
           paneId,
           position,
           plotArea: { ...pane.plotArea },
-          rightGutterWidth: this.rightGutterWidth,
+          rightGutterWidth: pane.rightGutterWidth,
           rows: data.rows,
           anchorTimeMs: data.anchorTimeMs,
           layer: overlay.layer,
@@ -760,7 +850,7 @@ export class ChartEngine {
             paneId,
             scaleId,
             plotArea: { ...pane.plotArea },
-            rightGutterWidth: this.rightGutterWidth,
+            rightGutterWidth: pane.rightGutterWidth,
             price: label.price,
             text: label.text,
             timeMs: label.timeMs,
@@ -829,19 +919,143 @@ export class ChartEngine {
 
   private updateScaleDomain(paneId: string): void {
     const pane = this.ensurePane(paneId);
-    const series = this.getPrimarySeries(paneId);
-    if (!series) return;
-    if (pane.autoScale.get(series.scaleId) === false) return;
     const cutoffTime = this.getCutoffTime();
     const range: Range = {
       startMs: pane.visibleRange.startMs,
       endMs: cutoffTime !== undefined ? Math.min(pane.visibleRange.endMs, cutoffTime) : pane.visibleRange.endMs
     };
-    const domain = computeSeriesDomain(series, range);
-    if (domain) {
-      pane.scaleDomains.set(series.scaleId, domain);
-      this.transformEmitter.emit({ paneId });
+    const merged = new Map<string, ScaleDomain>();
+    for (const series of this.series.values()) {
+      if (series.paneId !== paneId) continue;
+      if (pane.autoScale.get(series.scaleId) === false) continue;
+      const domain = computeSeriesDomain(series, range);
+      if (!domain) continue;
+      const existing = merged.get(series.scaleId);
+      if (!existing) {
+        merged.set(series.scaleId, domain);
+      } else {
+        merged.set(series.scaleId, {
+          min: Math.min(existing.min, domain.min),
+          max: Math.max(existing.max, domain.max)
+        });
+      }
     }
+    if (merged.size === 0) {
+      this.updateAxisLayout(paneId);
+      return;
+    }
+    for (const [scaleId, domain] of merged.entries()) {
+      pane.scaleDomains.set(scaleId, domain);
+    }
+    this.transformEmitter.emit({ paneId });
+    this.updateAxisLayout(paneId);
+  }
+
+  private updateAxisLayout(paneId: string, allowGutterUpdate = true): void {
+    const pane = this.ensurePane(paneId);
+    const layout = this.computeAxisLayout(pane);
+    pane.axisTicks = layout.axisTicks;
+    pane.timeTicks = layout.timeTicks;
+    pane.primaryScaleId = layout.primaryScaleId;
+
+    const leftChanged = Math.abs(layout.leftGutterWidth - pane.leftGutterWidth) > 2;
+    const rightChanged = Math.abs(layout.rightGutterWidth - pane.rightGutterWidth) > 2;
+    if (allowGutterUpdate && (leftChanged || rightChanged)) {
+      pane.leftGutterWidth = layout.leftGutterWidth;
+      pane.rightGutterWidth = layout.rightGutterWidth;
+      this.recomputeLayout();
+      this.updateAxisLayout(paneId, false);
+    }
+  }
+
+  private computeAxisLayout(pane: PaneState): {
+    axisTicks: Map<string, AxisTick[]>;
+    timeTicks: AxisTick[];
+    leftGutterWidth: number;
+    rightGutterWidth: number;
+    primaryScaleId: string;
+  } {
+    const axisTicks = new Map<string, AxisTick[]>();
+    const primaryScaleId = this.getPrimaryScaleId(pane.id);
+    const labelHeight = Math.max(8, this.axisLabelHeight);
+    const targetCount = Math.max(2, Math.floor(pane.plotArea.height / (labelHeight + this.axisLabelPadding)));
+
+    let maxLeftLabel = 0;
+    let maxRightLabel = 0;
+    for (const [scaleId, config] of pane.scaleConfigs.entries()) {
+      if (config.visible === false) {
+        axisTicks.set(scaleId, []);
+        continue;
+      }
+      const domain = pane.scaleDomains.get(scaleId);
+      if (!domain) {
+        axisTicks.set(scaleId, []);
+        continue;
+      }
+      const ticks = generateNumericTicks(
+        domain.min,
+        domain.max,
+        config.tickCount ?? targetCount,
+        config.labelFormatter
+      );
+      axisTicks.set(scaleId, ticks);
+      for (const tick of ticks) {
+        const width = this.measureLabelWidth(tick.label);
+        if (config.position === "left") {
+          maxLeftLabel = Math.max(maxLeftLabel, width);
+        } else {
+          maxRightLabel = Math.max(maxRightLabel, width);
+        }
+      }
+    }
+
+    const leftGutterWidth = Math.max(this.baseLeftGutterWidth, maxLeftLabel + this.axisLabelPadding * 2);
+    const rightGutterWidth = Math.max(this.baseRightGutterWidth, maxRightLabel + this.axisLabelPadding * 2);
+
+    const timePixelWidth = this.timeAxisConfig.tickCount
+      ? this.timeAxisConfig.tickCount * 90
+      : pane.plotArea.width;
+    const timeTicksRaw = generateTimeTicks(
+      pane.visibleRange,
+      timePixelWidth,
+      this.timeAxisConfig.labelFormatter
+    );
+    const timeTicks = this.filterTimeTicks(pane, timeTicksRaw);
+
+    return {
+      axisTicks,
+      timeTicks,
+      leftGutterWidth,
+      rightGutterWidth,
+      primaryScaleId
+    };
+  }
+
+  private filterTimeTicks(pane: PaneState, ticks: AxisTick[]): AxisTick[] {
+    if (ticks.length <= 2) return ticks;
+    const minGap = Math.max(4, this.axisLabelPadding);
+    let lastRight = -Infinity;
+    const result: AxisTick[] = [];
+    for (const tick of ticks) {
+      const x = timeToX(pane.visibleRange, pane.plotArea, tick.value);
+      if (x === null) continue;
+      const width = this.measureLabelWidth(tick.label);
+      const left = x - width / 2;
+      const right = x + width / 2;
+      if (left >= lastRight + minGap) {
+        result.push(tick);
+        lastRight = right;
+      }
+    }
+    return result;
+  }
+
+  private measureLabelWidth(text: string): number {
+    if (this.axisLabelMeasure) {
+      const measured = this.axisLabelMeasure(text);
+      if (Number.isFinite(measured)) return Math.max(0, measured);
+    }
+    return text.length * this.axisLabelCharWidth;
   }
 
   private emitVisibleRange(paneId: string, range: Range): void {
@@ -916,25 +1130,47 @@ export class ChartEngine {
   private ensurePane(paneId: string): PaneState {
     const existing = this.panes.get(paneId);
     if (existing) return existing;
+    const leftGutter = this.baseLeftGutterWidth;
+    const rightGutter = this.baseRightGutterWidth;
     const pane: PaneState = {
       id: paneId,
       order: this.paneOrderCounter++,
       layoutWeight: 1,
       plotArea: {
-        x: 0,
+        x: leftGutter,
         y: 0,
-        width: Math.max(0, this.width - this.rightGutterWidth),
+        width: Math.max(0, this.width - leftGutter - rightGutter),
         height: this.height
       },
       visibleRange: { startMs: 0, endMs: 1 },
       scaleDomains: new Map([["price", { min: 0, max: 1 }]]),
       autoScale: new Map([["price", true]]),
+      scaleConfigs: new Map([["price", { position: "right", visible: true }]]),
+      leftGutterWidth: leftGutter,
+      rightGutterWidth: rightGutter,
+      axisTicks: new Map(),
+      timeTicks: [],
+      primaryScaleId: "price",
       lastEmittedRange: null,
       lastEmittedDataWindow: null
     };
     this.panes.set(paneId, pane);
     this.recomputeLayout();
+    this.updateAxisLayout(paneId);
     return pane;
+  }
+
+  private ensureScale(paneId: string, scaleId: string): void {
+    const pane = this.ensurePane(paneId);
+    if (!pane.scaleDomains.has(scaleId)) {
+      pane.scaleDomains.set(scaleId, { min: 0, max: 1 });
+    }
+    if (!pane.autoScale.has(scaleId)) {
+      pane.autoScale.set(scaleId, true);
+    }
+    if (!pane.scaleConfigs.has(scaleId)) {
+      pane.scaleConfigs.set(scaleId, { position: "right", visible: true });
+    }
   }
 
   private recomputeLayout(): void {
@@ -954,10 +1190,12 @@ export class ChartEngine {
       const height = i === panes.length - 1
         ? Math.max(1, this.height - yOffset)
         : Math.max(1, Math.round((availableHeight * weight) / weightSum));
+      const left = pane.leftGutterWidth;
+      const right = pane.rightGutterWidth;
       pane.plotArea = {
-        x: 0,
+        x: left,
         y: yOffset,
-        width: Math.max(0, this.width - this.rightGutterWidth),
+        width: Math.max(0, this.width - left - right),
         height
       };
       yOffset += height + this.paneGap;
@@ -1241,8 +1479,21 @@ type PaneState = {
   visibleRange: Range;
   scaleDomains: Map<string, ScaleDomain>;
   autoScale: Map<string, boolean>;
+  scaleConfigs: Map<string, ScaleConfigState>;
+  leftGutterWidth: number;
+  rightGutterWidth: number;
+  axisTicks: Map<string, AxisTick[]>;
+  timeTicks: AxisTick[];
+  primaryScaleId: string;
   lastEmittedRange: Range | null;
   lastEmittedDataWindow: Range | null;
+};
+
+type ScaleConfigState = {
+  position: "left" | "right";
+  visible: boolean;
+  tickCount?: number;
+  labelFormatter?: ScaleConfig["labelFormatter"];
 };
 
 type PaneRenderState = {
@@ -1251,6 +1502,14 @@ type PaneRenderState = {
   visibleRange: Range;
   scaleDomains: Record<string, ScaleDomain>;
   series: RenderSeries[];
+  axis: {
+    left: { scaleId: string; position: "left"; ticks: AxisTick[]; visible: boolean }[];
+    right: { scaleId: string; position: "right"; ticks: AxisTick[]; visible: boolean }[];
+    time: AxisTick[];
+    primaryScaleId: string;
+    leftGutterWidth: number;
+    rightGutterWidth: number;
+  };
 };
 
 type RenderSeriesCache = {

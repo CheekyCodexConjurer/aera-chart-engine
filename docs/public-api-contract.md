@@ -17,10 +17,16 @@ Point: { x: number, y: number }
 
 ## Engine options (selected)
 - `rightGutterWidth`: width reserved for Y-axis labels.
+- `leftGutterWidth`: minimum width reserved for left-axis labels.
 - `paneGap`: vertical gap between panes in pixels.
 - `lodHysteresisRatio`: LOD switching hysteresis ratio (0.05 - 0.5).
 - `lodCacheEntries`: max entries in LOD render cache.
 - `crosshairSync`: synchronize crosshair time across panes (default true).
+- `axisLabelCharWidth`: fallback per-character width for axis label sizing.
+- `axisLabelPadding`: padding applied when computing gutter widths.
+- `axisLabelHeight`: label height used for tick density calculation.
+- `axisLabelMeasure`: optional `(text) => widthPx` for precise gutter sizing.
+- `timeAxisConfig`: optional time-axis tick and formatter overrides.
 
 ## Viewport control (required)
 - `resetToLatest(paneId?)`
@@ -111,6 +117,15 @@ Supported commands:
 **Rules**
 - Returns `null` when conversion is out of range.
 - Conversions use the active axis transform at the time of the call.
+
+## Axis and scale configuration
+- `setScaleConfig(paneId, scaleId, { position?, visible?, tickCount?, labelFormatter? })`
+- `setTimeAxisConfig({ tickCount?, labelFormatter? })`
+
+**Rules**
+- `position` is `left` or `right`; invalid values emit diagnostics.
+- The engine computes gutter widths from tick labels and applies hysteresis.
+- Label formatters must be deterministic and side-effect free.
 
 ## Host overlay support (DOM overlays)
 - Host overlays are positioned via conversion APIs and plot area metrics.

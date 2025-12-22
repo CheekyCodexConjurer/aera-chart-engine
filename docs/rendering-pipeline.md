@@ -16,7 +16,8 @@ This document defines the WebGL2-first render pipeline, resource strategy, and r
 ## Buffers and memory
 - All geometry uses TypedArray-backed buffers.
 - Buffer pools are bounded and reused across frames.
-- Dynamic buffers are reserved for interaction overlays only.
+- Dynamic buffers are reserved for interaction overlays and label backgrounds.
+- Series geometry is cached in GPU buffers and transformed in shader space.
 
 ## Instancing and batching
 - Batching is by material, shader, and texture atlas.
@@ -24,9 +25,9 @@ This document defines the WebGL2-first render pipeline, resource strategy, and r
 - The renderer minimizes draw calls before introducing complexity.
 
 ## Text rendering
-- Default: SDF glyph atlas with cached metrics.
-- CPU layout is deterministic and cached per label.
-- Text fallbacks are explicit and logged.
+- Default: GPU glyph atlas with cached metrics.
+- CPU layout is deterministic and cached per label run.
+- Canvas text is an explicit fallback when configured.
 
 ## Precision management
 - CPU transforms use double precision.

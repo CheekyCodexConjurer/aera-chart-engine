@@ -12,12 +12,13 @@ import {
   DEFAULT_UP_CANDLE,
   RgbaColor,
   colorFromId,
+  parseColor,
   withAlpha
 } from "./color.js";
 import { DynamicVertexBuffer, DrawCommand } from "./vertex-buffer.js";
-import { timeToX, priceToY } from "../core/transform.js";
+import { PlotArea, timeToX, priceToY } from "../core/transform.js";
 import { TextLabel, TextLayer } from "./text-layer.js";
-import { formatTimestamp, generateNumericTicks, generateTimeTicks } from "./ticks.js";
+import { formatTimestamp } from "../core/axis.js";
 import {
   AreaOverlayData,
   CrosshairEvent,
@@ -31,24 +32,35 @@ import {
   ZoneOverlayData
 } from "../api/public-types.js";
 import { OverlayRenderItem } from "../core/overlays.js";
+import { GpuTextRenderer } from "./gpu-text.js";
 
 export type WebGL2RendererOptions = {
   onError?: (message: string) => void;
   clearColor?: RgbaColor;
   textLayer?: TextLayer;
+  useGpuText?: boolean;
+  textFont?: string;
 };
 
 export class WebGL2Renderer implements Renderer {
   private gl: WebGL2RenderingContext | null = null;
-  private program: WebGLProgram | null = null;
-  private vao: WebGLVertexArrayObject | null = null;
-  private vbo: WebGLBuffer | null = null;
-  private buffer = new DynamicVertexBuffer(6, 4096);
-  private gpuBuffer = new GpuBuffer();
+  private dynamicProgram: WebGLProgram | null = null;
+  private dynamicVao: WebGLVertexArrayObject | null = null;
+  private dynamicVbo: WebGLBuffer | null = null;
+  private dynamicBuffer = new DynamicVertexBuffer(6, 4096);
+  private dynamicGpuBuffer = new GpuBuffer();
+  private lineProgram: LineProgramInfo | null = null;
+  private quadProgram: QuadProgramInfo | null = null;
+  private barProgram: BarProgramInfo | null = null;
+  private quadCornerBuffer: WebGLBuffer | null = null;
+  private quadIndexBuffer: WebGLBuffer | null = null;
+  private seriesCache = new Map<string, SeriesGpuEntry>();
+  private gpuText: GpuTextRenderer | null = null;
   private width = 0;
   private height = 0;
   private dpr = 1;
   private warnedMissingTextLayer = false;
+  private clipStack: PlotArea[] = [];
 
   constructor(private canvas: HTMLCanvasElement, private options: WebGL2RendererOptions = {}) {}
 
@@ -58,22 +70,22 @@ export class WebGL2Renderer implements Renderer {
       this.options.onError?.("WebGL2 context not available");
       return;
     }
-    const program = createProgram(this.gl, VERT_SHADER_SOURCE, FRAG_SHADER_SOURCE);
-    if (!program) {
+    const dynamicProgram = createProgram(this.gl, VERT_SHADER_SOURCE, FRAG_SHADER_SOURCE);
+    if (!dynamicProgram) {
       this.options.onError?.("Failed to compile WebGL2 program");
       return;
     }
-    this.program = program;
-    this.vao = this.gl.createVertexArray();
-    this.vbo = this.gl.createBuffer();
-    if (!this.vao || !this.vbo) {
+    this.dynamicProgram = dynamicProgram;
+    this.dynamicVao = this.gl.createVertexArray();
+    this.dynamicVbo = this.gl.createBuffer();
+    if (!this.dynamicVao || !this.dynamicVbo) {
       this.options.onError?.("Failed to allocate WebGL buffers");
       return;
     }
-    this.gl.bindVertexArray(this.vao);
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vbo);
-    const positionLocation = this.gl.getAttribLocation(program, "a_position");
-    const colorLocation = this.gl.getAttribLocation(program, "a_color");
+    this.gl.bindVertexArray(this.dynamicVao);
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.dynamicVbo);
+    const positionLocation = this.gl.getAttribLocation(dynamicProgram, "a_position");
+    const colorLocation = this.gl.getAttribLocation(dynamicProgram, "a_color");
     const stride = 6 * Float32Array.BYTES_PER_ELEMENT;
     this.gl.enableVertexAttribArray(positionLocation);
     this.gl.vertexAttribPointer(positionLocation, 2, this.gl.FLOAT, false, stride, 0);
@@ -88,6 +100,52 @@ export class WebGL2Renderer implements Renderer {
     );
     this.gl.bindVertexArray(null);
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, null);
+
+    this.quadCornerBuffer = this.gl.createBuffer();
+    this.quadIndexBuffer = this.gl.createBuffer();
+    if (!this.quadCornerBuffer || !this.quadIndexBuffer) {
+      this.options.onError?.("Failed to allocate quad buffers");
+      return;
+    }
+    const corners = new Float32Array([
+      -0.5, -0.5,
+      0.5, -0.5,
+      0.5, 0.5,
+      -0.5, 0.5
+    ]);
+    const indices = new Uint16Array([0, 1, 2, 2, 3, 0]);
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.quadCornerBuffer);
+    this.gl.bufferData(this.gl.ARRAY_BUFFER, corners, this.gl.STATIC_DRAW);
+    this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.quadIndexBuffer);
+    this.gl.bufferData(this.gl.ELEMENT_ARRAY_BUFFER, indices, this.gl.STATIC_DRAW);
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, null);
+    this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, null);
+
+    const lineProgram = createProgram(this.gl, SERIES_LINE_VERT, SERIES_LINE_FRAG);
+    if (!lineProgram) {
+      this.options.onError?.("Failed to compile series line program");
+      return;
+    }
+    this.lineProgram = createLineProgramInfo(this.gl, lineProgram);
+
+    const quadProgram = createProgram(this.gl, SERIES_QUAD_VERT, SERIES_QUAD_FRAG);
+    if (!quadProgram) {
+      this.options.onError?.("Failed to compile series quad program");
+      return;
+    }
+    this.quadProgram = createQuadProgramInfo(this.gl, quadProgram, this.quadCornerBuffer, this.quadIndexBuffer);
+
+    const barProgram = createProgram(this.gl, SERIES_BAR_VERT, SERIES_BAR_FRAG);
+    if (!barProgram) {
+      this.options.onError?.("Failed to compile series bar program");
+      return;
+    }
+    this.barProgram = createBarProgramInfo(this.gl, barProgram, this.quadCornerBuffer, this.quadIndexBuffer);
+
+    const useGpuText = this.options.useGpuText ?? !this.options.textLayer;
+    if (useGpuText) {
+      this.gpuText = new GpuTextRenderer(this.gl, { font: this.options.textFont });
+    }
   }
 
   resize(width: number, height: number, devicePixelRatio: number): void {
@@ -100,14 +158,22 @@ export class WebGL2Renderer implements Renderer {
     this.canvas.style.height = `${height}px`;
     this.gl?.viewport(0, 0, this.canvas.width, this.canvas.height);
     this.options.textLayer?.resize(width, height, this.dpr);
+    this.gpuText?.resize(width, height);
   }
 
   render(frame: RenderFrame): void {
-    if (!this.gl || !this.program || !this.vao || !this.vbo) return;
+    if (
+      !this.gl ||
+      !this.dynamicProgram ||
+      !this.dynamicVao ||
+      !this.dynamicVbo ||
+      !this.lineProgram ||
+      !this.quadProgram ||
+      !this.barProgram
+    ) {
+      return;
+    }
     const gl = this.gl;
-    gl.useProgram(this.program);
-    gl.bindVertexArray(this.vao);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     gl.enable(gl.SCISSOR_TEST);
@@ -130,12 +196,15 @@ export class WebGL2Renderer implements Renderer {
         this.options.textLayer.drawLabel(label);
       }
     } else if (labels.length > 0 && !this.warnedMissingTextLayer) {
-      this.options.onError?.("Label overlays skipped: text layer not configured");
-      this.warnedMissingTextLayer = true;
+      if (this.gpuText) {
+        this.renderLabelBackgrounds(labels);
+        this.gpuText.render(labels);
+      } else {
+        this.options.onError?.("Label overlays skipped: text layer not configured");
+        this.warnedMissingTextLayer = true;
+      }
     }
 
-    gl.bindVertexArray(null);
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
     gl.disable(gl.SCISSOR_TEST);
   }
 
@@ -148,11 +217,11 @@ export class WebGL2Renderer implements Renderer {
   ): TextLabel[] {
     const plotArea = pane.plotArea;
     if (plotArea.width <= 0 || plotArea.height <= 0) return [];
-    this.applyScissor(gl, plotArea);
+    this.pushClip(gl, plotArea);
 
     const labels: TextLabel[] = [];
     const commands: DrawCommand[] = [];
-    this.buffer.reset();
+    this.dynamicBuffer.reset();
 
     const paneOverlays = overlays.filter(
       (item) => (item.overlay.paneId ?? "price") === pane.paneId
@@ -163,9 +232,8 @@ export class WebGL2Renderer implements Renderer {
 
     this.appendGridAndAxes(pane, commands, labels, isBottomPane);
     this.appendOverlays(pane, below, commands, labels);
-    for (const series of pane.series) {
-      this.appendSeries(pane, series, commands);
-    }
+    this.flushDynamic(gl, commands);
+    this.drawSeries(gl, pane);
     this.appendOverlays(pane, above, commands, labels);
     this.appendOverlays(pane, ui, commands, labels);
     if (crosshairs.length > 0) {
@@ -173,16 +241,9 @@ export class WebGL2Renderer implements Renderer {
         this.appendCrosshair(pane, crosshair, commands, labels);
       }
     }
+    this.flushDynamic(gl, commands);
 
-    const data = this.buffer.buffer;
-    if (data.length > 0 && commands.length > 0) {
-      const optimized = coalesceDrawCommands(commands);
-      this.gpuBuffer.upload(gl, data, gl.DYNAMIC_DRAW);
-      for (const command of optimized) {
-        gl.drawArrays(command.mode, command.first, command.count);
-      }
-    }
-
+    this.popClip(gl);
     return labels;
   }
 
@@ -218,15 +279,15 @@ export class WebGL2Renderer implements Renderer {
     const values = series.fields.value;
     if (!values) return;
     const color = colorFromId(series.id, 1);
-    const start = this.buffer.vertexCount;
+    const start = this.dynamicBuffer.vertexCount;
     for (let i = 0; i < series.timeMs.length; i += 1) {
       const x = timeToX(range, pane.plotArea, series.timeMs[i]);
       const y = priceToY(pane.scaleDomains[series.scaleId] ?? pane.scaleDomains.price, pane.plotArea, values[i]);
       if (x === null || y === null) continue;
       const [nx, ny] = this.toNdc(x, y);
-      this.buffer.pushVertex(nx, ny, color[0], color[1], color[2], color[3]);
+      this.dynamicBuffer.pushVertex(nx, ny, color[0], color[1], color[2], color[3]);
     }
-    const count = this.buffer.vertexCount - start;
+    const count = this.dynamicBuffer.vertexCount - start;
     if (count > 1) {
       commands.push({ mode: this.glLineStrip(), first: start, count });
     }
@@ -258,14 +319,14 @@ export class WebGL2Renderer implements Renderer {
         const [x1, y1] = this.toNdc(x, y);
         const [x0b, y0b] = this.toNdc(prevX, baseY);
         const [x1b, y1b] = this.toNdc(x, baseY);
-        const start = this.buffer.vertexCount;
-        this.buffer.pushVertex(x0, y0, fillColor[0], fillColor[1], fillColor[2], fillColor[3]);
-        this.buffer.pushVertex(x0b, y0b, fillColor[0], fillColor[1], fillColor[2], fillColor[3]);
-        this.buffer.pushVertex(x1, y1, fillColor[0], fillColor[1], fillColor[2], fillColor[3]);
-        this.buffer.pushVertex(x1, y1, fillColor[0], fillColor[1], fillColor[2], fillColor[3]);
-        this.buffer.pushVertex(x0b, y0b, fillColor[0], fillColor[1], fillColor[2], fillColor[3]);
-        this.buffer.pushVertex(x1b, y1b, fillColor[0], fillColor[1], fillColor[2], fillColor[3]);
-        const count = this.buffer.vertexCount - start;
+        const start = this.dynamicBuffer.vertexCount;
+        this.dynamicBuffer.pushVertex(x0, y0, fillColor[0], fillColor[1], fillColor[2], fillColor[3]);
+        this.dynamicBuffer.pushVertex(x0b, y0b, fillColor[0], fillColor[1], fillColor[2], fillColor[3]);
+        this.dynamicBuffer.pushVertex(x1, y1, fillColor[0], fillColor[1], fillColor[2], fillColor[3]);
+        this.dynamicBuffer.pushVertex(x1, y1, fillColor[0], fillColor[1], fillColor[2], fillColor[3]);
+        this.dynamicBuffer.pushVertex(x0b, y0b, fillColor[0], fillColor[1], fillColor[2], fillColor[3]);
+        this.dynamicBuffer.pushVertex(x1b, y1b, fillColor[0], fillColor[1], fillColor[2], fillColor[3]);
+        const count = this.dynamicBuffer.vertexCount - start;
         if (count > 0) {
           commands.push({ mode: this.glTriangles(), first: start, count });
         }
@@ -301,14 +362,14 @@ export class WebGL2Renderer implements Renderer {
       const bottom = Math.max(y, baseY);
       const [lx, ty] = this.toNdc(left, top);
       const [rx, by] = this.toNdc(right, bottom);
-      const start = this.buffer.vertexCount;
-      this.buffer.pushVertex(lx, ty, barColor[0], barColor[1], barColor[2], barColor[3]);
-      this.buffer.pushVertex(lx, by, barColor[0], barColor[1], barColor[2], barColor[3]);
-      this.buffer.pushVertex(rx, ty, barColor[0], barColor[1], barColor[2], barColor[3]);
-      this.buffer.pushVertex(rx, ty, barColor[0], barColor[1], barColor[2], barColor[3]);
-      this.buffer.pushVertex(lx, by, barColor[0], barColor[1], barColor[2], barColor[3]);
-      this.buffer.pushVertex(rx, by, barColor[0], barColor[1], barColor[2], barColor[3]);
-      const count = this.buffer.vertexCount - start;
+      const start = this.dynamicBuffer.vertexCount;
+      this.dynamicBuffer.pushVertex(lx, ty, barColor[0], barColor[1], barColor[2], barColor[3]);
+      this.dynamicBuffer.pushVertex(lx, by, barColor[0], barColor[1], barColor[2], barColor[3]);
+      this.dynamicBuffer.pushVertex(rx, ty, barColor[0], barColor[1], barColor[2], barColor[3]);
+      this.dynamicBuffer.pushVertex(rx, ty, barColor[0], barColor[1], barColor[2], barColor[3]);
+      this.dynamicBuffer.pushVertex(lx, by, barColor[0], barColor[1], barColor[2], barColor[3]);
+      this.dynamicBuffer.pushVertex(rx, by, barColor[0], barColor[1], barColor[2], barColor[3]);
+      const count = this.dynamicBuffer.vertexCount - start;
       if (count > 0) {
         commands.push({ mode: this.glTriangles(), first: start, count });
       }
@@ -330,7 +391,7 @@ export class WebGL2Renderer implements Renderer {
     if (!domain) return;
 
     const candleWidth = this.computeBarWidth(pane, series.timeMs.length);
-    const wickStart = this.buffer.vertexCount;
+    const wickStart = this.dynamicBuffer.vertexCount;
     for (let i = 0; i < series.timeMs.length; i += 1) {
       const x = timeToX(range, pane.plotArea, series.timeMs[i]);
       if (x === null) continue;
@@ -343,15 +404,15 @@ export class WebGL2Renderer implements Renderer {
       const color = isUp ? DEFAULT_UP_CANDLE : DEFAULT_DOWN_CANDLE;
       const [nx, nyHigh] = this.toNdc(x, highY);
       const [nx2, nyLow] = this.toNdc(x, lowY);
-      this.buffer.pushVertex(nx, nyHigh, color[0], color[1], color[2], color[3]);
-      this.buffer.pushVertex(nx2, nyLow, color[0], color[1], color[2], color[3]);
+      this.dynamicBuffer.pushVertex(nx, nyHigh, color[0], color[1], color[2], color[3]);
+      this.dynamicBuffer.pushVertex(nx2, nyLow, color[0], color[1], color[2], color[3]);
     }
-    const wickCount = this.buffer.vertexCount - wickStart;
+    const wickCount = this.dynamicBuffer.vertexCount - wickStart;
     if (wickCount > 0) {
       commands.push({ mode: this.glLines(), first: wickStart, count: wickCount });
     }
 
-    const bodyStart = this.buffer.vertexCount;
+    const bodyStart = this.dynamicBuffer.vertexCount;
     for (let i = 0; i < series.timeMs.length; i += 1) {
       const x = timeToX(range, pane.plotArea, series.timeMs[i]);
       if (x === null) continue;
@@ -366,14 +427,14 @@ export class WebGL2Renderer implements Renderer {
       const color = isUp ? DEFAULT_UP_CANDLE : DEFAULT_DOWN_CANDLE;
       const [lx, ty] = this.toNdc(left, top);
       const [rx, by] = this.toNdc(right, bottom);
-      this.buffer.pushVertex(lx, ty, color[0], color[1], color[2], color[3]);
-      this.buffer.pushVertex(lx, by, color[0], color[1], color[2], color[3]);
-      this.buffer.pushVertex(rx, ty, color[0], color[1], color[2], color[3]);
-      this.buffer.pushVertex(rx, ty, color[0], color[1], color[2], color[3]);
-      this.buffer.pushVertex(lx, by, color[0], color[1], color[2], color[3]);
-      this.buffer.pushVertex(rx, by, color[0], color[1], color[2], color[3]);
+      this.dynamicBuffer.pushVertex(lx, ty, color[0], color[1], color[2], color[3]);
+      this.dynamicBuffer.pushVertex(lx, by, color[0], color[1], color[2], color[3]);
+      this.dynamicBuffer.pushVertex(rx, ty, color[0], color[1], color[2], color[3]);
+      this.dynamicBuffer.pushVertex(rx, ty, color[0], color[1], color[2], color[3]);
+      this.dynamicBuffer.pushVertex(lx, by, color[0], color[1], color[2], color[3]);
+      this.dynamicBuffer.pushVertex(rx, by, color[0], color[1], color[2], color[3]);
     }
-    const bodyCount = this.buffer.vertexCount - bodyStart;
+    const bodyCount = this.dynamicBuffer.vertexCount - bodyStart;
     if (bodyCount > 0) {
       commands.push({ mode: this.glTriangles(), first: bodyStart, count: bodyCount });
     }
@@ -423,6 +484,602 @@ export class WebGL2Renderer implements Renderer {
     }
   }
 
+  private drawSeries(gl: WebGL2RenderingContext, pane: RenderFrame["panes"][number]): void {
+    for (const series of pane.series) {
+      const domain = pane.scaleDomains[series.scaleId] ?? pane.scaleDomains.price;
+      if (!domain) continue;
+      const entry = this.getSeriesEntry(gl, series);
+      if (!entry) continue;
+      if (series.type === "candles" && entry.candles) {
+        this.drawCandleSeries(gl, pane, series, entry.candles, domain);
+        continue;
+      }
+      if (series.type === "histogram" && entry.histogram) {
+        this.drawHistogramSeries(gl, pane, series, entry.histogram, domain);
+        continue;
+      }
+      if (series.type === "area" && entry.area && entry.line) {
+        this.drawAreaSeries(gl, pane, series, entry.area, entry.line, domain);
+        continue;
+      }
+      if (series.type === "line" && entry.line) {
+        this.drawLineSeries(gl, pane, series, entry.line, domain);
+      }
+    }
+  }
+
+  private flushDynamic(gl: WebGL2RenderingContext, commands: DrawCommand[]): void {
+    if (!this.dynamicProgram || !this.dynamicVao || !this.dynamicVbo) return;
+    if (commands.length === 0 || this.dynamicBuffer.vertexCount === 0) {
+      this.dynamicBuffer.reset();
+      commands.length = 0;
+      return;
+    }
+    const data = this.dynamicBuffer.buffer;
+    const optimized = coalesceDrawCommands(commands);
+    gl.useProgram(this.dynamicProgram);
+    gl.bindVertexArray(this.dynamicVao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.dynamicVbo);
+    this.dynamicGpuBuffer.upload(gl, data, gl.DYNAMIC_DRAW);
+    for (const command of optimized) {
+      gl.drawArrays(command.mode, command.first, command.count);
+    }
+    gl.bindVertexArray(null);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    this.dynamicBuffer.reset();
+    commands.length = 0;
+  }
+
+  private getSeriesEntry(gl: WebGL2RenderingContext, series: RenderSeries): SeriesGpuEntry | null {
+    const cached = this.seriesCache.get(series.id);
+    if (cached && cached.seriesRef === series) return cached;
+    const entry = this.buildSeriesEntry(gl, series);
+    if (!entry) return null;
+    this.seriesCache.set(series.id, entry);
+    return entry;
+  }
+
+  private buildSeriesEntry(gl: WebGL2RenderingContext, series: RenderSeries): SeriesGpuEntry | null {
+    const entry: SeriesGpuEntry = { seriesRef: series };
+    if (series.type === "line") {
+      entry.line = this.createLineBuffer(gl, series.timeMs, series.fields.value, 0);
+    } else if (series.type === "area") {
+      entry.line = this.createLineBuffer(gl, series.timeMs, series.fields.value, 0);
+      entry.area = this.createAreaBuffer(gl, series.timeMs, series.fields.value);
+    } else if (series.type === "histogram") {
+      entry.histogram = this.createBarBuffer(gl, series.timeMs, series.fields.value, series.id);
+    } else if (series.type === "candles") {
+      const wick = this.createCandleWickBuffers(gl, series);
+      entry.candles = {
+        wickUp: wick?.up ?? null,
+        wickDown: wick?.down ?? null,
+        body: this.createCandleBodyBuffer(gl, series)
+      };
+    }
+    return entry;
+  }
+
+  private createLineBuffer(
+    gl: WebGL2RenderingContext,
+    timeMs: Float64Array,
+    values: Float64Array | undefined,
+    side: number
+  ): LineBuffer | null {
+    if (!values || values.length === 0) return null;
+    const count = Math.min(timeMs.length, values.length);
+    const data = new Float32Array(count * 4);
+    let offset = 0;
+    for (let i = 0; i < count; i += 1) {
+      const [hi, lo] = splitFloat64(timeMs[i]);
+      data[offset++] = hi;
+      data[offset++] = lo;
+      data[offset++] = values[i];
+      data[offset++] = side;
+    }
+    const buffer = gl.createBuffer();
+    if (!buffer) return null;
+    const uploader = new GpuBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    uploader.upload(gl, data, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    return { buffer, uploader, count, stride: 4, data };
+  }
+
+  private uploadLineBuffer(
+    gl: WebGL2RenderingContext,
+    data: Float32Array,
+    count: number
+  ): LineBuffer | null {
+    if (count <= 0) return null;
+    const buffer = gl.createBuffer();
+    if (!buffer) return null;
+    const uploader = new GpuBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    uploader.upload(gl, data, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    return { buffer, uploader, count, stride: 4, data };
+  }
+
+  private createAreaBuffer(
+    gl: WebGL2RenderingContext,
+    timeMs: Float64Array,
+    values: Float64Array | undefined
+  ): LineBuffer | null {
+    if (!values || values.length === 0) return null;
+    const count = Math.min(timeMs.length, values.length);
+    const data = new Float32Array(count * 2 * 4);
+    let offset = 0;
+    for (let i = 0; i < count; i += 1) {
+      const [hi, lo] = splitFloat64(timeMs[i]);
+      data[offset++] = hi;
+      data[offset++] = lo;
+      data[offset++] = values[i];
+      data[offset++] = 0;
+      data[offset++] = hi;
+      data[offset++] = lo;
+      data[offset++] = values[i];
+      data[offset++] = 1;
+    }
+    const buffer = gl.createBuffer();
+    if (!buffer) return null;
+    const uploader = new GpuBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    uploader.upload(gl, data, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    return { buffer, uploader, count: count * 2, stride: 4, data };
+  }
+
+  private createBarBuffer(
+    gl: WebGL2RenderingContext,
+    timeMs: Float64Array,
+    values: Float64Array | undefined,
+    seriesId = "histogram"
+  ): InstanceBuffer | null {
+    if (!values || values.length === 0) return null;
+    const count = Math.min(timeMs.length, values.length);
+    const data = new Float32Array(count * 7);
+    let offset = 0;
+    const color = colorFromId(seriesId, 1);
+    for (let i = 0; i < count; i += 1) {
+      const [hi, lo] = splitFloat64(timeMs[i]);
+      data[offset++] = hi;
+      data[offset++] = lo;
+      data[offset++] = values[i];
+      data[offset++] = color[0];
+      data[offset++] = color[1];
+      data[offset++] = color[2];
+      data[offset++] = color[3];
+    }
+    const buffer = gl.createBuffer();
+    if (!buffer) return null;
+    const uploader = new GpuBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    uploader.upload(gl, data, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    return { buffer, uploader, count, stride: 7, data };
+  }
+
+  private createCandleWickBuffers(
+    gl: WebGL2RenderingContext,
+    series: RenderSeries
+  ): { up: LineBuffer | null; down: LineBuffer | null } | null {
+    const open = series.fields.open;
+    const high = series.fields.high;
+    const low = series.fields.low;
+    const close = series.fields.close;
+    if (!open || !high || !low || !close) return null;
+    let upCount = 0;
+    let downCount = 0;
+    for (let i = 0; i < series.timeMs.length; i += 1) {
+      if (close[i] >= open[i]) upCount += 1;
+      else downCount += 1;
+    }
+    const upData = new Float32Array(upCount * 2 * 4);
+    const downData = new Float32Array(downCount * 2 * 4);
+    let upOffset = 0;
+    let downOffset = 0;
+    for (let i = 0; i < series.timeMs.length; i += 1) {
+      const [hi, lo] = splitFloat64(series.timeMs[i]);
+      const isUp = close[i] >= open[i];
+      const target = isUp ? upData : downData;
+      let offset = isUp ? upOffset : downOffset;
+      target[offset++] = hi;
+      target[offset++] = lo;
+      target[offset++] = high[i];
+      target[offset++] = 0;
+      target[offset++] = hi;
+      target[offset++] = lo;
+      target[offset++] = low[i];
+      target[offset++] = 0;
+      if (isUp) upOffset = offset;
+      else downOffset = offset;
+    }
+    const up = this.uploadLineBuffer(gl, upData, upCount * 2);
+    const down = this.uploadLineBuffer(gl, downData, downCount * 2);
+    return { up, down };
+  }
+
+  private createCandleBodyBuffer(gl: WebGL2RenderingContext, series: RenderSeries): InstanceBuffer | null {
+    const open = series.fields.open;
+    const close = series.fields.close;
+    if (!open || !close) return null;
+    const count = series.timeMs.length;
+    const data = new Float32Array(count * 8);
+    let offset = 0;
+    for (let i = 0; i < count; i += 1) {
+      const [hi, lo] = splitFloat64(series.timeMs[i]);
+      const isUp = close[i] >= open[i];
+      const color = isUp ? DEFAULT_UP_CANDLE : DEFAULT_DOWN_CANDLE;
+      data[offset++] = hi;
+      data[offset++] = lo;
+      data[offset++] = open[i];
+      data[offset++] = close[i];
+      data[offset++] = color[0];
+      data[offset++] = color[1];
+      data[offset++] = color[2];
+      data[offset++] = color[3];
+    }
+    const buffer = gl.createBuffer();
+    if (!buffer) return null;
+    const uploader = new GpuBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    uploader.upload(gl, data, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    return { buffer, uploader, count, stride: 8, data };
+  }
+
+  private drawLineSeries(
+    gl: WebGL2RenderingContext,
+    pane: RenderFrame["panes"][number],
+    series: RenderSeries,
+    buffer: LineBuffer,
+    domain: { min: number; max: number }
+  ): void {
+    if (!this.lineProgram || buffer.count < 2) return;
+    if (!this.setLineUniforms(gl, pane, domain, series, colorFromId(series.id, 1), 0, 0)) return;
+    gl.useProgram(this.lineProgram.program);
+    this.bindLineBuffer(gl, this.lineProgram, buffer);
+    gl.drawArrays(gl.LINE_STRIP, 0, buffer.count);
+  }
+
+  private drawAreaSeries(
+    gl: WebGL2RenderingContext,
+    pane: RenderFrame["panes"][number],
+    series: RenderSeries,
+    fill: LineBuffer,
+    line: LineBuffer,
+    domain: { min: number; max: number }
+  ): void {
+    if (!this.lineProgram) return;
+    const baseValue = domain.min <= 0 && domain.max >= 0 ? 0 : domain.min;
+    const fillColor = withAlpha(colorFromId(series.id, 1), 0.2);
+    if (this.setLineUniforms(gl, pane, domain, series, fillColor, baseValue, 1)) {
+      gl.useProgram(this.lineProgram.program);
+      this.bindLineBuffer(gl, this.lineProgram, fill);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, fill.count);
+    }
+    this.drawLineSeries(gl, pane, series, line, domain);
+  }
+
+  private drawHistogramSeries(
+    gl: WebGL2RenderingContext,
+    pane: RenderFrame["panes"][number],
+    series: RenderSeries,
+    buffer: InstanceBuffer,
+    domain: { min: number; max: number }
+  ): void {
+    if (!this.barProgram || !this.quadIndexBuffer || buffer.count === 0) return;
+    const baseValue = domain.min <= 0 && domain.max >= 0 ? 0 : domain.min;
+    const halfWidth = this.computeBarHalfWidthTime(pane, series.timeMs.length);
+    if (!this.setBarUniforms(gl, pane, domain, series, halfWidth, baseValue)) return;
+    gl.useProgram(this.barProgram.program);
+    this.bindBarBuffer(gl, this.barProgram, buffer);
+    gl.drawElementsInstanced(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0, buffer.count);
+  }
+
+  private drawCandleSeries(
+    gl: WebGL2RenderingContext,
+    pane: RenderFrame["panes"][number],
+    series: RenderSeries,
+    buffers: CandleBuffers,
+    domain: { min: number; max: number }
+  ): void {
+    if (!this.lineProgram || !this.quadProgram) return;
+    if (buffers.wickUp && buffers.wickUp.count > 1) {
+      if (this.setLineUniforms(gl, pane, domain, series, DEFAULT_UP_CANDLE, 0, 0)) {
+        gl.useProgram(this.lineProgram.program);
+        this.bindLineBuffer(gl, this.lineProgram, buffers.wickUp);
+        gl.drawArrays(gl.LINES, 0, buffers.wickUp.count);
+      }
+    }
+    if (buffers.wickDown && buffers.wickDown.count > 1) {
+      if (this.setLineUniforms(gl, pane, domain, series, DEFAULT_DOWN_CANDLE, 0, 0)) {
+        gl.useProgram(this.lineProgram.program);
+        this.bindLineBuffer(gl, this.lineProgram, buffers.wickDown);
+        gl.drawArrays(gl.LINES, 0, buffers.wickDown.count);
+      }
+    }
+    if (buffers.body && buffers.body.count > 0) {
+      const halfWidth = this.computeBarHalfWidthTime(pane, series.timeMs.length);
+      if (!this.setQuadUniforms(gl, pane, domain, series, halfWidth)) return;
+      gl.useProgram(this.quadProgram.program);
+      this.bindQuadBuffer(gl, this.quadProgram, buffers.body);
+      gl.drawElementsInstanced(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0, buffers.body.count);
+    }
+  }
+
+  private setLineUniforms(
+    gl: WebGL2RenderingContext,
+    pane: RenderFrame["panes"][number],
+    domain: { min: number; max: number },
+    series: RenderSeries,
+    color: RgbaColor,
+    baseValue: number,
+    useBase: number
+  ): boolean {
+    if (!this.lineProgram) return false;
+    if (!Number.isFinite(domain.min) || !Number.isFinite(domain.max) || domain.max <= domain.min) return false;
+    if (pane.plotArea.width <= 0 || pane.plotArea.height <= 0) return false;
+    const range = pane.visibleRange;
+    if (!Number.isFinite(range.startMs) || !Number.isFinite(range.endMs) || range.endMs <= range.startMs) return false;
+    const [rsHi, rsLo] = splitFloat64(range.startMs);
+    const [reHi, reLo] = splitFloat64(range.endMs);
+    gl.useProgram(this.lineProgram.program);
+    gl.uniform1f(this.lineProgram.uniforms.rangeStartHigh, rsHi);
+    gl.uniform1f(this.lineProgram.uniforms.rangeStartLow, rsLo);
+    gl.uniform1f(this.lineProgram.uniforms.rangeEndHigh, reHi);
+    gl.uniform1f(this.lineProgram.uniforms.rangeEndLow, reLo);
+    gl.uniform1f(this.lineProgram.uniforms.domainMin, domain.min);
+    gl.uniform1f(this.lineProgram.uniforms.domainMax, domain.max);
+    gl.uniform2f(this.lineProgram.uniforms.plotOrigin, pane.plotArea.x, pane.plotArea.y);
+    gl.uniform2f(this.lineProgram.uniforms.plotSize, pane.plotArea.width, pane.plotArea.height);
+    gl.uniform2f(this.lineProgram.uniforms.viewport, this.width, this.height);
+    gl.uniform4f(this.lineProgram.uniforms.color, color[0], color[1], color[2], color[3]);
+    gl.uniform1f(this.lineProgram.uniforms.baseValue, baseValue);
+    gl.uniform1f(this.lineProgram.uniforms.useBase, useBase);
+    return true;
+  }
+
+  private setQuadUniforms(
+    gl: WebGL2RenderingContext,
+    pane: RenderFrame["panes"][number],
+    domain: { min: number; max: number },
+    series: RenderSeries,
+    halfWidth: number
+  ): boolean {
+    if (!this.quadProgram) return false;
+    if (!Number.isFinite(domain.min) || !Number.isFinite(domain.max) || domain.max <= domain.min) return false;
+    if (pane.plotArea.width <= 0 || pane.plotArea.height <= 0) return false;
+    const range = pane.visibleRange;
+    if (!Number.isFinite(range.startMs) || !Number.isFinite(range.endMs) || range.endMs <= range.startMs) return false;
+    const [rsHi, rsLo] = splitFloat64(range.startMs);
+    const [reHi, reLo] = splitFloat64(range.endMs);
+    gl.useProgram(this.quadProgram.program);
+    gl.uniform1f(this.quadProgram.uniforms.rangeStartHigh, rsHi);
+    gl.uniform1f(this.quadProgram.uniforms.rangeStartLow, rsLo);
+    gl.uniform1f(this.quadProgram.uniforms.rangeEndHigh, reHi);
+    gl.uniform1f(this.quadProgram.uniforms.rangeEndLow, reLo);
+    gl.uniform1f(this.quadProgram.uniforms.domainMin, domain.min);
+    gl.uniform1f(this.quadProgram.uniforms.domainMax, domain.max);
+    gl.uniform2f(this.quadProgram.uniforms.plotOrigin, pane.plotArea.x, pane.plotArea.y);
+    gl.uniform2f(this.quadProgram.uniforms.plotSize, pane.plotArea.width, pane.plotArea.height);
+    gl.uniform2f(this.quadProgram.uniforms.viewport, this.width, this.height);
+    gl.uniform1f(this.quadProgram.uniforms.halfWidth, halfWidth);
+    return true;
+  }
+
+  private setBarUniforms(
+    gl: WebGL2RenderingContext,
+    pane: RenderFrame["panes"][number],
+    domain: { min: number; max: number },
+    series: RenderSeries,
+    halfWidth: number,
+    baseValue: number
+  ): boolean {
+    if (!this.barProgram) return false;
+    if (!Number.isFinite(domain.min) || !Number.isFinite(domain.max) || domain.max <= domain.min) return false;
+    if (pane.plotArea.width <= 0 || pane.plotArea.height <= 0) return false;
+    const range = pane.visibleRange;
+    if (!Number.isFinite(range.startMs) || !Number.isFinite(range.endMs) || range.endMs <= range.startMs) return false;
+    const [rsHi, rsLo] = splitFloat64(range.startMs);
+    const [reHi, reLo] = splitFloat64(range.endMs);
+    gl.useProgram(this.barProgram.program);
+    gl.uniform1f(this.barProgram.uniforms.rangeStartHigh, rsHi);
+    gl.uniform1f(this.barProgram.uniforms.rangeStartLow, rsLo);
+    gl.uniform1f(this.barProgram.uniforms.rangeEndHigh, reHi);
+    gl.uniform1f(this.barProgram.uniforms.rangeEndLow, reLo);
+    gl.uniform1f(this.barProgram.uniforms.domainMin, domain.min);
+    gl.uniform1f(this.barProgram.uniforms.domainMax, domain.max);
+    gl.uniform2f(this.barProgram.uniforms.plotOrigin, pane.plotArea.x, pane.plotArea.y);
+    gl.uniform2f(this.barProgram.uniforms.plotSize, pane.plotArea.width, pane.plotArea.height);
+    gl.uniform2f(this.barProgram.uniforms.viewport, this.width, this.height);
+    gl.uniform1f(this.barProgram.uniforms.halfWidth, halfWidth);
+    gl.uniform1f(this.barProgram.uniforms.baseValue, baseValue);
+    return true;
+  }
+
+  private bindLineBuffer(gl: WebGL2RenderingContext, info: LineProgramInfo, buffer: LineBuffer): void {
+    gl.bindVertexArray(info.vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer.buffer);
+    const stride = buffer.stride * Float32Array.BYTES_PER_ELEMENT;
+    gl.vertexAttribPointer(info.attribs.timeHigh, 1, gl.FLOAT, false, stride, 0);
+    gl.vertexAttribPointer(
+      info.attribs.timeLow,
+      1,
+      gl.FLOAT,
+      false,
+      stride,
+      Float32Array.BYTES_PER_ELEMENT
+    );
+    gl.vertexAttribPointer(
+      info.attribs.value,
+      1,
+      gl.FLOAT,
+      false,
+      stride,
+      2 * Float32Array.BYTES_PER_ELEMENT
+    );
+    gl.vertexAttribPointer(
+      info.attribs.side,
+      1,
+      gl.FLOAT,
+      false,
+      stride,
+      3 * Float32Array.BYTES_PER_ELEMENT
+    );
+  }
+
+  private bindQuadBuffer(gl: WebGL2RenderingContext, info: QuadProgramInfo, buffer: InstanceBuffer): void {
+    gl.bindVertexArray(info.vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer.buffer);
+    const stride = buffer.stride * Float32Array.BYTES_PER_ELEMENT;
+    gl.vertexAttribDivisor(info.attribs.timeHigh, 1);
+    gl.vertexAttribDivisor(info.attribs.timeLow, 1);
+    gl.vertexAttribDivisor(info.attribs.value0, 1);
+    gl.vertexAttribDivisor(info.attribs.value1, 1);
+    gl.vertexAttribDivisor(info.attribs.color, 1);
+    gl.vertexAttribPointer(info.attribs.timeHigh, 1, gl.FLOAT, false, stride, 0);
+    gl.vertexAttribPointer(
+      info.attribs.timeLow,
+      1,
+      gl.FLOAT,
+      false,
+      stride,
+      Float32Array.BYTES_PER_ELEMENT
+    );
+    gl.vertexAttribPointer(
+      info.attribs.value0,
+      1,
+      gl.FLOAT,
+      false,
+      stride,
+      2 * Float32Array.BYTES_PER_ELEMENT
+    );
+    gl.vertexAttribPointer(
+      info.attribs.value1,
+      1,
+      gl.FLOAT,
+      false,
+      stride,
+      3 * Float32Array.BYTES_PER_ELEMENT
+    );
+    gl.vertexAttribPointer(
+      info.attribs.color,
+      4,
+      gl.FLOAT,
+      false,
+      stride,
+      4 * Float32Array.BYTES_PER_ELEMENT
+    );
+  }
+
+  private bindBarBuffer(gl: WebGL2RenderingContext, info: BarProgramInfo, buffer: InstanceBuffer): void {
+    gl.bindVertexArray(info.vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer.buffer);
+    const stride = buffer.stride * Float32Array.BYTES_PER_ELEMENT;
+    gl.vertexAttribDivisor(info.attribs.timeHigh, 1);
+    gl.vertexAttribDivisor(info.attribs.timeLow, 1);
+    gl.vertexAttribDivisor(info.attribs.value, 1);
+    gl.vertexAttribDivisor(info.attribs.color, 1);
+    gl.vertexAttribPointer(info.attribs.timeHigh, 1, gl.FLOAT, false, stride, 0);
+    gl.vertexAttribPointer(
+      info.attribs.timeLow,
+      1,
+      gl.FLOAT,
+      false,
+      stride,
+      Float32Array.BYTES_PER_ELEMENT
+    );
+    gl.vertexAttribPointer(
+      info.attribs.value,
+      1,
+      gl.FLOAT,
+      false,
+      stride,
+      2 * Float32Array.BYTES_PER_ELEMENT
+    );
+    gl.vertexAttribPointer(
+      info.attribs.color,
+      4,
+      gl.FLOAT,
+      false,
+      stride,
+      3 * Float32Array.BYTES_PER_ELEMENT
+    );
+  }
+
+  private computeBarHalfWidthTime(pane: RenderFrame["panes"][number], count: number): number {
+    if (pane.plotArea.width <= 0) return 0;
+    const span = pane.visibleRange.endMs - pane.visibleRange.startMs;
+    if (!Number.isFinite(span) || span <= 0) return 0;
+    const barWidthPx = this.computeBarWidth(pane, count);
+    const widthTime = (barWidthPx / pane.plotArea.width) * span;
+    return widthTime * 0.5;
+  }
+
+  private renderLabelBackgrounds(labels: TextLabel[]): void {
+    if (!this.gl || !this.dynamicProgram || !this.dynamicVao || !this.dynamicVbo) return;
+    const gl = this.gl;
+    const commands: DrawCommand[] = [];
+    this.dynamicBuffer.reset();
+    for (const label of labels) {
+      if (!label.background) continue;
+      const padding = label.padding ?? 4;
+      const metrics = this.measureLabel(label.text);
+      const rect = computeLabelRect(label, metrics, padding);
+      const color = parseColor(label.background, [0, 0, 0, 0.6]);
+      this.appendRect(rect.x, rect.y, rect.width, rect.height, color, commands);
+    }
+    this.flushDynamic(gl, commands);
+  }
+
+  private measureLabel(text: string): LabelMetrics {
+    if (this.gpuText) {
+      const metrics = this.gpuText.measureText(text);
+      return { width: metrics.width, height: metrics.height, ascent: metrics.ascent, descent: metrics.descent };
+    }
+    const width = Math.max(1, text.length * 7);
+    return { width, height: 12, ascent: 9, descent: 3 };
+  }
+
+  private appendRect(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    color: RgbaColor,
+    commands: DrawCommand[]
+  ): void {
+    const [x0, y0] = this.toNdc(x, y);
+    const [x1, y1] = this.toNdc(x + width, y + height);
+    const start = this.dynamicBuffer.vertexCount;
+    this.dynamicBuffer.pushVertex(x0, y0, color[0], color[1], color[2], color[3]);
+    this.dynamicBuffer.pushVertex(x1, y0, color[0], color[1], color[2], color[3]);
+    this.dynamicBuffer.pushVertex(x1, y1, color[0], color[1], color[2], color[3]);
+    this.dynamicBuffer.pushVertex(x1, y1, color[0], color[1], color[2], color[3]);
+    this.dynamicBuffer.pushVertex(x0, y1, color[0], color[1], color[2], color[3]);
+    this.dynamicBuffer.pushVertex(x0, y0, color[0], color[1], color[2], color[3]);
+    const count = this.dynamicBuffer.vertexCount - start;
+    if (count > 0) {
+      commands.push({ mode: this.glTriangles(), first: start, count });
+    }
+  }
+
+  private pushClip(gl: WebGL2RenderingContext, plotArea: PlotArea): void {
+    this.clipStack.push(plotArea);
+    this.applyScissor(gl, plotArea);
+  }
+
+  private popClip(gl: WebGL2RenderingContext): void {
+    this.clipStack.pop();
+    const next = this.clipStack[this.clipStack.length - 1];
+    if (next) {
+      this.applyScissor(gl, next);
+    } else {
+      gl.scissor(0, 0, this.canvas.width, this.canvas.height);
+    }
+  }
+
   private appendGridAndAxes(
     pane: RenderFrame["panes"][number],
     commands: DrawCommand[],
@@ -430,62 +1087,94 @@ export class WebGL2Renderer implements Renderer {
     isBottomPane: boolean
   ): void {
     const plotArea = pane.plotArea;
-    const domains = Object.values(pane.scaleDomains);
-    const primaryDomain = pane.scaleDomains.price ?? domains[0];
-    if (!primaryDomain) return;
+    const axis = pane.axis;
+    const primaryScale =
+      axis.left.find((item) => item.scaleId === axis.primaryScaleId) ??
+      axis.right.find((item) => item.scaleId === axis.primaryScaleId) ??
+      axis.right[0] ??
+      axis.left[0];
+    const yTicks = primaryScale?.ticks ?? [];
+    const xTicks = axis.time ?? [];
 
-    const yTicks = generateNumericTicks(
-      primaryDomain.min,
-      primaryDomain.max,
-      Math.max(2, Math.floor(plotArea.height / 60))
-    );
-    const xTicks = generateTimeTicks(pane.visibleRange, plotArea.width);
-
-    const gridStart = this.buffer.vertexCount;
-    for (const tick of yTicks) {
-      const y = priceToY(primaryDomain, plotArea, tick.value);
+    const domain = pane.scaleDomains[axis.primaryScaleId] ?? pane.scaleDomains.price;
+    const gridStart = this.dynamicBuffer.vertexCount;
+    if (domain) {
+      for (const tick of yTicks) {
+      const y = priceToY(domain, plotArea, tick.value);
       if (y === null) continue;
       const [x0, y0] = this.toNdc(plotArea.x, y);
       const [x1, y1] = this.toNdc(plotArea.x + plotArea.width, y);
-      this.buffer.pushVertex(x0, y0, DEFAULT_GRID[0], DEFAULT_GRID[1], DEFAULT_GRID[2], DEFAULT_GRID[3]);
-      this.buffer.pushVertex(x1, y1, DEFAULT_GRID[0], DEFAULT_GRID[1], DEFAULT_GRID[2], DEFAULT_GRID[3]);
+      this.dynamicBuffer.pushVertex(x0, y0, DEFAULT_GRID[0], DEFAULT_GRID[1], DEFAULT_GRID[2], DEFAULT_GRID[3]);
+      this.dynamicBuffer.pushVertex(x1, y1, DEFAULT_GRID[0], DEFAULT_GRID[1], DEFAULT_GRID[2], DEFAULT_GRID[3]);
+    }
     }
     for (const tick of xTicks) {
       const x = timeToX(pane.visibleRange, plotArea, tick.value);
       if (x === null) continue;
       const [x0, y0] = this.toNdc(x, plotArea.y);
       const [x1, y1] = this.toNdc(x, plotArea.y + plotArea.height);
-      this.buffer.pushVertex(x0, y0, DEFAULT_GRID[0], DEFAULT_GRID[1], DEFAULT_GRID[2], DEFAULT_GRID[3]);
-      this.buffer.pushVertex(x1, y1, DEFAULT_GRID[0], DEFAULT_GRID[1], DEFAULT_GRID[2], DEFAULT_GRID[3]);
+      this.dynamicBuffer.pushVertex(x0, y0, DEFAULT_GRID[0], DEFAULT_GRID[1], DEFAULT_GRID[2], DEFAULT_GRID[3]);
+      this.dynamicBuffer.pushVertex(x1, y1, DEFAULT_GRID[0], DEFAULT_GRID[1], DEFAULT_GRID[2], DEFAULT_GRID[3]);
     }
-    const gridCount = this.buffer.vertexCount - gridStart;
+    const gridCount = this.dynamicBuffer.vertexCount - gridStart;
     if (gridCount > 0) {
       commands.push({ mode: this.glLines(), first: gridStart, count: gridCount });
     }
 
-    const axisStart = this.buffer.vertexCount;
-    const axisX = plotArea.x + plotArea.width;
-    const [ax0, ay0] = this.toNdc(axisX, plotArea.y);
-    const [ax1, ay1] = this.toNdc(axisX, plotArea.y + plotArea.height);
-    this.buffer.pushVertex(ax0, ay0, DEFAULT_AXIS[0], DEFAULT_AXIS[1], DEFAULT_AXIS[2], DEFAULT_AXIS[3]);
-    this.buffer.pushVertex(ax1, ay1, DEFAULT_AXIS[0], DEFAULT_AXIS[1], DEFAULT_AXIS[2], DEFAULT_AXIS[3]);
-    const axisCount = this.buffer.vertexCount - axisStart;
+    const axisStart = this.dynamicBuffer.vertexCount;
+    if (axis.left.length > 0) {
+      const [lx0, ly0] = this.toNdc(plotArea.x, plotArea.y);
+      const [lx1, ly1] = this.toNdc(plotArea.x, plotArea.y + plotArea.height);
+      this.dynamicBuffer.pushVertex(lx0, ly0, DEFAULT_AXIS[0], DEFAULT_AXIS[1], DEFAULT_AXIS[2], DEFAULT_AXIS[3]);
+      this.dynamicBuffer.pushVertex(lx1, ly1, DEFAULT_AXIS[0], DEFAULT_AXIS[1], DEFAULT_AXIS[2], DEFAULT_AXIS[3]);
+    }
+    if (axis.right.length > 0) {
+      const axisX = plotArea.x + plotArea.width;
+      const [rx0, ry0] = this.toNdc(axisX, plotArea.y);
+      const [rx1, ry1] = this.toNdc(axisX, plotArea.y + plotArea.height);
+      this.dynamicBuffer.pushVertex(rx0, ry0, DEFAULT_AXIS[0], DEFAULT_AXIS[1], DEFAULT_AXIS[2], DEFAULT_AXIS[3]);
+      this.dynamicBuffer.pushVertex(rx1, ry1, DEFAULT_AXIS[0], DEFAULT_AXIS[1], DEFAULT_AXIS[2], DEFAULT_AXIS[3]);
+    }
+    const axisCount = this.dynamicBuffer.vertexCount - axisStart;
     if (axisCount > 0) {
       commands.push({ mode: this.glLines(), first: axisStart, count: axisCount });
     }
 
-    const labelX = plotArea.x + plotArea.width + 6;
-    for (const tick of yTicks) {
-      const y = priceToY(primaryDomain, plotArea, tick.value);
-      if (y === null) continue;
-      labels.push({
-        x: labelX,
-        y,
-        text: tick.label,
-        color: "#cfd3da",
-        align: "left",
-        baseline: "middle"
-      });
+    for (const scale of axis.left) {
+      if (!scale.visible) continue;
+      const domain = pane.scaleDomains[scale.scaleId];
+      if (!domain) continue;
+      const labelX = plotArea.x - 6;
+      for (const tick of scale.ticks) {
+        const y = priceToY(domain, plotArea, tick.value);
+        if (y === null) continue;
+        labels.push({
+          x: labelX,
+          y,
+          text: tick.label,
+          color: "#cfd3da",
+          align: "right",
+          baseline: "middle"
+        });
+      }
+    }
+    for (const scale of axis.right) {
+      if (!scale.visible) continue;
+      const domain = pane.scaleDomains[scale.scaleId];
+      if (!domain) continue;
+      const labelX = plotArea.x + plotArea.width + 6;
+      for (const tick of scale.ticks) {
+        const y = priceToY(domain, plotArea, tick.value);
+        if (y === null) continue;
+        labels.push({
+          x: labelX,
+          y,
+          text: tick.label,
+          color: "#cfd3da",
+          align: "left",
+          baseline: "middle"
+        });
+      }
     }
 
     if (isBottomPane) {
@@ -517,21 +1206,21 @@ export class WebGL2Renderer implements Renderer {
     if (x < plotArea.x || x > plotArea.x + plotArea.width) return;
     if (crosshair.showHorizontal && (y < plotArea.y || y > plotArea.y + plotArea.height)) return;
 
-    const start = this.buffer.vertexCount;
+    const start = this.dynamicBuffer.vertexCount;
     if (crosshair.showVertical) {
       const [vx0, vy0] = this.toNdc(x, plotArea.y);
       const [vx1, vy1] = this.toNdc(x, plotArea.y + plotArea.height);
-      this.buffer.pushVertex(vx0, vy0, DEFAULT_CROSSHAIR[0], DEFAULT_CROSSHAIR[1], DEFAULT_CROSSHAIR[2], DEFAULT_CROSSHAIR[3]);
-      this.buffer.pushVertex(vx1, vy1, DEFAULT_CROSSHAIR[0], DEFAULT_CROSSHAIR[1], DEFAULT_CROSSHAIR[2], DEFAULT_CROSSHAIR[3]);
+      this.dynamicBuffer.pushVertex(vx0, vy0, DEFAULT_CROSSHAIR[0], DEFAULT_CROSSHAIR[1], DEFAULT_CROSSHAIR[2], DEFAULT_CROSSHAIR[3]);
+      this.dynamicBuffer.pushVertex(vx1, vy1, DEFAULT_CROSSHAIR[0], DEFAULT_CROSSHAIR[1], DEFAULT_CROSSHAIR[2], DEFAULT_CROSSHAIR[3]);
     }
     if (crosshair.showHorizontal) {
       const [hx0, hy0] = this.toNdc(plotArea.x, y);
       const [hx1, hy1] = this.toNdc(plotArea.x + plotArea.width, y);
-      this.buffer.pushVertex(hx0, hy0, DEFAULT_CROSSHAIR[0], DEFAULT_CROSSHAIR[1], DEFAULT_CROSSHAIR[2], DEFAULT_CROSSHAIR[3]);
-      this.buffer.pushVertex(hx1, hy1, DEFAULT_CROSSHAIR[0], DEFAULT_CROSSHAIR[1], DEFAULT_CROSSHAIR[2], DEFAULT_CROSSHAIR[3]);
+      this.dynamicBuffer.pushVertex(hx0, hy0, DEFAULT_CROSSHAIR[0], DEFAULT_CROSSHAIR[1], DEFAULT_CROSSHAIR[2], DEFAULT_CROSSHAIR[3]);
+      this.dynamicBuffer.pushVertex(hx1, hy1, DEFAULT_CROSSHAIR[0], DEFAULT_CROSSHAIR[1], DEFAULT_CROSSHAIR[2], DEFAULT_CROSSHAIR[3]);
     }
 
-    const count = this.buffer.vertexCount - start;
+    const count = this.dynamicBuffer.vertexCount - start;
     if (count > 0) {
       commands.push({ mode: this.glLines(), first: start, count });
     }
@@ -573,7 +1262,7 @@ export class WebGL2Renderer implements Renderer {
     const domain = pane.scaleDomains[overlay.scaleId ?? "price"] ?? pane.scaleDomains.price;
     if (!domain) return;
     const color = colorFromId(overlay.id, 1);
-    const start = this.buffer.vertexCount;
+    const start = this.dynamicBuffer.vertexCount;
     let prevX: number | null = null;
     let prevY: number | null = null;
     for (const point of data.points) {
@@ -582,14 +1271,14 @@ export class WebGL2Renderer implements Renderer {
       if (x === null || y === null) continue;
       if (data.step && prevX !== null && prevY !== null) {
         const [sx, sy] = this.toNdc(x, prevY);
-        this.buffer.pushVertex(sx, sy, color[0], color[1], color[2], color[3]);
+        this.dynamicBuffer.pushVertex(sx, sy, color[0], color[1], color[2], color[3]);
       }
       const [nx, ny] = this.toNdc(x, y);
-      this.buffer.pushVertex(nx, ny, color[0], color[1], color[2], color[3]);
+      this.dynamicBuffer.pushVertex(nx, ny, color[0], color[1], color[2], color[3]);
       prevX = x;
       prevY = y;
     }
-    const count = this.buffer.vertexCount - start;
+    const count = this.dynamicBuffer.vertexCount - start;
     if (count > 1) {
       commands.push({ mode: this.glLineStrip(), first: start, count });
     }
@@ -620,14 +1309,14 @@ export class WebGL2Renderer implements Renderer {
         const [x1, y1] = this.toNdc(x, y);
         const [x0b, y0b] = this.toNdc(prevX, baseY);
         const [x1b, y1b] = this.toNdc(x, baseY);
-        const start = this.buffer.vertexCount;
-        this.buffer.pushVertex(x0, y0, fillColor[0], fillColor[1], fillColor[2], fillColor[3]);
-        this.buffer.pushVertex(x0b, y0b, fillColor[0], fillColor[1], fillColor[2], fillColor[3]);
-        this.buffer.pushVertex(x1, y1, fillColor[0], fillColor[1], fillColor[2], fillColor[3]);
-        this.buffer.pushVertex(x1, y1, fillColor[0], fillColor[1], fillColor[2], fillColor[3]);
-        this.buffer.pushVertex(x0b, y0b, fillColor[0], fillColor[1], fillColor[2], fillColor[3]);
-        this.buffer.pushVertex(x1b, y1b, fillColor[0], fillColor[1], fillColor[2], fillColor[3]);
-        const count = this.buffer.vertexCount - start;
+        const start = this.dynamicBuffer.vertexCount;
+        this.dynamicBuffer.pushVertex(x0, y0, fillColor[0], fillColor[1], fillColor[2], fillColor[3]);
+        this.dynamicBuffer.pushVertex(x0b, y0b, fillColor[0], fillColor[1], fillColor[2], fillColor[3]);
+        this.dynamicBuffer.pushVertex(x1, y1, fillColor[0], fillColor[1], fillColor[2], fillColor[3]);
+        this.dynamicBuffer.pushVertex(x1, y1, fillColor[0], fillColor[1], fillColor[2], fillColor[3]);
+        this.dynamicBuffer.pushVertex(x0b, y0b, fillColor[0], fillColor[1], fillColor[2], fillColor[3]);
+        this.dynamicBuffer.pushVertex(x1b, y1b, fillColor[0], fillColor[1], fillColor[2], fillColor[3]);
+        const count = this.dynamicBuffer.vertexCount - start;
         if (count > 0) {
           commands.push({ mode: this.glTriangles(), first: start, count });
         }
@@ -663,14 +1352,14 @@ export class WebGL2Renderer implements Renderer {
       const bottom = Math.max(y, baseY);
       const [lx, ty] = this.toNdc(left, top);
       const [rx, by] = this.toNdc(right, bottom);
-      const start = this.buffer.vertexCount;
-      this.buffer.pushVertex(lx, ty, color[0], color[1], color[2], color[3]);
-      this.buffer.pushVertex(lx, by, color[0], color[1], color[2], color[3]);
-      this.buffer.pushVertex(rx, ty, color[0], color[1], color[2], color[3]);
-      this.buffer.pushVertex(rx, ty, color[0], color[1], color[2], color[3]);
-      this.buffer.pushVertex(lx, by, color[0], color[1], color[2], color[3]);
-      this.buffer.pushVertex(rx, by, color[0], color[1], color[2], color[3]);
-      const count = this.buffer.vertexCount - start;
+      const start = this.dynamicBuffer.vertexCount;
+      this.dynamicBuffer.pushVertex(lx, ty, color[0], color[1], color[2], color[3]);
+      this.dynamicBuffer.pushVertex(lx, by, color[0], color[1], color[2], color[3]);
+      this.dynamicBuffer.pushVertex(rx, ty, color[0], color[1], color[2], color[3]);
+      this.dynamicBuffer.pushVertex(rx, ty, color[0], color[1], color[2], color[3]);
+      this.dynamicBuffer.pushVertex(lx, by, color[0], color[1], color[2], color[3]);
+      this.dynamicBuffer.pushVertex(rx, by, color[0], color[1], color[2], color[3]);
+      const count = this.dynamicBuffer.vertexCount - start;
       if (count > 0) {
         commands.push({ mode: this.glTriangles(), first: start, count });
       }
@@ -694,12 +1383,12 @@ export class WebGL2Renderer implements Renderer {
     const x1 = timeToX(range, pane.plotArea, clampTime(range, endTime));
     if (x0 === null || x1 === null) return;
     const color = DEFAULT_OVERLAY;
-    const start = this.buffer.vertexCount;
+    const start = this.dynamicBuffer.vertexCount;
     const [nx0, ny] = this.toNdc(x0, y);
     const [nx1, ny1] = this.toNdc(x1, y);
-    this.buffer.pushVertex(nx0, ny, color[0], color[1], color[2], color[3]);
-    this.buffer.pushVertex(nx1, ny1, color[0], color[1], color[2], color[3]);
-    const count = this.buffer.vertexCount - start;
+    this.dynamicBuffer.pushVertex(nx0, ny, color[0], color[1], color[2], color[3]);
+    this.dynamicBuffer.pushVertex(nx1, ny1, color[0], color[1], color[2], color[3]);
+    const count = this.dynamicBuffer.vertexCount - start;
     if (count > 0) {
       commands.push({ mode: this.glLines(), first: start, count });
     }
@@ -736,14 +1425,14 @@ export class WebGL2Renderer implements Renderer {
         const [x0b, y0b] = this.toNdc(x0, bot0);
         const [x1t, y1t] = this.toNdc(x1, top1);
         const [x1b, y1b] = this.toNdc(x1, bot1);
-        const start = this.buffer.vertexCount;
-        this.buffer.pushVertex(x0t, y0t, fill[0], fill[1], fill[2], fill[3]);
-        this.buffer.pushVertex(x0b, y0b, fill[0], fill[1], fill[2], fill[3]);
-        this.buffer.pushVertex(x1t, y1t, fill[0], fill[1], fill[2], fill[3]);
-        this.buffer.pushVertex(x1t, y1t, fill[0], fill[1], fill[2], fill[3]);
-        this.buffer.pushVertex(x0b, y0b, fill[0], fill[1], fill[2], fill[3]);
-        this.buffer.pushVertex(x1b, y1b, fill[0], fill[1], fill[2], fill[3]);
-        const count = this.buffer.vertexCount - start;
+        const start = this.dynamicBuffer.vertexCount;
+        this.dynamicBuffer.pushVertex(x0t, y0t, fill[0], fill[1], fill[2], fill[3]);
+        this.dynamicBuffer.pushVertex(x0b, y0b, fill[0], fill[1], fill[2], fill[3]);
+        this.dynamicBuffer.pushVertex(x1t, y1t, fill[0], fill[1], fill[2], fill[3]);
+        this.dynamicBuffer.pushVertex(x1t, y1t, fill[0], fill[1], fill[2], fill[3]);
+        this.dynamicBuffer.pushVertex(x0b, y0b, fill[0], fill[1], fill[2], fill[3]);
+        this.dynamicBuffer.pushVertex(x1b, y1b, fill[0], fill[1], fill[2], fill[3]);
+        const count = this.dynamicBuffer.vertexCount - start;
         if (count > 0) {
           commands.push({ mode: this.glTriangles(), first: start, count });
         }
@@ -762,7 +1451,7 @@ export class WebGL2Renderer implements Renderer {
     const domain = pane.scaleDomains[overlay.scaleId ?? "price"] ?? pane.scaleDomains.price;
     if (!domain) return;
     const color = colorFromId(overlay.id, 1);
-    const start = this.buffer.vertexCount;
+    const start = this.dynamicBuffer.vertexCount;
     const size = 6;
     for (const point of data.points) {
       const x = timeToX(range, pane.plotArea, point.timeMs);
@@ -772,12 +1461,12 @@ export class WebGL2Renderer implements Renderer {
       const [nx1, ny1] = this.toNdc(x + size, y);
       const [nx2, ny2] = this.toNdc(x, y - size);
       const [nx3, ny3] = this.toNdc(x, y + size);
-      this.buffer.pushVertex(nx0, ny0, color[0], color[1], color[2], color[3]);
-      this.buffer.pushVertex(nx1, ny1, color[0], color[1], color[2], color[3]);
-      this.buffer.pushVertex(nx2, ny2, color[0], color[1], color[2], color[3]);
-      this.buffer.pushVertex(nx3, ny3, color[0], color[1], color[2], color[3]);
+      this.dynamicBuffer.pushVertex(nx0, ny0, color[0], color[1], color[2], color[3]);
+      this.dynamicBuffer.pushVertex(nx1, ny1, color[0], color[1], color[2], color[3]);
+      this.dynamicBuffer.pushVertex(nx2, ny2, color[0], color[1], color[2], color[3]);
+      this.dynamicBuffer.pushVertex(nx3, ny3, color[0], color[1], color[2], color[3]);
     }
-    const count = this.buffer.vertexCount - start;
+    const count = this.dynamicBuffer.vertexCount - start;
     if (count > 0) {
       commands.push({ mode: this.glLines(), first: start, count });
     }
@@ -883,6 +1572,282 @@ function coalesceDrawCommands(commands: DrawCommand[]): DrawCommand[] {
   return result;
 }
 
+type LineBuffer = {
+  buffer: WebGLBuffer;
+  uploader: GpuBuffer;
+  count: number;
+  stride: number;
+  data: Float32Array;
+};
+
+type InstanceBuffer = {
+  buffer: WebGLBuffer;
+  uploader: GpuBuffer;
+  count: number;
+  stride: number;
+  data: Float32Array;
+};
+
+type CandleBuffers = {
+  wickUp: LineBuffer | null;
+  wickDown: LineBuffer | null;
+  body: InstanceBuffer | null;
+};
+
+type SeriesGpuEntry = {
+  seriesRef: RenderSeries;
+  line?: LineBuffer | null;
+  area?: LineBuffer | null;
+  histogram?: InstanceBuffer | null;
+  candles?: CandleBuffers | null;
+};
+
+type LineProgramInfo = {
+  program: WebGLProgram;
+  vao: WebGLVertexArrayObject;
+  attribs: {
+    timeHigh: number;
+    timeLow: number;
+    value: number;
+    side: number;
+  };
+  uniforms: {
+    rangeStartHigh: WebGLUniformLocation;
+    rangeStartLow: WebGLUniformLocation;
+    rangeEndHigh: WebGLUniformLocation;
+    rangeEndLow: WebGLUniformLocation;
+    domainMin: WebGLUniformLocation;
+    domainMax: WebGLUniformLocation;
+    plotOrigin: WebGLUniformLocation;
+    plotSize: WebGLUniformLocation;
+    viewport: WebGLUniformLocation;
+    color: WebGLUniformLocation;
+    baseValue: WebGLUniformLocation;
+    useBase: WebGLUniformLocation;
+  };
+};
+
+type QuadProgramInfo = {
+  program: WebGLProgram;
+  vao: WebGLVertexArrayObject;
+  attribs: {
+    corner: number;
+    timeHigh: number;
+    timeLow: number;
+    value0: number;
+    value1: number;
+    color: number;
+  };
+  uniforms: {
+    rangeStartHigh: WebGLUniformLocation;
+    rangeStartLow: WebGLUniformLocation;
+    rangeEndHigh: WebGLUniformLocation;
+    rangeEndLow: WebGLUniformLocation;
+    domainMin: WebGLUniformLocation;
+    domainMax: WebGLUniformLocation;
+    plotOrigin: WebGLUniformLocation;
+    plotSize: WebGLUniformLocation;
+    viewport: WebGLUniformLocation;
+    halfWidth: WebGLUniformLocation;
+  };
+};
+
+type BarProgramInfo = {
+  program: WebGLProgram;
+  vao: WebGLVertexArrayObject;
+  attribs: {
+    corner: number;
+    timeHigh: number;
+    timeLow: number;
+    value: number;
+    color: number;
+  };
+  uniforms: {
+    rangeStartHigh: WebGLUniformLocation;
+    rangeStartLow: WebGLUniformLocation;
+    rangeEndHigh: WebGLUniformLocation;
+    rangeEndLow: WebGLUniformLocation;
+    domainMin: WebGLUniformLocation;
+    domainMax: WebGLUniformLocation;
+    plotOrigin: WebGLUniformLocation;
+    plotSize: WebGLUniformLocation;
+    viewport: WebGLUniformLocation;
+    halfWidth: WebGLUniformLocation;
+    baseValue: WebGLUniformLocation;
+  };
+};
+
+type LabelMetrics = {
+  width: number;
+  height: number;
+  ascent: number;
+  descent: number;
+};
+
+function computeLabelRect(label: TextLabel, metrics: LabelMetrics, padding: number): { x: number; y: number; width: number; height: number } {
+  let x = label.x;
+  if (label.align === "center") {
+    x -= metrics.width / 2;
+  } else if (label.align === "right" || label.align === "end") {
+    x -= metrics.width;
+  }
+  let baseline = label.y;
+  switch (label.baseline) {
+    case "top":
+      baseline = label.y + metrics.ascent;
+      break;
+    case "bottom":
+      baseline = label.y - metrics.descent;
+      break;
+    case "middle":
+      baseline = label.y + metrics.ascent - metrics.height / 2;
+      break;
+    default:
+      baseline = label.y;
+      break;
+  }
+  const x0 = x - padding;
+  const y0 = baseline - metrics.ascent - padding;
+  const width = metrics.width + padding * 2;
+  const height = metrics.height + padding * 2;
+  return { x: x0, y: y0, width, height };
+}
+
+function splitFloat64(value: number): [number, number] {
+  const high = Math.fround(value);
+  const low = value - high;
+  return [high, low];
+}
+
+function createLineProgramInfo(gl: WebGL2RenderingContext, program: WebGLProgram): LineProgramInfo {
+  const vao = gl.createVertexArray();
+  if (!vao) {
+    throw new Error("Failed to allocate line VAO");
+  }
+  gl.bindVertexArray(vao);
+  const timeHigh = gl.getAttribLocation(program, "a_timeHigh");
+  const timeLow = gl.getAttribLocation(program, "a_timeLow");
+  const value = gl.getAttribLocation(program, "a_value");
+  const side = gl.getAttribLocation(program, "a_side");
+  gl.enableVertexAttribArray(timeHigh);
+  gl.enableVertexAttribArray(timeLow);
+  gl.enableVertexAttribArray(value);
+  gl.enableVertexAttribArray(side);
+  gl.bindVertexArray(null);
+  return {
+    program,
+    vao,
+    attribs: { timeHigh, timeLow, value, side },
+    uniforms: {
+      rangeStartHigh: gl.getUniformLocation(program, "u_rangeStartHigh")!,
+      rangeStartLow: gl.getUniformLocation(program, "u_rangeStartLow")!,
+      rangeEndHigh: gl.getUniformLocation(program, "u_rangeEndHigh")!,
+      rangeEndLow: gl.getUniformLocation(program, "u_rangeEndLow")!,
+      domainMin: gl.getUniformLocation(program, "u_domainMin")!,
+      domainMax: gl.getUniformLocation(program, "u_domainMax")!,
+      plotOrigin: gl.getUniformLocation(program, "u_plotOrigin")!,
+      plotSize: gl.getUniformLocation(program, "u_plotSize")!,
+      viewport: gl.getUniformLocation(program, "u_viewport")!,
+      color: gl.getUniformLocation(program, "u_color")!,
+      baseValue: gl.getUniformLocation(program, "u_baseValue")!,
+      useBase: gl.getUniformLocation(program, "u_useBase")!
+    }
+  };
+}
+
+function createQuadProgramInfo(
+  gl: WebGL2RenderingContext,
+  program: WebGLProgram,
+  cornerBuffer: WebGLBuffer,
+  indexBuffer: WebGLBuffer
+): QuadProgramInfo {
+  const vao = gl.createVertexArray();
+  if (!vao) {
+    throw new Error("Failed to allocate quad VAO");
+  }
+  gl.bindVertexArray(vao);
+  gl.bindBuffer(gl.ARRAY_BUFFER, cornerBuffer);
+  const corner = gl.getAttribLocation(program, "a_corner");
+  gl.enableVertexAttribArray(corner);
+  gl.vertexAttribPointer(corner, 2, gl.FLOAT, false, 0, 0);
+  gl.vertexAttribDivisor(corner, 0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+  const timeHigh = gl.getAttribLocation(program, "a_timeHigh");
+  const timeLow = gl.getAttribLocation(program, "a_timeLow");
+  const value0 = gl.getAttribLocation(program, "a_value0");
+  const value1 = gl.getAttribLocation(program, "a_value1");
+  const color = gl.getAttribLocation(program, "a_color");
+  gl.enableVertexAttribArray(timeHigh);
+  gl.enableVertexAttribArray(timeLow);
+  gl.enableVertexAttribArray(value0);
+  gl.enableVertexAttribArray(value1);
+  gl.enableVertexAttribArray(color);
+  gl.bindVertexArray(null);
+  return {
+    program,
+    vao,
+    attribs: { corner, timeHigh, timeLow, value0, value1, color },
+    uniforms: {
+      rangeStartHigh: gl.getUniformLocation(program, "u_rangeStartHigh")!,
+      rangeStartLow: gl.getUniformLocation(program, "u_rangeStartLow")!,
+      rangeEndHigh: gl.getUniformLocation(program, "u_rangeEndHigh")!,
+      rangeEndLow: gl.getUniformLocation(program, "u_rangeEndLow")!,
+      domainMin: gl.getUniformLocation(program, "u_domainMin")!,
+      domainMax: gl.getUniformLocation(program, "u_domainMax")!,
+      plotOrigin: gl.getUniformLocation(program, "u_plotOrigin")!,
+      plotSize: gl.getUniformLocation(program, "u_plotSize")!,
+      viewport: gl.getUniformLocation(program, "u_viewport")!,
+      halfWidth: gl.getUniformLocation(program, "u_halfWidth")!
+    }
+  };
+}
+
+function createBarProgramInfo(
+  gl: WebGL2RenderingContext,
+  program: WebGLProgram,
+  cornerBuffer: WebGLBuffer,
+  indexBuffer: WebGLBuffer
+): BarProgramInfo {
+  const vao = gl.createVertexArray();
+  if (!vao) {
+    throw new Error("Failed to allocate bar VAO");
+  }
+  gl.bindVertexArray(vao);
+  gl.bindBuffer(gl.ARRAY_BUFFER, cornerBuffer);
+  const corner = gl.getAttribLocation(program, "a_corner");
+  gl.enableVertexAttribArray(corner);
+  gl.vertexAttribPointer(corner, 2, gl.FLOAT, false, 0, 0);
+  gl.vertexAttribDivisor(corner, 0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+  const timeHigh = gl.getAttribLocation(program, "a_timeHigh");
+  const timeLow = gl.getAttribLocation(program, "a_timeLow");
+  const value = gl.getAttribLocation(program, "a_value");
+  const color = gl.getAttribLocation(program, "a_color");
+  gl.enableVertexAttribArray(timeHigh);
+  gl.enableVertexAttribArray(timeLow);
+  gl.enableVertexAttribArray(value);
+  gl.enableVertexAttribArray(color);
+  gl.bindVertexArray(null);
+  return {
+    program,
+    vao,
+    attribs: { corner, timeHigh, timeLow, value, color },
+    uniforms: {
+      rangeStartHigh: gl.getUniformLocation(program, "u_rangeStartHigh")!,
+      rangeStartLow: gl.getUniformLocation(program, "u_rangeStartLow")!,
+      rangeEndHigh: gl.getUniformLocation(program, "u_rangeEndHigh")!,
+      rangeEndLow: gl.getUniformLocation(program, "u_rangeEndLow")!,
+      domainMin: gl.getUniformLocation(program, "u_domainMin")!,
+      domainMax: gl.getUniformLocation(program, "u_domainMax")!,
+      plotOrigin: gl.getUniformLocation(program, "u_plotOrigin")!,
+      plotSize: gl.getUniformLocation(program, "u_plotSize")!,
+      viewport: gl.getUniformLocation(program, "u_viewport")!,
+      halfWidth: gl.getUniformLocation(program, "u_halfWidth")!,
+      baseValue: gl.getUniformLocation(program, "u_baseValue")!
+    }
+  };
+}
+
 const VERT_SHADER_SOURCE = `#version 300 es
 in vec2 a_position;
 in vec4 a_color;
@@ -894,6 +1859,153 @@ void main() {
 `;
 
 const FRAG_SHADER_SOURCE = `#version 300 es
+precision highp float;
+in vec4 v_color;
+out vec4 outColor;
+void main() {
+  outColor = v_color;
+}
+`;
+
+const SERIES_LINE_VERT = `#version 300 es
+in float a_timeHigh;
+in float a_timeLow;
+in float a_value;
+in float a_side;
+uniform float u_rangeStartHigh;
+uniform float u_rangeStartLow;
+uniform float u_rangeEndHigh;
+uniform float u_rangeEndLow;
+uniform float u_domainMin;
+uniform float u_domainMax;
+uniform vec2 u_plotOrigin;
+uniform vec2 u_plotSize;
+uniform vec2 u_viewport;
+uniform float u_baseValue;
+uniform float u_useBase;
+uniform vec4 u_color;
+out vec4 v_color;
+
+float combineTime(float high, float low) {
+  return high + low;
+}
+
+void main() {
+  float time = combineTime(a_timeHigh, a_timeLow);
+  float rangeStart = combineTime(u_rangeStartHigh, u_rangeStartLow);
+  float rangeEnd = combineTime(u_rangeEndHigh, u_rangeEndLow);
+  float t = (time - rangeStart) / (rangeEnd - rangeStart);
+  float value = mix(a_value, u_baseValue, a_side * u_useBase);
+  float v = (value - u_domainMin) / (u_domainMax - u_domainMin);
+  float x = u_plotOrigin.x + t * u_plotSize.x;
+  float y = u_plotOrigin.y + u_plotSize.y - clamp(v, 0.0, 1.0) * u_plotSize.y;
+  vec2 ndc = vec2((x / u_viewport.x) * 2.0 - 1.0, 1.0 - (y / u_viewport.y) * 2.0);
+  gl_Position = vec4(ndc, 0.0, 1.0);
+  v_color = u_color;
+}
+`;
+
+const SERIES_LINE_FRAG = `#version 300 es
+precision highp float;
+in vec4 v_color;
+out vec4 outColor;
+void main() {
+  outColor = v_color;
+}
+`;
+
+const SERIES_QUAD_VERT = `#version 300 es
+in vec2 a_corner;
+in float a_timeHigh;
+in float a_timeLow;
+in float a_value0;
+in float a_value1;
+in vec4 a_color;
+uniform float u_rangeStartHigh;
+uniform float u_rangeStartLow;
+uniform float u_rangeEndHigh;
+uniform float u_rangeEndLow;
+uniform float u_domainMin;
+uniform float u_domainMax;
+uniform vec2 u_plotOrigin;
+uniform vec2 u_plotSize;
+uniform vec2 u_viewport;
+uniform float u_halfWidth;
+out vec4 v_color;
+
+float combineTime(float high, float low) {
+  return high + low;
+}
+
+void main() {
+  float time = combineTime(a_timeHigh, a_timeLow);
+  float rangeStart = combineTime(u_rangeStartHigh, u_rangeStartLow);
+  float rangeEnd = combineTime(u_rangeEndHigh, u_rangeEndLow);
+  float t = (time - rangeStart) / (rangeEnd - rangeStart);
+  float minValue = min(a_value0, a_value1);
+  float maxValue = max(a_value0, a_value1);
+  float mixValue = (a_corner.y + 0.5);
+  float value = mix(minValue, maxValue, mixValue);
+  float v = (value - u_domainMin) / (u_domainMax - u_domainMin);
+  float x = u_plotOrigin.x + t * u_plotSize.x + a_corner.x * u_halfWidth * u_plotSize.x / (rangeEnd - rangeStart);
+  float y = u_plotOrigin.y + u_plotSize.y - clamp(v, 0.0, 1.0) * u_plotSize.y;
+  vec2 ndc = vec2((x / u_viewport.x) * 2.0 - 1.0, 1.0 - (y / u_viewport.y) * 2.0);
+  gl_Position = vec4(ndc, 0.0, 1.0);
+  v_color = a_color;
+}
+`;
+
+const SERIES_QUAD_FRAG = `#version 300 es
+precision highp float;
+in vec4 v_color;
+out vec4 outColor;
+void main() {
+  outColor = v_color;
+}
+`;
+
+const SERIES_BAR_VERT = `#version 300 es
+in vec2 a_corner;
+in float a_timeHigh;
+in float a_timeLow;
+in float a_value;
+in vec4 a_color;
+uniform float u_rangeStartHigh;
+uniform float u_rangeStartLow;
+uniform float u_rangeEndHigh;
+uniform float u_rangeEndLow;
+uniform float u_domainMin;
+uniform float u_domainMax;
+uniform vec2 u_plotOrigin;
+uniform vec2 u_plotSize;
+uniform vec2 u_viewport;
+uniform float u_halfWidth;
+uniform float u_baseValue;
+out vec4 v_color;
+
+float combineTime(float high, float low) {
+  return high + low;
+}
+
+void main() {
+  float time = combineTime(a_timeHigh, a_timeLow);
+  float rangeStart = combineTime(u_rangeStartHigh, u_rangeStartLow);
+  float rangeEnd = combineTime(u_rangeEndHigh, u_rangeEndLow);
+  float t = (time - rangeStart) / (rangeEnd - rangeStart);
+  float minValue = min(a_value, u_baseValue);
+  float maxValue = max(a_value, u_baseValue);
+  float mixValue = (a_corner.y + 0.5);
+  float value = mix(minValue, maxValue, mixValue);
+  float v = (value - u_domainMin) / (u_domainMax - u_domainMin);
+  float x = u_plotOrigin.x + t * u_plotSize.x + a_corner.x * u_halfWidth * u_plotSize.x / (rangeEnd - rangeStart);
+  float y = u_plotOrigin.y + u_plotSize.y - clamp(v, 0.0, 1.0) * u_plotSize.y;
+  vec2 ndc = vec2((x / u_viewport.x) * 2.0 - 1.0, 1.0 - (y / u_viewport.y) * 2.0);
+  gl_Position = vec4(ndc, 0.0, 1.0);
+  v_color = a_color;
+}
+`;
+
+const SERIES_BAR_FRAG = `#version 300 es
 precision highp float;
 in vec4 v_color;
 out vec4 outColor;

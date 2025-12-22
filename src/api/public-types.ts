@@ -2,6 +2,26 @@ export type TimeMs = number;
 export type PaneId = string;
 export type ScaleId = string;
 
+export type AxisPosition = "left" | "right";
+
+export type AxisLabelFormatter = (value: number) => string;
+
+export type TimeAxisLabelFormatter = (timeMs: TimeMs, stepMs: number) => string;
+
+export type ScaleConfig = {
+  position?: AxisPosition;
+  visible?: boolean;
+  tickCount?: number;
+  labelFormatter?: AxisLabelFormatter;
+};
+
+export type TimeAxisConfig = {
+  tickCount?: number;
+  labelFormatter?: TimeAxisLabelFormatter;
+};
+
+export type AxisLabelMeasure = (text: string) => number;
+
 export type Range = {
   startMs: TimeMs;
   endMs: TimeMs;
@@ -294,6 +314,12 @@ export type ChartEngineOptions = {
   height?: number;
   devicePixelRatio?: number;
   rightGutterWidth?: number;
+  leftGutterWidth?: number;
+  axisLabelCharWidth?: number;
+  axisLabelPadding?: number;
+  axisLabelHeight?: number;
+  axisLabelMeasure?: AxisLabelMeasure;
+  timeAxisConfig?: TimeAxisConfig;
   prefetchRatio?: number;
   paneGap?: number;
   hitTestRadiusPx?: number;

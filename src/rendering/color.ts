@@ -34,6 +34,55 @@ export function withAlpha(color: RgbaColor, alpha: number): RgbaColor {
   return [color[0], color[1], color[2], alpha];
 }
 
+export function parseColor(input?: string, fallback: RgbaColor = [1, 1, 1, 1]): RgbaColor {
+  if (!input) return fallback;
+  const value = input.trim().toLowerCase();
+  if (value.startsWith("#")) {
+    const hex = value.replace("#", "");
+    if (hex.length === 3 || hex.length === 4) {
+      const r = parseInt(hex[0] + hex[0], 16) / 255;
+      const g = parseInt(hex[1] + hex[1], 16) / 255;
+      const b = parseInt(hex[2] + hex[2], 16) / 255;
+      const a = hex.length === 4 ? parseInt(hex[3] + hex[3], 16) / 255 : fallback[3];
+      return [r, g, b, a];
+    }
+    if (hex.length === 6 || hex.length === 8) {
+      const r = parseInt(hex.slice(0, 2), 16) / 255;
+      const g = parseInt(hex.slice(2, 4), 16) / 255;
+      const b = parseInt(hex.slice(4, 6), 16) / 255;
+      const a = hex.length === 8 ? parseInt(hex.slice(6, 8), 16) / 255 : fallback[3];
+      return [r, g, b, a];
+    }
+  }
+  if (value.startsWith("rgb")) {
+    const match = value.match(/rgba?\(([^)]+)\)/);
+    if (match) {
+      const parts = match[1].split(",").map((part) => part.trim());
+      if (parts.length >= 3) {
+        const r = clampChannel(parts[0]);
+        const g = clampChannel(parts[1]);
+        const b = clampChannel(parts[2]);
+        const a = parts.length >= 4 ? clampAlpha(parts[3]) : fallback[3];
+        return [r, g, b, a];
+      }
+    }
+  }
+  return fallback;
+}
+
+function clampChannel(value: string): number {
+  const numeric = Number.parseFloat(value);
+  if (!Number.isFinite(numeric)) return 1;
+  if (numeric <= 1) return Math.max(0, Math.min(1, numeric));
+  return Math.max(0, Math.min(1, numeric / 255));
+}
+
+function clampAlpha(value: string): number {
+  const numeric = Number.parseFloat(value);
+  if (!Number.isFinite(numeric)) return 1;
+  return Math.max(0, Math.min(1, numeric));
+}
+
 function hslToRgb(h: number, s: number, l: number, alpha: number): RgbaColor {
   const c = (1 - Math.abs(2 * l - 1)) * s;
   const hp = h / 60;

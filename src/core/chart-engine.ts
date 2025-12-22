@@ -66,6 +66,7 @@ export class ChartEngine {
   private frameId = 0;
   private interaction = new InteractionStateMachine();
   private pointer = new PointerState();
+  private pointerCapturePaneId: string | null = null;
   private panAnchor: { paneId: string; range: Range; screenX: number } | null = null;
   private pendingCrosshairMove: CrosshairEvent | null = null;
   private crosshairMoveScheduled = false;
@@ -576,12 +577,17 @@ export class ChartEngine {
   handlePointerMove(paneId: string, x: number, y: number): void {
     const pane = this.ensurePane(paneId);
     if (this.interaction.getState() === "disabled") return;
-    if (!isPointInside(pane.plotArea, x, y)) {
+    const state = this.interaction.getState();
+    const isCaptured = this.pointerCapturePaneId === paneId;
+    if (!isCaptured && !isPointInside(pane.plotArea, x, y)) {
       this.clearPointer(paneId);
       return;
     }
-    this.interaction.setState("hover");
     this.pointer.update({ x, y });
+    if (state === "active-drag" || state === "active-zoom" || state === "selection") {
+      return;
+    }
+    this.interaction.setState("hover");
     const timeMs = this.xToTime(paneId, x);
     if (timeMs === null) {
       this.clearPointer(paneId);
@@ -621,6 +627,7 @@ export class ChartEngine {
   }
 
   clearPointer(paneId?: string): void {
+    if (this.pointerCapturePaneId) return;
     if (paneId && this.crosshairState?.paneId !== paneId) return;
     this.pointer.clear();
     this.crosshairState = null;
@@ -637,6 +644,10 @@ export class ChartEngine {
     const pane = this.ensurePane(paneId);
     if (this.interaction.getState() === "disabled") return;
     this.interaction.setState("active-drag");
+    this.pointerCapturePaneId = paneId;
+    this.crosshairState = null;
+    this.pendingHitTest = null;
+    this.requestRender();
     this.panAnchor = { paneId, range: { ...pane.visibleRange }, screenX: x };
   }
 
@@ -691,6 +702,7 @@ export class ChartEngine {
       this.interaction.setState("idle");
     }
     this.panAnchor = null;
+    this.pointerCapturePaneId = null;
   }
 
   setScaleDomain(paneId: string, scaleId: string, domain: ScaleDomain): void {

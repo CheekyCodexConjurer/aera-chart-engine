@@ -6,6 +6,8 @@ This index maps all canonical documentation for the chart engine. Each page is s
 - `../README.md` - repo scope and boundary matrix.
 - `../architecture.md` - architecture overview and invariants.
 - `implementation-plan.md` - phased implementation plan.
+- `../ROADMAP.md` - executable roadmap and milestones.
+- `roadmap/INDEX.md` - roadmap support specs and legacy backlog.
 
 ## Core architecture pages
 - `data-model.md` - data structures, identities, and ownership.

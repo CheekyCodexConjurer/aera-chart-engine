@@ -24,6 +24,7 @@ This document defines the interaction state machine, pointer semantics, and mult
 - Gaps are respected; no inferred points.
 - The engine renders a crosshair when pointer state is active.
 - Host clears pointer state via `clearPointer` when the cursor leaves the plot.
+- During active drag/selection, crosshair and hit-testing are suppressed to prioritize pan/zoom.
 - Hit-testing uses a pixel radius and returns series + overlay hits.
 
 ## Pointer semantics (replay aware)
@@ -32,6 +33,7 @@ This document defines the interaction state machine, pointer semantics, and mult
 - Snapping to bars is host-owned unless explicitly configured.
 - Pointer events are coalesced and run on the main thread.
 - Pointer input is provided via `handlePointerMove` and `handlePointerClick`.
+- Pointer capture prevents auto-clearing when the cursor leaves the plot during drag/selection.
 
 ## Over gaps and between bars
 - Continuous time is derived from axis transform.

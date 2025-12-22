@@ -82,6 +82,7 @@ Point: { x: number, y: number }
 - The engine emits both continuous time and nearest data time.
 - Snapping to bars is a host decision unless explicitly configured.
 - Events are coalesced and must not exceed frame rate.
+- During active drag/selection, crosshair and hit-test emissions are suppressed.
 
 ## Hit-test contract (host overlays + tooltips)
 **Event payload**

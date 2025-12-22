@@ -1,189 +1,285 @@
-# ROADMAP
+# ROADMAP (Quant-Lab Ready)
 
-This roadmap enumerates all remaining work needed to complete the chart engine for quant-grade workloads.
-It is documentation-only and is the authoritative checklist for completion.
+Status: active
+Owner: chart-engine repository
+
+## Objective
+Transform the chart engine into a quant-lab-ready, contract-driven system with deterministic performance, explicit compatibility, and reproducible diagnostics.
 
 ## Scope
-- Focus: chart-engine only (renderer, core, data pipeline, interaction, diagnostics).
-- Excludes: host UI, data fetching, indicator authoring, and quant-lab app state.
+- In scope: engine core, rendering, interaction, data pipeline, contracts, diagnostics, benchmarks.
+- Out of scope: host UI, data fetching, indicator authoring, and host workflow state.
 
-## Completion definition (non-negotiable)
-- Deterministic performance under 10k-1M points loaded, 500-2k visible.
-- No main-thread stalls during interaction.
-- Full interaction states with keyboard + pointer safety.
-- No silent fallbacks; all unsupported cases emit diagnostics.
-- Benchmarks and regression gates in place.
-- API contract stable and documented.
+## What “quant-lab ready” means (non-marketing)
+- Versioned public contracts with explicit breaking change policy.
+- Integration harness that simulates a host without coupling to it.
+- Performance budgets enforced by reproducible benchmarks.
+- Deterministic output under replay and stable update semantics.
+- Observable failures with repro bundles.
+- Worker/OffscreenCanvas plan with explicit boundaries and fallback.
+- Packaging and release hygiene with compatibility matrices.
+- CI gates that block regressions and contract drift.
 
-## Roadmap phases
+## Navigation
+- Detailed specs are in `docs/roadmap/INDEX.md`.
+- Legacy phase backlog is preserved in `docs/roadmap/legacy-workstreams.md`.
 
-### Phase 1: GPU core and scene integrity
-**Objective**
-- Move from functional rendering to production-grade GPU pipeline.
+## Milestones
 
-**Deliverables**
-- Persistent GPU buffers, index buffers, and per-layer batching.
-- Instancing for candles, markers, and repeated primitives.
-- Line rendering with stable thickness, joins, and optional dashes.
-- Clip stacks for panes and overlays with deterministic order.
-- Texture atlas for text (SDF/MSDF) and GPU text rendering.
+### M0 — Contract baseline and compatibility
+**Goal**: Lock the versioned contract model and deprecation policy.
 
-**Exit criteria**
-- Measured frame times meet targets on 1M series with 2k visible.
-- No full buffer rebuild on pan/zoom steady state.
+- [ ] T0.1 Define `engineContractVersion` and SemVer policy.
+  - Context: contract drift blocks host integration.
+  - Changes: `docs/roadmap/contracts-and-compat.md`, `docs/public-api-contract.md`.
+  - DoD: version field specified; major/minor/patch rules documented.
+  - Risks: version churn; Mitigation: deprecation window.
+  - Deps: none.
 
-### Phase 2: Axes, layout, and multi-scale
-**Objective**
-- Multi-pane, multi-scale layout with stable gutters and labels.
+- [ ] T0.2 Deprecation and migration rules.
+  - Context: host needs predictable upgrade paths.
+  - Changes: `docs/roadmap/contracts-and-compat.md`.
+  - DoD: deprecation window and migration note template documented.
+  - Risks: missed updates; Mitigation: contract tests gate.
+  - Deps: T0.1.
 
-**Deliverables**
-- Axis model for left/right scales and scale-specific gutters.
-- Tick generation with collision avoidance and consistent formatting.
-- Session-aware time axis (UTC rules defined in docs).
-- Pane layout constraints, padding, and overlay clipping per pane.
+- [ ] T0.3 Contract tests (doc-first spec).
+  - Context: detect contract drift automatically.
+  - Changes: `docs/roadmap/contracts-and-compat.md`, `docs/roadmap/ci-gates.md`.
+  - DoD: test scope and failure conditions defined.
+  - Risks: false positives; Mitigation: explicit version bump rules.
+  - Deps: T0.1.
 
-**Exit criteria**
-- Multiple panes and scales render without label overlap or jitter.
-- Time axis ticks are stable across zoom/pan.
+- [ ] T0.4 Adapter guidance (host-facing).
+  - Context: clarify boundary without coupling to host code.
+  - Changes: `docs/roadmap/contracts-and-compat.md`, `docs/host-engine-responsibility-contract.md`.
+  - DoD: adapter responsibilities and inputs documented.
+  - Risks: scope creep; Mitigation: enforce non-goals in doc.
+  - Deps: T0.1.
 
-### Phase 3: Data pipeline and LOD
-**Objective**
-- Deterministic windowing and LOD with cache and hysteresis.
+### M1 — Integration harness (host fake)
+**Goal**: Provide a minimal playground that exercises critical flows.
 
-**Deliverables**
-- Window selection handshake with prefetch and backpressure.
-- LOD cache per series with hysteresis (no flicker at boundaries).
-- Append/prepend/patch semantics that preserve view anchor.
-- Gap/session handling and irregular timestamps policy enforced.
+- [ ] T1.1 Harness spec and UI controls.
+  - Context: needs a reproducible environment for pan/zoom/replay/overlays.
+  - Changes: `docs/roadmap/integration-harness.md`.
+  - DoD: control list and scenarios documented.
+  - Risks: under-coverage; Mitigation: include pathological cases.
+  - Deps: none.
 
-**Exit criteria**
-- No view jumps on prepend/append.
-- LOD transitions are stable and deterministic.
+- [ ] T1.2 Dataset catalog and scenario matrix.
+  - Context: benchmarks require deterministic datasets.
+  - Changes: `docs/roadmap/integration-harness.md`.
+  - DoD: dataset sizes, gaps, bursts, and streaming cases defined.
+  - Risks: non-representative datasets; Mitigation: include quant-lab patterns.
+  - Deps: T1.1.
 
-### Phase 4: Interaction and hit-testing
-**Objective**
-- Complete interaction model with stable hit-testing.
+- [ ] T1.3 Smoke test flow using the harness.
+  - Context: automation must use the same paths as users.
+  - Changes: `docs/roadmap/integration-harness.md`, `docs/roadmap/ci-gates.md`.
+  - DoD: expected entrypoints and pass/fail criteria documented.
+  - Risks: brittle flows; Mitigation: use stable scenario ids.
+  - Deps: T1.1.
 
-**Deliverables**
-- Pointer capture, wheel/pinch zoom, keyboard pan/zoom/reset.
-- Crosshair sync across panes and snapping policy options.
-- Hit-testing for series and overlays with ranked results.
-- Drawings and selection tools (host-driven state).
+### M2 — Performance gates
+**Goal**: Establish numeric budgets and a repeatable benchmark harness.
 
-**Exit criteria**
-- Input latency meets SLOs (p50/p95).
-- Hit-testing is deterministic under replay and gaps.
+- [ ] T2.1 Define performance budgets with numbers.
+  - Context: performance cannot be vague.
+  - Changes: `docs/roadmap/performance-gates.md`, `docs/performance-contracts.md`.
+  - DoD: p50/p95 targets and dataset sizes documented.
+  - Risks: unrealistic targets; Mitigation: calibrate with baseline runs.
+  - Deps: T1.2.
 
-### Phase 5: Compute and indicator integration
-**Objective**
-- Robust compute pipeline for heavy indicators.
+- [ ] T2.2 Benchmark harness spec.
+  - Context: needs reproducible measurements.
+  - Changes: `docs/roadmap/performance-gates.md`.
+  - DoD: headless runner + artifact format defined.
+  - Risks: non-deterministic runs; Mitigation: fixed seeds and warmups.
+  - Deps: T2.1.
 
-**Deliverables**
-- Worker/WASM compute pipeline with cancellation and backpressure.
-- Versioned output with incremental overlay diffs.
-- Data handoff contracts for typed arrays and buffer pooling.
+- [ ] T2.3 Regression policy and CI gate.
+  - Context: regressions must block merge.
+  - Changes: `docs/roadmap/performance-gates.md`, `docs/roadmap/ci-gates.md`.
+  - DoD: regression thresholds and waiver rules defined.
+  - Risks: too strict early; Mitigation: staged rollout of gates.
+  - Deps: T2.2.
 
-**Exit criteria**
-- Indicator toggles do not block interaction.
-- Stale results are deterministically dropped.
+### M3 — Determinism and replay
+**Goal**: Make replay and update semantics fully deterministic and testable.
 
-### Phase 6: Observability and regression gates
-**Objective**
-- Production-grade diagnostics, benchmarks, and reproducibility.
+- [ ] T3.1 Determinism invariants and update ordering.
+  - Context: replay depends on strict ordering and idempotence.
+  - Changes: `docs/roadmap/determinism-replay.md`, `docs/data-time-semantics.md`.
+  - DoD: invariants and update rules documented with examples.
+  - Risks: ambiguous rules; Mitigation: explicit canonical domain.
+  - Deps: M0.
 
-**Deliverables**
-- Error taxonomy with severity and recoverability.
-- Repro bundle format (inputs + view state + engine version).
-- Benchmarks for pan/zoom, replay scrub, toggles, and switches.
-- CI gate: no-merge on performance regression.
+- [ ] T3.2 Render window vs data window rules.
+  - Context: determinism depends on window definitions.
+  - Changes: `docs/roadmap/determinism-replay.md`, `docs/data-model.md`.
+  - DoD: window definitions and observability points documented.
+  - Risks: drift with implementation; Mitigation: contract tests.
+  - Deps: T3.1.
 
-**Exit criteria**
-- Benchmark suite runs in CI with reproducible datasets.
-- Diagnostics are user-visible and structured.
+- [ ] T3.3 Replay harness spec.
+  - Context: same input must yield same output.
+  - Changes: `docs/roadmap/determinism-replay.md`, `docs/roadmap/integration-harness.md`.
+  - DoD: replay inputs, output hash strategy, and asserts defined.
+  - Risks: unstable hashes; Mitigation: stable ordering and version tagging.
+  - Deps: T3.1.
 
-## Workstreams (complete backlog)
+### M4 — Observability and repro bundles
+**Goal**: Make failures reproducible and performance measurable.
 
-### Rendering pipeline
-- GPU batching by layer (grid, series, overlays, UI).
-- Persistent VBO/IBO with region updates, no per-frame reallocs.
-- Instanced candles, markers, and histogram bars.
-- Line joins/caps, optional dash patterns, and miter limits.
-- Text atlas (SDF/MSDF) and glyph cache; fallback policy.
-- Z-order enforcement by pane, layer, zIndex.
-- Clip masks for pane and replay cutoff.
-- GPU memory budgeting and eviction policy for caches.
-- WebGL2 context loss/recovery with deterministic resource rebuild.
+- [ ] T4.1 Structured logging spec.
+  - Context: logs must be machine-readable and scoped.
+  - Changes: `docs/roadmap/observability-repro.md`.
+  - DoD: required fields and event retention documented.
+  - Risks: noisy logs; Mitigation: log levels and caps.
+  - Deps: M0.
 
-### Axes, grid, and labels
-- Dual-axis (left/right) support per pane.
-- Scale identity map per pane (`scaleId` -> axis config).
-- Right gutter width computed from label extents.
-- Tick density and collision avoidance per axis.
-- Time axis formatting for session/market hours.
-- Grid line styling and theme integration.
+- [ ] T4.2 Renderer metrics spec.
+  - Context: performance needs GPU-level visibility.
+  - Changes: `docs/roadmap/observability-repro.md`.
+  - DoD: metrics list and sampling cadence documented.
+  - Risks: overhead; Mitigation: optional metric collection.
+  - Deps: T4.1.
 
-### Data pipeline
-- Window contract with host (request more history, prefetch margin).
-- LOD selection by pixel density with hysteresis.
-- Cache for LOD results (tiered, capped, evictable).
-- Stable append/prepend/patch with view anchor retention.
-- Rebuild rules for schema and scale changes.
-- Strict validation for ordering, duplicates, and NaN/Infinity.
+- [ ] T4.3 Repro bundle format.
+  - Context: issues must be replayable offline.
+  - Changes: `docs/roadmap/observability-repro.md`, `docs/diagnostics-failure-surfaces.md`.
+  - DoD: JSON schema and capture/consume flow documented.
+  - Risks: missing inputs; Mitigation: required field list and validation.
+  - Deps: T4.1.
 
-### Interaction and UX
-- Pointer capture for drag and zoom.
-- Gesture support (wheel, trackpad, pinch).
-- Keyboard navigation and focus states.
-- Selection and drawing primitives (engine renders, host owns state).
-- Crosshair sync across panes by time domain.
-- Replay-aware hit-testing and snapping rules.
+### M5 — Threading plan (Worker / OffscreenCanvas)
+**Goal**: Document future compute/render isolation without committing to implementation.
 
-### Overlays and primitives
-- Overlay styles (line width, dash, fill, opacity, label style).
-- Overlay clipping to pane and replay cutoff.
-- Overlay hit-testing for all primitives.
-- Diagnostics for unsupported or invalid overlays.
+- [ ] T5.1 Worker/OffscreenCanvas architecture plan.
+  - Context: main thread must remain responsive under load.
+  - Changes: `docs/roadmap/threading-plan.md`.
+  - DoD: option A/B diagram and boundary contracts documented.
+  - Risks: unreachable design; Mitigation: list browser constraints.
+  - Deps: M2.
 
-### Compute and workers
-- Worker pool with priority and cancellation.
-- TypedArray sharing or transfer strategy.
-- WASM integration guidelines and memory budgets.
-- Deterministic versioning for indicator outputs.
-- OffscreenCanvas/worker render loop option with parity to main-thread renderer.
+- [ ] T5.2 Public API stubs and contracts (doc-only).
+  - Context: preserve forward-compatible API design.
+  - Changes: `docs/roadmap/threading-plan.md`, `docs/public-api-contract.md`.
+  - DoD: method signatures and payload shapes documented.
+  - Risks: incompatible future implementation; Mitigation: review with renderer owner.
+  - Deps: T5.1.
 
-### API and contracts
-- Stable public API versioning and deprecations.
-- Theme contract with precedence and partial updates.
-- Host overlay coordinate conversion events (no polling).
-- Replay contract enforced in runtime (cutoff/preview/clamp).
-- Release packaging targets (ESM/CJS) with migration notes and compatibility rules.
+- [ ] T5.3 Fallback and diagnostics policy.
+  - Context: fallback must be explicit and observable.
+  - Changes: `docs/roadmap/threading-plan.md`, `docs/diagnostics-failure-surfaces.md`.
+  - DoD: fallback conditions and diagnostics codes documented.
+  - Risks: silent fallback; Mitigation: no implicit fallback allowed.
+  - Deps: T5.1.
 
-### Observability and QA
-- Perf counters (frame time, input latency, buffer churn).
-- Deterministic logging and trace ID propagation.
-- Repro bundle export/import utilities with automated capture hooks.
-- Unit tests for LOD, windowing, replay clipping, and hit-testing.
-- Benchmark harness with dataset generator and artifacted traces.
-- Visual regression harness (golden frames + diff tolerance).
+### M6 — Packaging and release hygiene
+**Goal**: Make consumption predictable and versioned.
 
-### Integration with quant-lab
-- Adapter mapping for Plot API -> engine primitives.
-- Contract diff process when quant-lab changes.
-- Validation of replay semantics and overlay pipeline.
+- [ ] T6.1 Packaging targets and exports.
+  - Context: host integration depends on stable builds.
+  - Changes: `docs/roadmap/packaging-release.md`.
+  - DoD: ESM + types + export surface documented.
+  - Risks: export drift; Mitigation: contract tests.
+  - Deps: M0.
 
-### PineScript compatibility (host-owned execution)
-- Map PineScript drawings to engine primitives (line, box, label, polyline, table, fills).
-- Enforce PineScript limits/budgets in the adapter layer with engine diagnostics.
-- Ensure parity against `docs/pinescript/coverage/INDEX.md` for visual outputs.
-- Define versioned compatibility targets and regression tests for parity.
+- [ ] T6.2 Release workflow and changelog rules.
+  - Context: releases must be auditable.
+  - Changes: `docs/roadmap/packaging-release.md`.
+  - DoD: tag format, changelog format, and required notes documented.
+  - Risks: missing notes; Mitigation: CI gate on changelog.
+  - Deps: T6.1.
 
-## Dependencies and blockers
-- Text atlas decision (SDF vs MSDF) is required before Phase 1 completion.
-- Time domain and session handling must be finalized before axis work.
-- Worker and WASM strategy must be chosen before compute pipeline.
+- [ ] T6.3 Compatibility matrix rules.
+  - Context: host must know which versions are supported.
+  - Changes: `docs/roadmap/packaging-release.md`, `docs/roadmap/contracts-and-compat.md`.
+  - DoD: matrix format and update cadence documented.
+  - Risks: stale matrix; Mitigation: update in every release.
+  - Deps: T6.1.
 
-## Definition of done checklist
-- All phases exit criteria satisfied.
-- Docs updated for any behavioral change (API + performance + semantics).
-- Benchmarks and regression gates enforced in CI.
-- No untracked fallbacks or undocumented behavior.
+### M7 — CI and gates
+**Goal**: Block regressions in contracts, smoke, and benchmarks.
+
+- [ ] T7.1 CI pipeline specification.
+  - Context: consistent verification is required.
+  - Changes: `docs/roadmap/ci-gates.md`.
+  - DoD: pipeline stages and required commands documented.
+  - Risks: missing coverage; Mitigation: align with harness scenarios.
+  - Deps: M1.
+
+- [ ] T7.2 Gate policy for contracts and smoke.
+  - Context: contract drift must fail fast.
+  - Changes: `docs/roadmap/ci-gates.md`, `docs/roadmap/contracts-and-compat.md`.
+  - DoD: gate rules and failure triage documented.
+  - Risks: over-blocking; Mitigation: staged enforcement levels.
+  - Deps: T7.1.
+
+- [ ] T7.3 Benchmark gating rollout.
+  - Context: performance gates must be enforceable.
+  - Changes: `docs/roadmap/ci-gates.md`, `docs/roadmap/performance-gates.md`.
+  - DoD: benchmark gate trigger conditions documented.
+  - Risks: flaky runs; Mitigation: warmup and retry policy.
+  - Deps: M2.
+
+### M8 — Core engine completion (mapped from legacy phases)
+**Goal**: Close the remaining rendering/data/interaction/compute backlog.
+
+- [ ] T8.1 Rendering pipeline completion.
+  - Context: must reach production-grade GPU pipeline.
+  - Changes: `docs/roadmap/legacy-workstreams.md`.
+  - DoD: Phase 1 exit criteria satisfied.
+  - Risks: GPU regressions; Mitigation: perf gates from M2.
+  - Deps: M2.
+
+- [ ] T8.2 Axes and multi-scale completion.
+  - Context: stable layout is required for host overlays.
+  - Changes: `docs/roadmap/legacy-workstreams.md`.
+  - DoD: Phase 2 exit criteria satisfied.
+  - Risks: label jitter; Mitigation: tick collision tests.
+  - Deps: M0.
+
+- [ ] T8.3 Data pipeline and LOD completion.
+  - Context: large datasets must be deterministic.
+  - Changes: `docs/roadmap/legacy-workstreams.md`.
+  - DoD: Phase 3 exit criteria satisfied.
+  - Risks: LOD flicker; Mitigation: hysteresis policy.
+  - Deps: M2.
+
+- [ ] T8.4 Interaction and hit-testing completion.
+  - Context: stable UX is mandatory.
+  - Changes: `docs/roadmap/legacy-workstreams.md`.
+  - DoD: Phase 4 exit criteria satisfied.
+  - Risks: jitter under load; Mitigation: input priority rules.
+  - Deps: M1.
+
+- [ ] T8.5 Compute and indicator integration completion.
+  - Context: heavy indicators must not block.
+  - Changes: `docs/roadmap/legacy-workstreams.md`.
+  - DoD: Phase 5 exit criteria satisfied.
+  - Risks: worker backpressure issues; Mitigation: cancellation policy.
+  - Deps: M5.
+
+- [ ] T8.6 Observability and regression gate completion.
+  - Context: production usage requires diagnostics.
+  - Changes: `docs/roadmap/legacy-workstreams.md`.
+  - DoD: Phase 6 exit criteria satisfied.
+  - Risks: missing repro coverage; Mitigation: repro bundle spec (M4).
+  - Deps: M4.
+
+## Cross-cutting dependencies
+- M0 precedes any contract or API changes.
+- M1 is required before any CI smoke gating.
+- M2 is required before performance regression gating.
+- M3 depends on M0 contracts and time semantics.
+- M4 depends on M0 and supports M2/M7 gates.
+- M5 informs M8 compute integration.
+
+## Completion criteria (roadmap-level)
+- All milestones marked complete with DoD satisfied.
+- Contract versioning and compatibility rules are enforced.
+- Integration harness and benchmarks run in CI.
+- Replay determinism validated with repro bundles.

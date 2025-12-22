@@ -49,6 +49,16 @@ engine.flush();
 assert.ok(crosshairEvent, "crosshair move should emit");
 assert.equal(crosshairEvent.nearestTimeMs, 10000);
 
+crosshairEvent = null;
+engine.beginPan("price", x ?? 0);
+engine.handlePointerMove("price", (x ?? 0) + 10, 50);
+engine.flush();
+assert.equal(crosshairEvent, null, "crosshair should not emit during active drag");
+engine.endPan();
+engine.handlePointerMove("price", x ?? 0, 50);
+engine.flush();
+assert.ok(crosshairEvent, "crosshair should resume after drag");
+
 dataWindow = null;
 engine.setVisibleRange({ startMs: 20000, endMs: 30000 });
 engine.flush();

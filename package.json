@@ -13,7 +13,10 @@
     "test:ui:smoke": "npm run build && node ./tests/ui-smoke.mjs",
     "bench:baseline": "npm run build && node ./tools/bench/baseline-1m.mjs",
     "bench:gate": "node ./tools/bench/check-baseline.mjs",
-    "bench:interaction": "npm run build && node ./tools/bench/interaction-latency.mjs"
+    "bench:interaction": "npm run build && node ./tools/bench/interaction-latency.mjs",
+    "auto:debug": "node ./tools/auto-debug/run.mjs",
+    "auto:debug:analyze": "node ./tools/auto-debug/run.mjs --mode=analyze --probe=off",
+    "test:auto-debug": "node ./tests/auto-debug-smoke.mjs"
   },
   "devDependencies": {
     "typescript": "^5.5.4"

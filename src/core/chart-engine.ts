@@ -1633,7 +1633,7 @@ export class ChartEngine {
       context: diagnostic.context
     });
   }
-
+                                                                                                            
   private snapshotOptions(): ReproBundle["options"] {
     return {
       width: this.width,

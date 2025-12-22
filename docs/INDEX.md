@@ -18,6 +18,7 @@ This index maps all canonical documentation for the chart engine. Each page is s
 - `replay-semantics.md` - cutoff, preview, and time-travel rules.
 - `overlay-indicator-rendering-contract.md` - overlay primitives and clipping.
 - `diagnostics-failure-surfaces.md` - error taxonomy and repro bundles.
+- `auto-debug.md` - non-interactive auto-debug workflow and artifacts.
 - `performance-contracts.md` - performance invariants and doc map.
 
 ## Contributor skills

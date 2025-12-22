@@ -1,0 +1,42 @@
+{
+  "version": "0.1.0",
+  "artifactsDir": "artifacts/auto-debug",
+  "run": {
+    "commands": [
+      { "id": "check", "cmd": "npm run check" },
+      { "id": "ui-smoke", "cmd": "npm run test:ui:smoke" }
+    ],
+    "tests": [
+      "node tests/axis-layout.mjs",
+      "node tests/coordinate-contract.mjs",
+      "node tests/data-pipeline.mjs",
+      "node tests/interaction-hit-testing.mjs",
+      "node tests/compute-pipeline.mjs",
+      "node tests/overlay-caps.mjs",
+      "node tests/repro-bundle.mjs"
+    ]
+  },
+  "targets": {
+    "fromStacks": true,
+    "selectors": [
+      { "type": "symbol", "value": "ChartEngine.handlePointerMove" },
+      { "type": "symbol", "value": "ChartEngine.setSeriesData" }
+    ]
+  },
+  "probe": {
+    "enabled": true,
+    "sampleRate": 1,
+    "maxEvents": 5000,
+    "maxDepth": 16
+  },
+  "limits": {
+    "maxCommandMs": 120000,
+    "maxReportLines": 200
+  },
+  "allowlist": [
+    "npm run check",
+    "npm run test:ui:smoke",
+    "node tests/",
+    "node tools/bench/"
+  ]
+}

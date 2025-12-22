@@ -1,6 +1,40 @@
-# Agents
+# AGENTS
 
 This file defines specialized agent roles, ownership boundaries, and review requirements. Each agent is accountable for correctness, performance, and observability in their domain.
+
+## Goal
+Build a GPU-first, headless charting engine for quantitative research with deterministic performance, explicit contracts, and debuggable behavior.
+
+## Order of Precedence
+1. Platform Rules
+2. User Instructions
+3. This AGENTS.md
+
+## Golden Path (Workflow)
+1. Identify Mode (A/B/C).
+2. Read skills: `.agent-docs/SKILLS.md` plus the relevant playbook.
+3. Plan: phased when more than one step.
+4. Implement: small, measurable changes only.
+5. Verify: run required checks.
+6. Sync docs: update indexes and contract pages.
+
+## Task Modes
+### Mode A (Plan Only)
+- Produce a plan and doc updates only.
+- No code changes.
+
+### Mode B (Implementation)
+- Plan, implement, and verify.
+- Update docs and tests for contract changes.
+
+### Mode C (Report)
+- Analyze and report only.
+- No file changes.
+
+## Engineering Rules
+- Hard cap: 500 lines per file. Split before crossing the limit.
+- Context optimization: always read `.agent-docs/architecture.md` first.
+- Deterministic performance is mandatory: avoid main-thread stalls.
 
 ## Shared rules
 - Every change must have a clear owning agent.
@@ -44,6 +78,9 @@ This file defines specialized agent roles, ownership boundaries, and review requ
 - Contracts and docs are updated with version notes.
 - Diagnostics are updated for new behavior.
 - Interaction states remain complete and deterministic.
+- `npm run check` passes.
+- If rendering or interaction changes, `npm run test:ui:smoke` passes.
+- Docs are synced.
 
 ## Definition of done for documentation changes
 - Cross-links are updated and validated.
@@ -325,6 +362,25 @@ This file defines specialized agent roles, ownership boundaries, and review requ
 - Any change that affects engine initialization order.
 - Any change that alters public event semantics.
 
+**Can change alone**
+- Internal adapter optimizations that do not alter public APIs.
+- Documentation updates for integration patterns.
+- Build tooling for adapter-specific tests.
+
+**Example changes**
+- Reduce unnecessary React renders in the adapter.
+- Add adapter lifecycle tests without API changes.
+
+**Requires cross-agent approval**
+- New public API surface or breaking changes.
+- Lifecycle changes that affect engine init or teardown.
+- Changes that impact performance budgets or interaction timing.
+
+**Failure patterns to avoid**
+- Coupling render loop to React re-renders.
+- Hidden global state or singleton assumptions.
+- Unclear ownership of lifecycle and resource cleanup.
+
 ## API and Contract Steward
 **Responsibilities**
 - Owns public API contract docs, versioning policy, and migration notes.
@@ -457,22 +513,3 @@ This file defines specialized agent roles, ownership boundaries, and review requ
 - Indicator-specific hardcoding or exceptions.
 - Overlay clipping that violates replay cutoff.
 - Ambiguous z-ordering across panes.
-
-**Can change alone**
-- Internal adapter optimizations that do not alter public APIs.
-- Documentation updates for integration patterns.
-- Build tooling for adapter-specific tests.
-
-**Example changes**
-- Reduce unnecessary React renders in the adapter.
-- Add adapter lifecycle tests without API changes.
-
-**Requires cross-agent approval**
-- New public API surface or breaking changes.
-- Lifecycle changes that affect engine init or teardown.
-- Changes that impact performance budgets or interaction timing.
-
-**Failure patterns to avoid**
-- Coupling render loop to React re-renders.
-- Hidden global state or singleton assumptions.
-- Unclear ownership of lifecycle and resource cleanup.

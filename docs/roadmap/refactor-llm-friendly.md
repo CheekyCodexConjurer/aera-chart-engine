@@ -27,6 +27,13 @@ Owners and coordination:
 - Interaction Agent reviews pointer/zoom/pan/crosshair/hit-test refactor.
 - Diagnostics and Reproducibility Agent reviews repro bundle capture/apply moves.
 
+## Design note (R2 slice: WebGL2 renderer split)
+Scope: split `src/rendering/webgl2-renderer.ts` into `src/rendering/webgl2/*` modules (context, frame, series, geometry, buffers, draw, overlays, labels, utils). Keep renderer surface and visual output stable; no shader or render-graph changes beyond file moves.
+
+Owners and coordination:
+- Rendering Agent owns the refactor boundaries and GPU pipeline safety.
+- Architecture Agent confirms no contract drift across render interfaces.
+
 ## Size policy (targets)
 - TypeScript/JavaScript: target <= 350 lines, absolute max 500.
 - Markdown: target <= 300 lines, absolute max 500.

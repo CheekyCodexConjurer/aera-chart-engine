@@ -380,7 +380,9 @@ export class ChartEngine {
     };
     this.crosshairState = event;
     this.queueCrosshairMove(event);
-    this.queueHitTest(this.computeHitTest(paneId, timeMs, x, y));
+    if (this.hitTestEmitter.hasListeners()) {
+      this.queueHitTest(this.computeHitTest(paneId, timeMs, x, y));
+    }
     this.requestRender();
   }
 

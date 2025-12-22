@@ -1,5 +1,6 @@
 import { RenderFrame, RenderSeries, Renderer } from "./renderer.js";
 import { createProgram } from "./gl-utils.js";
+import { GpuBuffer } from "./gpu-buffer.js";
 import {
   DEFAULT_CLEAR,
   DEFAULT_AXIS,
@@ -43,6 +44,7 @@ export class WebGL2Renderer implements Renderer {
   private vao: WebGLVertexArrayObject | null = null;
   private vbo: WebGLBuffer | null = null;
   private buffer = new DynamicVertexBuffer(6, 4096);
+  private gpuBuffer = new GpuBuffer();
   private width = 0;
   private height = 0;
   private dpr = 1;
@@ -171,8 +173,9 @@ export class WebGL2Renderer implements Renderer {
 
     const data = this.buffer.buffer;
     if (data.length > 0 && commands.length > 0) {
-      gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
-      for (const command of commands) {
+      const optimized = coalesceDrawCommands(commands);
+      this.gpuBuffer.upload(gl, data, gl.DYNAMIC_DRAW);
+      for (const command of optimized) {
         gl.drawArrays(command.mode, command.first, command.count);
       }
     }
@@ -856,6 +859,23 @@ function formatPrice(value: number): string {
   if (abs < 1) decimals = 6;
   else if (abs < 100) decimals = 4;
   return value.toFixed(decimals);
+}
+
+function coalesceDrawCommands(commands: DrawCommand[]): DrawCommand[] {
+  if (commands.length <= 1) return commands;
+  const result: DrawCommand[] = [];
+  let current = { ...commands[0] };
+  for (let i = 1; i < commands.length; i += 1) {
+    const next = commands[i];
+    if (next.mode === current.mode && next.first === current.first + current.count) {
+      current.count += next.count;
+    } else {
+      result.push(current);
+      current = { ...next };
+    }
+  }
+  result.push(current);
+  return result;
 }
 
 const VERT_SHADER_SOURCE = `#version 300 es

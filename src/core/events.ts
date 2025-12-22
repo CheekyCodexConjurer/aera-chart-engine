@@ -14,6 +14,10 @@ export class EventEmitter<T> {
     }
   }
 
+  hasListeners(): boolean {
+    return this.listeners.size > 0;
+  }
+
   clear(): void {
     this.listeners.clear();
   }

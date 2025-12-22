@@ -276,24 +276,32 @@ M0–M8 establish the contract and documentation baseline. The milestones below 
 ### M8R - LLM-friendly refactor (urgent)
 **Goal**: Reduce oversized files and clarify module boundaries before further implementation.
 
-- [ ] T8R.1 Audit + refactor map published.
+- [x] T8R.1 Audit + refactor map published.
   - Changes: `docs/roadmap/refactor-llm-friendly.md`.
   - DoD: audit table + module map + phased refactor plan agreed.
 
-- [ ] T8R.2 ChartEngine split.
+- [x] T8R.2 ChartEngine split.
   - DoD: `src/core/chart-engine.ts` becomes facade (<350 lines) with modules in `src/core/engine/`.
   - Deps: T8R.1.
 
-- [ ] T8R.3 WebGL2 renderer split.
+- [x] T8R.3 WebGL2 renderer split.
   - DoD: `src/rendering/webgl2-renderer.ts` becomes facade (<350 lines) with modules in `src/rendering/webgl2/`.
   - Deps: T8R.1.
 
-- [ ] T8R.4 Overlays + public types split.
+- [x] T8R.4 Overlays + public types split.
   - DoD: `src/core/overlays.ts` + `src/api/public-types.ts` become indices (<350 lines) with submodules.
   - Deps: T8R.1.
 
-- [ ] T8R.5 Text rendering + docs guardrails.
-  - DoD: text modules consolidated; `ROADMAP.md`/`agents.md` remain <= 500 lines.
+- [x] T8R.5 Text rendering consolidation.
+  - Context: text modules still live in `src/rendering/gpu-text.ts` and `src/rendering/text-layer.ts`.
+  - Changes: move into `src/rendering/text/` (atlas/layout/render/index) and update imports/wiring.
+  - DoD: text modules consolidated under `src/rendering/text/`; public surface unchanged.
+  - Deps: T8R.1.
+
+- [x] T8R.6 Docs guardrails.
+  - Context: keep docs under 500 lines; split into index + leaf docs when needed.
+  - Changes: update `docs/INDEX.md` and cross-links when a split occurs.
+  - DoD: `ROADMAP.md`/`AGENTS.md` remain <= 500 lines; split trigger and process are documented.
   - Deps: T8R.1.
 
 ### M9 - Integration harness + CI (implementation)

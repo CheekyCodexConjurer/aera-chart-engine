@@ -129,13 +129,19 @@ Owners and coordination:
 ### 5) Text rendering
 **Target structure**
 - `src/rendering/text/atlas.ts` (GlyphAtlas)
-- `src/rendering/text/layout.ts` (text layout + measurement)
+- `src/rendering/text/layout.ts` (TextLabel/TextLayer + CanvasTextLayer)
 - `src/rendering/text/render.ts` (GPU text drawing)
-- `src/rendering/gpu-text.ts` becomes `text/index.ts` re-export
+- `src/rendering/text/index.ts` (text exports; legacy entrypoints re-export from `src/rendering/text/`)
 
 ### 6) Documentation hygiene (when limits are exceeded)
 - `ROADMAP.md`: keep as index + top-level milestones, move details to `docs/roadmap/`.
 - `agents.md`: keep as index + role summary, move role detail to `docs/agents/`.
+
+**Guardrail trigger and split process**
+- Trigger: if `ROADMAP.md` or `AGENTS.md` exceeds 500 lines after a change, split immediately.
+- Process: keep the top-level file as an index and move detailed sections into leaf docs under `docs/roadmap/` or `docs/agents/`.
+- Cross-links: update `docs/INDEX.md` and any inbound references to point to the new leaf docs.
+- Invariants: keep milestone status and ownership in the top-level index so status remains visible.
 
 ## Phased implementation plan (refactor-only)
 

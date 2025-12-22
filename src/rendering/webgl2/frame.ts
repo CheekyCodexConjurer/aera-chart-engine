@@ -12,7 +12,7 @@ import {
   withAlpha
 } from "../color.js";
 import type { RenderCrosshair, RenderFrame, RenderSeries } from "../renderer.js";
-import type { TextLabel } from "../text-layer.js";
+import type { TextLabel } from "../text/index.js";
 import type { DrawCommand } from "../vertex-buffer.js";
 import type { OverlayRenderItem } from "../../core/overlays.js";
 import type { Range } from "../../api/public-types.js";

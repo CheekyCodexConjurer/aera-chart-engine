@@ -12,7 +12,7 @@ import { OverlayRenderItem } from "../../core/overlays.js";
 import { timeToX, priceToY } from "../../core/transform.js";
 import { DEFAULT_OVERLAY, DEFAULT_OVERLAY_FILL, colorFromId, withAlpha } from "../color.js";
 import type { RenderFrame } from "../renderer.js";
-import type { TextLabel } from "../text-layer.js";
+import type { TextLabel } from "../text/index.js";
 import type { DrawCommand } from "../vertex-buffer.js";
 import type { WebGL2RendererContext } from "./context.js";
 import { clampTime, computeBarWidth, glLineStrip, glLines, glTriangles, toNdc } from "./utils.js";

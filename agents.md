@@ -12,7 +12,7 @@ Build a GPU-first, headless charting engine for quantitative research with deter
 
 ## Golden Path (Workflow)
 1. Identify Mode (A/B/C).
-2. Read skills: `.agent-docs/SKILLS.md` plus the relevant playbook.
+2. Read skills: `.agent-docs/SKILLS.md`, `skills.md`, and the relevant playbook; scan `skills/` for `*/SKILL.md`.
 3. Plan: phased when more than one step.
 4. Implement: small, measurable changes only.
 5. Verify: run required checks.

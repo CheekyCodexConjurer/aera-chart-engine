@@ -1,4 +1,4 @@
-import type { TextLabel } from "../text-layer.js";
+import type { TextLabel } from "../text/index.js";
 import type { WebGL2RendererContext } from "./context.js";
 import type { LabelMetrics } from "./state.js";
 

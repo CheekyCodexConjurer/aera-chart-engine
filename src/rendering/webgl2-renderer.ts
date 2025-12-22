@@ -1,7 +1,7 @@
 import type { Diagnostic, RendererMetrics } from "../api/public-types.js";
 import type { PlotArea } from "../core/transform.js";
 import { GpuBuffer } from "./gpu-buffer.js";
-import type { GpuTextRenderer } from "./gpu-text.js";
+import type { GpuTextRenderer } from "./text/index.js";
 import type { RenderFrame, Renderer } from "./renderer.js";
 import { DynamicVertexBuffer } from "./vertex-buffer.js";
 import { getRendererContext, type WebGL2RendererOptions } from "./webgl2/context.js";

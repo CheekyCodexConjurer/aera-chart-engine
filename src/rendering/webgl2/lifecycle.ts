@@ -1,5 +1,5 @@
 import { createProgram } from "../gl-utils.js";
-import { GpuTextRenderer } from "../gpu-text.js";
+import { GpuTextRenderer } from "../text/index.js";
 import type { WebGL2RendererContext } from "./context.js";
 import { emitDiagnostic } from "./metrics.js";
 import { releaseSeriesEntry } from "./series-cache.js";

@@ -45,3 +45,7 @@ This file defines the skills required to build and maintain the charting engine.
 - `docs/skills/benchmark-as-gate.md` - benchmark-as-gate discipline.
 - `docs/skills/do-not-copy-quant-lab.md` - scope separation rules.
 - `docs/skills/refactor-llm-friendly.md` - refactor large files into LLM-friendly modules.
+
+## Codex skill packages (automation)
+- `skills/docs-auto-sync/SKILL.md` - auto-update docs when code changes.
+- `skills/repo-onboarding/SKILL.md` - onboarding: read AGENTS/architecture/skills and discover local skills.

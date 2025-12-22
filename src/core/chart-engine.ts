@@ -184,7 +184,7 @@ export class ChartEngine {
     });
 
     this.scheduler = new FrameScheduler(() => renderFrame(getEngineContext(this)));
-    setComputePipeline(getEngineContext(this), null);
+    this.computePipeline = setComputePipeline(getEngineContext(this), null);
     ensurePane(getEngineContext(this), "price");
     this.renderer.initialize?.();
     this.renderer.resize?.(this.width, this.height, this.devicePixelRatio);

@@ -3,18 +3,20 @@ import { ComputePipeline } from "../../compute/pipeline.js";
 import type { EngineContext } from "./context.js";
 import { setOverlays } from "./overlays.js";
 
-export function setComputePipeline(ctx: EngineContext, pipeline: ComputePipeline | null): void {
+export function setComputePipeline(ctx: EngineContext, pipeline: ComputePipeline | null): ComputePipeline {
   if (pipeline) {
     ctx.computePipeline = pipeline;
-    return;
+    return pipeline;
   }
-  ctx.computePipeline = new ComputePipeline({
+  const created = new ComputePipeline({
     applyOverlays: (batch) => setOverlays(ctx, batch),
     emitDiagnostic: (diag) => {
       ctx.diagnostics.add(diag);
       ctx.diagnosticsEmitter.emit();
     }
   });
+  ctx.computePipeline = created;
+  return created;
 }
 
 export function postComputeRequest(ctx: EngineContext, request: ComputeRequest): void {

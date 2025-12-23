@@ -1,4 +1,5 @@
 import type { CrosshairEvent, HitTestEvent, KeyCommand, Range, TimeMs } from "../../api/public-types.js";
+import type { ScaleDomain } from "../transform.js";
 import type { EngineContext } from "./context.js";
 import { ensurePane, getPrimaryScaleId, getPrimarySeries } from "./axis-layout.js";
 import { clampRangeToReplay, clampZoomSpan } from "./replay-state.js";
@@ -6,6 +7,20 @@ import { resetAroundAnchor, resetToLatest } from "./replay.js";
 import { emitVisibleRange } from "./windowing.js";
 import { computeHitTest, findNearestTime, xToTime, yToPrice } from "./coordinates.js";
 import { isPointInside } from "./util.js";
+
+const VERTICAL_PAN_THRESHOLD_PX = 0.5;
+
+type VerticalPanTarget = {
+  plotArea: { height: number };
+  scaleDomains: Map<string, ScaleDomain>;
+  autoScale: Map<string, boolean>;
+};
+
+type VerticalPanAnchor = {
+  screenY: number | null;
+  scaleId: string;
+  scaleDomain: ScaleDomain | null;
+};
 
 export function handleKeyCommand(ctx: EngineContext, paneId: string, command: KeyCommand, anchorTimeMs?: TimeMs): void {
   const pane = ensurePane(ctx, paneId);
@@ -124,7 +139,17 @@ export function beginPan(ctx: EngineContext, paneId: string, x: number): void {
   ctx.crosshairState = null;
   ctx.pendingHitTest = null;
   ctx.scheduler.requestFrame();
-  ctx.panAnchor = { paneId, range: { ...pane.visibleRange }, screenX: x };
+  const scaleId = getPrimaryScaleId(ctx, paneId);
+  const scaleDomain = pane.scaleDomains.get(scaleId);
+  const pointer = ctx.pointer.getPosition();
+  ctx.panAnchor = {
+    paneId,
+    range: { ...pane.visibleRange },
+    screenX: x,
+    screenY: pointer ? pointer.y : null,
+    scaleId,
+    scaleDomain: scaleDomain ? { ...scaleDomain } : null
+  };
 }
 
 export function updatePan(ctx: EngineContext, paneId: string, x: number): void {
@@ -137,6 +162,7 @@ export function updatePan(ctx: EngineContext, paneId: string, x: number): void {
     startMs: ctx.panAnchor.range.startMs + deltaTime,
     endMs: ctx.panAnchor.range.endMs + deltaTime
   };
+  applyVerticalPan(ctx, pane, ctx.panAnchor);
   pane.visibleRange = clampRangeToReplay(ctx, range, getPrimarySeries(ctx, paneId));
   emitVisibleRange(ctx, paneId, pane.visibleRange);
 }
@@ -193,6 +219,25 @@ export function endPan(ctx: EngineContext): void {
   }
   ctx.panAnchor = null;
   ctx.pointerCapturePaneId = null;
+}
+
+function applyVerticalPan(ctx: EngineContext, pane: VerticalPanTarget, anchor: VerticalPanAnchor): void {
+  if (!anchor.scaleDomain || anchor.screenY === null) return;
+  const pointer = ctx.pointer.getPosition();
+  const currentY = pointer?.y;
+  if (currentY === undefined || currentY === null) return;
+  const deltaY = currentY - anchor.screenY;
+  if (Math.abs(deltaY) < VERTICAL_PAN_THRESHOLD_PX) return;
+  const plotHeight = pane.plotArea.height;
+  if (!Number.isFinite(plotHeight) || plotHeight <= 0) return;
+  const domainSpan = anchor.scaleDomain.max - anchor.scaleDomain.min;
+  if (!Number.isFinite(domainSpan) || domainSpan <= 0) return;
+  const shift = (deltaY / plotHeight) * domainSpan;
+  const min = anchor.scaleDomain.min + shift;
+  const max = anchor.scaleDomain.max + shift;
+  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return;
+  pane.scaleDomains.set(anchor.scaleId, { min, max });
+  pane.autoScale.set(anchor.scaleId, false);
 }
 
 export function queueCrosshairMove(ctx: EngineContext, event: CrosshairEvent): void {

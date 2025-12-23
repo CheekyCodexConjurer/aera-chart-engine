@@ -6,6 +6,7 @@ This document defines the WebGL2-first render pipeline, resource strategy, and r
 - WebGL2 is the primary renderer for all series and overlays.
 - Render graph passes are ordered and deterministic.
 - No implicit quality downgrades or silent fallbacks.
+- Theme styling is applied via uniforms for grid/axis/crosshair and candle body/wick/border colors.
 
 ## Render passes (canonical order)
 1. Background and grid
@@ -19,6 +20,7 @@ This document defines the WebGL2-first render pipeline, resource strategy, and r
 - Dynamic buffers are reserved for interaction overlays and label backgrounds.
 - Series geometry is cached in GPU buffers and transformed in shader space.
 - Pan/zoom steady state reuses series buffers and updates uniforms only.
+- Candle borders reuse quad instance buffers with a line index buffer.
 - Clip stacks restore scissor state per pane/layer without leaking across passes.
 
 ## Instancing and batching

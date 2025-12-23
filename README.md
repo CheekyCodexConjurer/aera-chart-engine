@@ -30,7 +30,8 @@ GPU-first, headless charting engine for quantitative research workloads.
 - `aera-chart-engine` remains a pure engine with explicit contracts.
 
 ## Where to start
-- `architecture.md` for the overview.
+- `architecture.md` for the architecture map (index-only).
+- `docs/architecture-overview.md` for the overview and invariants.
 - `docs/INDEX.md` for the full documentation map.
 - `docs/host-engine-responsibility-contract.md` for the non-negotiable boundary.
 

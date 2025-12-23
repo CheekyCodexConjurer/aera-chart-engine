@@ -7,7 +7,7 @@ This spec defines contract versioning, compatibility rules, and adapter guidance
 - Contract version is independent of package version but must be compatible.
 - Breaking changes require a major bump of `engineContractVersion`.
 - Initial contract version should match the package version until the first breaking change.
-- Canonical engineContractVersion: `0.4.0`.
+- Canonical engineContractVersion: `0.5.0`.
 
 ## Source of truth (required)
 - The canonical contract version lives in documentation and is exposed via `getEngineInfo()`.
@@ -57,6 +57,14 @@ This spec defines contract versioning, compatibility rules, and adapter guidance
 - Compatibility impact: backward-compatible additions; existing consumers unaffected.
 - Migration steps: pass a `WorkerAdapter` to `setWorkerAdapter` and handle `compute_request`/`compute_result` messages; opt into `mode: "offscreen"` only when supported.
 - Rollback: remove worker adapter usage and pin to engine contract 0.3.x.
+
+### Contract change: Renderer theme + candle styling (0.5.0)
+- Rationale: allow TradingView-style candle body/wick/border styling and global renderer theming without buffer rebuilds.
+- Old behavior: grid/axis/crosshair and candle colors were hardcoded with no public theme API.
+- New behavior: `WebGL2Renderer` accepts a `theme` option and `setTheme` for partial updates; candle body/wick/border colors and background/grid/axis/crosshair colors are theme-driven.
+- Compatibility impact: backward-compatible additions; defaults preserve existing visuals (borders disabled).
+- Migration steps: pass `theme` when creating the renderer or call `setTheme` to customize colors.
+- Rollback: remove theme usage and pin to engine contract 0.4.x.
 
 ## Contract tests (doc-first)
 - Contract tests fail when the API surface changes without a version bump.

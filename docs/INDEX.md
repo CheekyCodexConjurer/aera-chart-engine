@@ -4,7 +4,8 @@ This index maps all canonical documentation for the chart engine. Each page is s
 
 ## Entry points
 - `../README.md` - repo scope and boundary matrix.
-- `../architecture.md` - architecture overview and invariants.
+- `../architecture.md` - architecture map (index-only).
+- `architecture-overview.md` - architecture overview and invariants.
 - `implementation-plan.md` - phased implementation plan.
 - `../ROADMAP.md` - executable roadmap and milestones.
 - `roadmap/INDEX.md` - roadmap support specs and legacy backlog.
@@ -24,6 +25,9 @@ This index maps all canonical documentation for the chart engine. Each page is s
 ## Contributor skills
 - `../skills.md` - skills rubric and index.
 - `skills/INDEX.md` - skill definition leaf pages.
+
+## Governance and agent roles
+- `agents/roles.md` - agent role responsibilities and approval triggers.
 
 ## Integration and boundary contracts
 - `host-engine-responsibility-contract.md` - non-negotiable ownership split.

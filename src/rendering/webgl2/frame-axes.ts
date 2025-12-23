@@ -1,6 +1,5 @@
 import { formatTimestamp } from "../../core/axis.js";
 import { timeToX, priceToY } from "../../core/transform.js";
-import { DEFAULT_AXIS, DEFAULT_CROSSHAIR, DEFAULT_GRID } from "../color.js";
 import type { RenderCrosshair, RenderFrame } from "../renderer.js";
 import type { TextLabel } from "../text/index.js";
 import type { DrawCommand } from "../vertex-buffer.js";
@@ -23,6 +22,10 @@ export function appendGridAndAxes(
     axis.left[0];
   const yTicks = primaryScale?.ticks ?? [];
   const xTicks = axis.time ?? [];
+  const theme = ctx.resolvedTheme;
+  const gridColor = theme.grid;
+  const axisColor = theme.axis;
+  const axisText = theme.axisText;
 
   const domain = pane.scaleDomains[axis.primaryScaleId] ?? pane.scaleDomains.price;
   const gridStart = ctx.dynamicBuffer.vertexCount;
@@ -32,8 +35,8 @@ export function appendGridAndAxes(
       if (y === null) continue;
       const [x0, y0] = toNdc(ctx, plotArea.x, y);
       const [x1, y1] = toNdc(ctx, plotArea.x + plotArea.width, y);
-      ctx.dynamicBuffer.pushVertex(x0, y0, DEFAULT_GRID[0], DEFAULT_GRID[1], DEFAULT_GRID[2], DEFAULT_GRID[3]);
-      ctx.dynamicBuffer.pushVertex(x1, y1, DEFAULT_GRID[0], DEFAULT_GRID[1], DEFAULT_GRID[2], DEFAULT_GRID[3]);
+      ctx.dynamicBuffer.pushVertex(x0, y0, gridColor[0], gridColor[1], gridColor[2], gridColor[3]);
+      ctx.dynamicBuffer.pushVertex(x1, y1, gridColor[0], gridColor[1], gridColor[2], gridColor[3]);
     }
   }
   for (const tick of xTicks) {
@@ -41,8 +44,8 @@ export function appendGridAndAxes(
     if (x === null) continue;
     const [x0, y0] = toNdc(ctx, x, plotArea.y);
     const [x1, y1] = toNdc(ctx, x, plotArea.y + plotArea.height);
-    ctx.dynamicBuffer.pushVertex(x0, y0, DEFAULT_GRID[0], DEFAULT_GRID[1], DEFAULT_GRID[2], DEFAULT_GRID[3]);
-    ctx.dynamicBuffer.pushVertex(x1, y1, DEFAULT_GRID[0], DEFAULT_GRID[1], DEFAULT_GRID[2], DEFAULT_GRID[3]);
+    ctx.dynamicBuffer.pushVertex(x0, y0, gridColor[0], gridColor[1], gridColor[2], gridColor[3]);
+    ctx.dynamicBuffer.pushVertex(x1, y1, gridColor[0], gridColor[1], gridColor[2], gridColor[3]);
   }
   const gridCount = ctx.dynamicBuffer.vertexCount - gridStart;
   if (gridCount > 0) {
@@ -53,15 +56,15 @@ export function appendGridAndAxes(
   if (axis.left.length > 0) {
     const [lx0, ly0] = toNdc(ctx, plotArea.x, plotArea.y);
     const [lx1, ly1] = toNdc(ctx, plotArea.x, plotArea.y + plotArea.height);
-    ctx.dynamicBuffer.pushVertex(lx0, ly0, DEFAULT_AXIS[0], DEFAULT_AXIS[1], DEFAULT_AXIS[2], DEFAULT_AXIS[3]);
-    ctx.dynamicBuffer.pushVertex(lx1, ly1, DEFAULT_AXIS[0], DEFAULT_AXIS[1], DEFAULT_AXIS[2], DEFAULT_AXIS[3]);
+    ctx.dynamicBuffer.pushVertex(lx0, ly0, axisColor[0], axisColor[1], axisColor[2], axisColor[3]);
+    ctx.dynamicBuffer.pushVertex(lx1, ly1, axisColor[0], axisColor[1], axisColor[2], axisColor[3]);
   }
   if (axis.right.length > 0) {
     const axisX = plotArea.x + plotArea.width;
     const [rx0, ry0] = toNdc(ctx, axisX, plotArea.y);
     const [rx1, ry1] = toNdc(ctx, axisX, plotArea.y + plotArea.height);
-    ctx.dynamicBuffer.pushVertex(rx0, ry0, DEFAULT_AXIS[0], DEFAULT_AXIS[1], DEFAULT_AXIS[2], DEFAULT_AXIS[3]);
-    ctx.dynamicBuffer.pushVertex(rx1, ry1, DEFAULT_AXIS[0], DEFAULT_AXIS[1], DEFAULT_AXIS[2], DEFAULT_AXIS[3]);
+    ctx.dynamicBuffer.pushVertex(rx0, ry0, axisColor[0], axisColor[1], axisColor[2], axisColor[3]);
+    ctx.dynamicBuffer.pushVertex(rx1, ry1, axisColor[0], axisColor[1], axisColor[2], axisColor[3]);
   }
   const axisCount = ctx.dynamicBuffer.vertexCount - axisStart;
   if (axisCount > 0) {
@@ -80,7 +83,7 @@ export function appendGridAndAxes(
         x: labelX,
         y,
         text: tick.label,
-        color: "#cfd3da",
+        color: axisText,
         align: "right",
         baseline: "middle"
       });
@@ -98,7 +101,7 @@ export function appendGridAndAxes(
         x: labelX,
         y,
         text: tick.label,
-        color: "#cfd3da",
+        color: axisText,
         align: "left",
         baseline: "middle"
       });
@@ -114,7 +117,7 @@ export function appendGridAndAxes(
         x,
         y: labelY,
         text: tick.label,
-        color: "#cfd3da",
+        color: axisText,
         align: "center",
         baseline: "top"
       });
@@ -134,19 +137,21 @@ export function appendCrosshair(
   const y = crosshair.y ?? plotArea.y;
   if (x < plotArea.x || x > plotArea.x + plotArea.width) return;
   if (crosshair.showHorizontal && (y < plotArea.y || y > plotArea.y + plotArea.height)) return;
+  const theme = ctx.resolvedTheme;
+  const crosshairColor = theme.crosshair;
 
   const start = ctx.dynamicBuffer.vertexCount;
   if (crosshair.showVertical) {
     const [vx0, vy0] = toNdc(ctx, x, plotArea.y);
     const [vx1, vy1] = toNdc(ctx, x, plotArea.y + plotArea.height);
-    ctx.dynamicBuffer.pushVertex(vx0, vy0, DEFAULT_CROSSHAIR[0], DEFAULT_CROSSHAIR[1], DEFAULT_CROSSHAIR[2], DEFAULT_CROSSHAIR[3]);
-    ctx.dynamicBuffer.pushVertex(vx1, vy1, DEFAULT_CROSSHAIR[0], DEFAULT_CROSSHAIR[1], DEFAULT_CROSSHAIR[2], DEFAULT_CROSSHAIR[3]);
+    ctx.dynamicBuffer.pushVertex(vx0, vy0, crosshairColor[0], crosshairColor[1], crosshairColor[2], crosshairColor[3]);
+    ctx.dynamicBuffer.pushVertex(vx1, vy1, crosshairColor[0], crosshairColor[1], crosshairColor[2], crosshairColor[3]);
   }
   if (crosshair.showHorizontal) {
     const [hx0, hy0] = toNdc(ctx, plotArea.x, y);
     const [hx1, hy1] = toNdc(ctx, plotArea.x + plotArea.width, y);
-    ctx.dynamicBuffer.pushVertex(hx0, hy0, DEFAULT_CROSSHAIR[0], DEFAULT_CROSSHAIR[1], DEFAULT_CROSSHAIR[2], DEFAULT_CROSSHAIR[3]);
-    ctx.dynamicBuffer.pushVertex(hx1, hy1, DEFAULT_CROSSHAIR[0], DEFAULT_CROSSHAIR[1], DEFAULT_CROSSHAIR[2], DEFAULT_CROSSHAIR[3]);
+    ctx.dynamicBuffer.pushVertex(hx0, hy0, crosshairColor[0], crosshairColor[1], crosshairColor[2], crosshairColor[3]);
+    ctx.dynamicBuffer.pushVertex(hx1, hy1, crosshairColor[0], crosshairColor[1], crosshairColor[2], crosshairColor[3]);
   }
 
   const count = ctx.dynamicBuffer.vertexCount - start;
@@ -159,10 +164,10 @@ export function appendCrosshair(
       x: plotArea.x + plotArea.width + 6,
       y,
       text: formatPrice(crosshair.price),
-      color: "#ffffff",
+      color: theme.crosshairText,
       align: "left",
       baseline: "middle",
-      background: "rgba(0,0,0,0.6)",
+      background: theme.crosshairLabelBackground,
       padding: 3
     });
   }
@@ -172,10 +177,10 @@ export function appendCrosshair(
       x,
       y: plotArea.y + plotArea.height - 12,
       text: formatTimestamp(crosshair.timeMs),
-      color: "#ffffff",
+      color: theme.crosshairText,
       align: "center",
       baseline: "top",
-      background: "rgba(0,0,0,0.6)",
+      background: theme.crosshairLabelBackground,
       padding: 3
     });
   }

@@ -15,6 +15,7 @@ import type {
   WorkerMode,
   WorkerStatus
 } from "../../api/public-types.js";
+import type { ScaleDomain } from "../transform.js";
 import type { LruCache } from "../../data/cache.js";
 import type { ComputePipelineLike } from "../../compute/pipeline.js";
 import type { PointerState } from "../../interaction/pointer.js";
@@ -29,7 +30,14 @@ import type { SeriesState } from "../series.js";
 import type { ChartEngine } from "../chart-engine.js";
 import type { LodState, PaneState, RenderSeriesCache } from "./state.js";
 
-export type PanAnchor = { paneId: string; range: Range; screenX: number };
+export type PanAnchor = {
+  paneId: string;
+  range: Range;
+  screenX: number;
+  screenY: number | null;
+  scaleId: string;
+  scaleDomain: ScaleDomain | null;
+};
 
 export type EngineContext = {
   diagnostics: DiagnosticsStore;

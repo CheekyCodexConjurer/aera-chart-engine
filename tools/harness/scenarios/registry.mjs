@@ -1,8 +1,7 @@
 const BASE_TIME_MS = 1_700_000_000_000;
 const ONE_MINUTE_MS = 60_000;
 const DEFAULT_LAYOUT = [
-  { paneId: "price", weight: 3 },
-  { paneId: "volume", weight: 1 }
+  { paneId: "price", weight: 1 }
 ];
 
 function buildReplayTrace(barCount, stepMs) {

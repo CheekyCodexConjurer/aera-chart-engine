@@ -5,7 +5,7 @@ Use this matrix to decide which docs to update. Prefer updating docs when in dou
 ## Always consider
 - ROADMAP.md (milestone status, refactor tasks)
 - docs/roadmap/refactor-llm-friendly.md (module maps for large refactors)
-- architecture.md (cross-layer invariants, lifecycle changes)
+- docs/architecture-overview.md (cross-layer invariants, lifecycle changes)
 
 ## Change type -> update docs
 - Public API or lifecycle changes:

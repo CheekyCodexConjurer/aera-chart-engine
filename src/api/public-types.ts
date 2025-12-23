@@ -28,6 +28,13 @@ export type {
 } from "./types/series.js";
 
 export type {
+  CandleBorderTheme,
+  CandleTheme,
+  CandleThemeColors,
+  ChartTheme
+} from "./types/theme.js";
+
+export type {
   AreaOverlayData,
   HistogramOverlayData,
   HLineOverlayData,

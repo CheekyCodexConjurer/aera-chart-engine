@@ -35,6 +35,12 @@ const TIME_STEPS_MS = [
   31536000000
 ];
 
+const MS_IN_MINUTE = 60000;
+const MS_IN_DAY = 86400000;
+const MS_IN_MONTH = 2592000000;
+const MS_IN_YEAR = 31536000000;
+const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
 export function generateNumericTicks(
   min: number,
   max: number,
@@ -86,12 +92,11 @@ export function generateTimeTicks(
 export function formatTimestamp(timeMs: number): string {
   const date = new Date(timeMs);
   const year = date.getUTCFullYear();
-  const month = pad2(date.getUTCMonth() + 1);
+  const monthName = MONTHS_SHORT[date.getUTCMonth()];
   const day = pad2(date.getUTCDate());
   const hour = pad2(date.getUTCHours());
   const minute = pad2(date.getUTCMinutes());
-  const second = pad2(date.getUTCSeconds());
-  return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+  return `${day} ${monthName} ${year} ${hour}:${minute}`;
 }
 
 function niceStep(roughStep: number): number {
@@ -109,18 +114,25 @@ function niceStep(roughStep: number): number {
 function formatTimeLabel(timeMs: number, stepMs: number): string {
   const date = new Date(timeMs);
   const year = date.getUTCFullYear();
-  const month = pad2(date.getUTCMonth() + 1);
+  const monthIndex = date.getUTCMonth();
   const day = pad2(date.getUTCDate());
-  const hour = pad2(date.getUTCHours());
-  const minute = pad2(date.getUTCMinutes());
-  const second = pad2(date.getUTCSeconds());
-  if (stepMs >= 86400000) {
-    return `${year}-${month}-${day}`;
+  const hour = date.getUTCHours();
+  const minute = date.getUTCMinutes();
+  const second = date.getUTCSeconds();
+  const isMidnight = hour === 0 && minute === 0 && second === 0;
+  if (stepMs >= MS_IN_YEAR) {
+    return `${year}`;
   }
-  if (stepMs >= 60000) {
-    return `${hour}:${minute}`;
+  if (stepMs >= MS_IN_MONTH) {
+    return `${MONTHS_SHORT[monthIndex]} ${year}`;
   }
-  return `${minute}:${second}`;
+  if (stepMs >= MS_IN_DAY || isMidnight) {
+    return `${day} ${MONTHS_SHORT[monthIndex]}`;
+  }
+  if (stepMs >= MS_IN_MINUTE) {
+    return `${pad2(hour)}:${pad2(minute)}`;
+  }
+  return `${pad2(hour)}:${pad2(minute)}:${pad2(second)}`;
 }
 
 function pad2(value: number): string {

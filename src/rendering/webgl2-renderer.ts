@@ -1,7 +1,8 @@
-import type { Diagnostic, RendererMetrics } from "../api/public-types.js";
+import type { ChartTheme, Diagnostic, RendererMetrics } from "../api/public-types.js";
 import type { PlotArea } from "../core/transform.js";
 import { GpuBuffer } from "./gpu-buffer.js";
 import type { GpuTextRenderer } from "./text/index.js";
+import { mergeTheme, resolveTheme, type ResolvedTheme } from "./theme.js";
 import type { RenderFrame, Renderer } from "./renderer.js";
 import { DynamicVertexBuffer } from "./vertex-buffer.js";
 import { getRendererContext, type WebGL2RendererOptions } from "./webgl2/context.js";
@@ -29,6 +30,7 @@ export class WebGL2Renderer implements Renderer {
   private barProgram: BarProgramInfo | null = null;
   private quadCornerBuffer: WebGLBuffer | null = null;
   private quadIndexBuffer: WebGLBuffer | null = null;
+  private quadLineIndexBuffer: WebGLBuffer | null = null;
   private seriesCache = new Map<string, SeriesGpuEntry>();
   private gpuText: GpuTextRenderer | null = null;
   private diagnosticHandler?: (diag: Diagnostic) => void;
@@ -41,6 +43,8 @@ export class WebGL2Renderer implements Renderer {
   private warnedTextAtlasFull = false;
   private textMode: "gpu" | "canvas" | "none";
   private lastTextMode: "gpu" | "canvas" | "none";
+  private theme: ChartTheme;
+  private resolvedTheme: ResolvedTheme;
   private clipStack: PlotArea[] = [];
   private hasContextListeners = false;
   private isContextLost = false;
@@ -74,12 +78,18 @@ export class WebGL2Renderer implements Renderer {
     const preferGpuText = options.useGpuText ?? !options.textLayer;
     this.textMode = preferGpuText ? "gpu" : options.textLayer ? "canvas" : "none";
     this.lastTextMode = this.textMode;
+    this.theme = mergeTheme(undefined, options.theme);
+    this.resolvedTheme = resolveTheme(this.theme, options.clearColor);
   }
 
   initialize(): void { initializeRenderer(getRendererContext(this)); }
   resize(width: number, height: number, devicePixelRatio: number): void { resizeRenderer(getRendererContext(this), width, height, devicePixelRatio); }
   render(frame: RenderFrame): void { renderFrame(getRendererContext(this), frame); }
   setDiagnostics(handler: (diag: Diagnostic) => void): void { this.diagnosticHandler = handler; }
+  setTheme(theme: ChartTheme): void {
+    this.theme = mergeTheme(this.theme, theme);
+    this.resolvedTheme = resolveTheme(this.theme, this.options.clearColor);
+  }
   removeSeries(seriesId: string): void { dropSeriesEntry(getRendererContext(this), seriesId); }
   getMetrics(): RendererMetrics { return { ...this.metrics, lastFrame: { ...this.metrics.lastFrame }, totals: { ...this.metrics.totals } }; }
 

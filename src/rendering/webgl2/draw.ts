@@ -1,4 +1,4 @@
-import { DEFAULT_DOWN_CANDLE, DEFAULT_UP_CANDLE, colorFromId, withAlpha } from "../color.js";
+import { colorFromId, withAlpha } from "../color.js";
 import type { RenderFrame, RenderSeries } from "../renderer.js";
 import type { RgbaColor } from "../color.js";
 import type { WebGL2RendererContext } from "./context.js";
@@ -77,8 +77,9 @@ export function drawCandleSeries(
   domain: { min: number; max: number }
 ): void {
   if (!ctx.lineProgram || !ctx.quadProgram) return;
+  const theme = ctx.resolvedTheme.candle;
   if (buffers.wickUp && buffers.wickUp.count > 1) {
-    if (setLineUniforms(ctx, gl, pane, domain, series, DEFAULT_UP_CANDLE, 0, 0)) {
+    if (setLineUniforms(ctx, gl, pane, domain, series, theme.wickUp, 0, 0)) {
       gl.useProgram(ctx.lineProgram.program);
       recordStateChange(ctx);
       bindLineBuffer(ctx, gl, ctx.lineProgram, buffers.wickUp);
@@ -88,7 +89,7 @@ export function drawCandleSeries(
     }
   }
   if (buffers.wickDown && buffers.wickDown.count > 1) {
-    if (setLineUniforms(ctx, gl, pane, domain, series, DEFAULT_DOWN_CANDLE, 0, 0)) {
+    if (setLineUniforms(ctx, gl, pane, domain, series, theme.wickDown, 0, 0)) {
       gl.useProgram(ctx.lineProgram.program);
       recordStateChange(ctx);
       bindLineBuffer(ctx, gl, ctx.lineProgram, buffers.wickDown);
@@ -99,13 +100,22 @@ export function drawCandleSeries(
   }
   if (buffers.body && buffers.body.count > 0) {
     const halfWidth = computeBarHalfWidthTime(pane, series.timeMs.length);
-    if (!setQuadUniforms(ctx, gl, pane, domain, series, halfWidth)) return;
+    if (!setQuadUniforms(ctx, gl, pane, domain, series, halfWidth, theme.bodyUp, theme.bodyDown)) return;
     gl.useProgram(ctx.quadProgram.program);
     recordStateChange(ctx);
-    bindQuadBuffer(ctx, gl, ctx.quadProgram, buffers.body);
+    bindQuadBuffer(ctx, gl, ctx.quadProgram, buffers.body, ctx.quadIndexBuffer);
     gl.drawElementsInstanced(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0, buffers.body.count);
     recordDrawCalls(ctx, 1);
     recordBatchCount(ctx, 1);
+    if (theme.borderEnabled && ctx.quadLineIndexBuffer) {
+      if (!setQuadUniforms(ctx, gl, pane, domain, series, halfWidth, theme.borderUp, theme.borderDown)) return;
+      gl.useProgram(ctx.quadProgram.program);
+      recordStateChange(ctx);
+      bindQuadBuffer(ctx, gl, ctx.quadProgram, buffers.body, ctx.quadLineIndexBuffer);
+      gl.drawElementsInstanced(gl.LINES, 8, gl.UNSIGNED_SHORT, 0, buffers.body.count);
+      recordDrawCalls(ctx, 1);
+      recordBatchCount(ctx, 1);
+    }
   }
 }
 
@@ -149,7 +159,9 @@ function setQuadUniforms(
   pane: RenderFrame["panes"][number],
   domain: { min: number; max: number },
   series: RenderSeries,
-  halfWidth: number
+  halfWidth: number,
+  colorUp: RgbaColor,
+  colorDown: RgbaColor
 ): boolean {
   if (!ctx.quadProgram) return false;
   if (!Number.isFinite(domain.min) || !Number.isFinite(domain.max) || domain.max <= domain.min) return false;
@@ -170,6 +182,8 @@ function setQuadUniforms(
   gl.uniform2f(ctx.quadProgram.uniforms.plotSize, pane.plotArea.width, pane.plotArea.height);
   gl.uniform2f(ctx.quadProgram.uniforms.viewport, ctx.width, ctx.height);
   gl.uniform1f(ctx.quadProgram.uniforms.halfWidth, halfWidth);
+  gl.uniform4f(ctx.quadProgram.uniforms.colorUp, colorUp[0], colorUp[1], colorUp[2], colorUp[3]);
+  gl.uniform4f(ctx.quadProgram.uniforms.colorDown, colorDown[0], colorDown[1], colorDown[2], colorDown[3]);
   return true;
 }
 
@@ -238,17 +252,29 @@ function bindLineBuffer(ctx: WebGL2RendererContext, gl: WebGL2RenderingContext, 
   );
 }
 
-function bindQuadBuffer(ctx: WebGL2RendererContext, gl: WebGL2RenderingContext, info: QuadProgramInfo, buffer: InstanceBuffer): void {
+function bindQuadBuffer(
+  ctx: WebGL2RendererContext,
+  gl: WebGL2RenderingContext,
+  info: QuadProgramInfo,
+  buffer: InstanceBuffer,
+  elementBuffer: WebGLBuffer | null
+): void {
   gl.bindVertexArray(info.vao);
   recordStateChange(ctx);
   gl.bindBuffer(gl.ARRAY_BUFFER, buffer.buffer);
   recordStateChange(ctx);
+  if (elementBuffer) {
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, elementBuffer);
+    recordStateChange(ctx);
+  }
   const stride = buffer.stride * Float32Array.BYTES_PER_ELEMENT;
   gl.vertexAttribDivisor(info.attribs.timeHigh, 1);
   gl.vertexAttribDivisor(info.attribs.timeLow, 1);
   gl.vertexAttribDivisor(info.attribs.value0, 1);
   gl.vertexAttribDivisor(info.attribs.value1, 1);
-  gl.vertexAttribDivisor(info.attribs.color, 1);
+  if (info.attribs.color >= 0) {
+    gl.vertexAttribDivisor(info.attribs.color, 1);
+  }
   gl.vertexAttribPointer(info.attribs.timeHigh, 1, gl.FLOAT, false, stride, 0);
   gl.vertexAttribPointer(
     info.attribs.timeLow,
@@ -274,14 +300,16 @@ function bindQuadBuffer(ctx: WebGL2RendererContext, gl: WebGL2RenderingContext, 
     stride,
     3 * Float32Array.BYTES_PER_ELEMENT
   );
-  gl.vertexAttribPointer(
-    info.attribs.color,
-    4,
-    gl.FLOAT,
-    false,
-    stride,
-    4 * Float32Array.BYTES_PER_ELEMENT
-  );
+  if (info.attribs.color >= 0) {
+    gl.vertexAttribPointer(
+      info.attribs.color,
+      4,
+      gl.FLOAT,
+      false,
+      stride,
+      4 * Float32Array.BYTES_PER_ELEMENT
+    );
+  }
 }
 
 function bindBarBuffer(ctx: WebGL2RendererContext, gl: WebGL2RenderingContext, info: BarProgramInfo, buffer: InstanceBuffer): void {

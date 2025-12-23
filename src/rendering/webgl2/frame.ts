@@ -1,7 +1,4 @@
-import {
-  DEFAULT_CLEAR,
-  parseColor
-} from "../color.js";
+import { parseColor } from "../color.js";
 import type { RenderCrosshair, RenderFrame, RenderSeries } from "../renderer.js";
 import type { TextLabel } from "../text/index.js";
 import type { DrawCommand } from "../vertex-buffer.js";
@@ -44,7 +41,7 @@ export function renderFrame(ctx: WebGL2RendererContext, frame: RenderFrame): voi
   gl.enable(gl.SCISSOR_TEST);
   recordStateChange(ctx);
   ctx.clipStack.length = 0;
-  const clear = ctx.options.clearColor ?? DEFAULT_CLEAR;
+  const clear = ctx.resolvedTheme.background;
   gl.clearColor(clear[0], clear[1], clear[2], clear[3]);
   gl.clear(gl.COLOR_BUFFER_BIT);
 

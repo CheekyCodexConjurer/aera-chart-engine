@@ -13,7 +13,8 @@ This document defines the interaction state machine, pointer semantics, and mult
 | disabled | interactions blocked | no |
 
 ## Pan and zoom mechanics
-- Pan translates view window by pixel delta mapped to time domain.
+- Pan translates the view window by pixel delta mapped to the time domain and shifts the primary price scale when dragging vertically.
+- Vertical pan disables auto-scale for the affected scale until explicitly re-enabled.
 - Zoom is cursor-anchored unless explicitly locked.
 - Inertia is optional and must be explicitly enabled.
 - Wheel zoom uses an exponential factor derived from scroll delta.
@@ -34,6 +35,7 @@ This document defines the interaction state machine, pointer semantics, and mult
 - Snapping to bars is host-owned unless explicitly configured.
 - `nearestTimeMs` is `null` inside gaps or outside coverage.
 - Pointer events are coalesced and run on the main thread.
+- Hosts should continue forwarding pointer moves during drag to keep vertical pan responsive.
 - Pointer input is provided via `handlePointerMove` and `handlePointerClick`.
 - Pinch input is provided via `handlePinchZoom`.
 - Pointer capture prevents auto-clearing when the cursor leaves the plot during drag/selection.

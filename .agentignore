@@ -1,0 +1,12 @@
+# Paths the agent must never modify directly.
+# Add project-specific files here.
+
+.env
+.env.*
+secrets/
+keys/
+**/id_rsa
+**/*.pem
+**/production.*
+**/prod.*
+**/*.key

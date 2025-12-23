@@ -70,7 +70,8 @@ export function initializeRenderer(ctx: WebGL2RendererContext): void {
 
   ctx.quadCornerBuffer = ctx.gl.createBuffer();
   ctx.quadIndexBuffer = ctx.gl.createBuffer();
-  if (!ctx.quadCornerBuffer || !ctx.quadIndexBuffer) {
+  ctx.quadLineIndexBuffer = ctx.gl.createBuffer();
+  if (!ctx.quadCornerBuffer || !ctx.quadIndexBuffer || !ctx.quadLineIndexBuffer) {
     ctx.options.onError?.("Failed to allocate quad buffers");
     return;
   }
@@ -81,10 +82,13 @@ export function initializeRenderer(ctx: WebGL2RendererContext): void {
     -0.5, 0.5
   ]);
   const indices = new Uint16Array([0, 1, 2, 2, 3, 0]);
+  const lineIndices = new Uint16Array([0, 1, 1, 2, 2, 3, 3, 0]);
   ctx.gl.bindBuffer(ctx.gl.ARRAY_BUFFER, ctx.quadCornerBuffer);
   ctx.gl.bufferData(ctx.gl.ARRAY_BUFFER, corners, ctx.gl.STATIC_DRAW);
   ctx.gl.bindBuffer(ctx.gl.ELEMENT_ARRAY_BUFFER, ctx.quadIndexBuffer);
   ctx.gl.bufferData(ctx.gl.ELEMENT_ARRAY_BUFFER, indices, ctx.gl.STATIC_DRAW);
+  ctx.gl.bindBuffer(ctx.gl.ELEMENT_ARRAY_BUFFER, ctx.quadLineIndexBuffer);
+  ctx.gl.bufferData(ctx.gl.ELEMENT_ARRAY_BUFFER, lineIndices, ctx.gl.STATIC_DRAW);
   ctx.gl.bindBuffer(ctx.gl.ARRAY_BUFFER, null);
   ctx.gl.bindBuffer(ctx.gl.ELEMENT_ARRAY_BUFFER, null);
 
@@ -205,6 +209,7 @@ export function resetGpuState(ctx: WebGL2RendererContext): void {
     if (ctx.dynamicProgram) ctx.gl.deleteProgram(ctx.dynamicProgram);
     if (ctx.quadCornerBuffer) ctx.gl.deleteBuffer(ctx.quadCornerBuffer);
     if (ctx.quadIndexBuffer) ctx.gl.deleteBuffer(ctx.quadIndexBuffer);
+    if (ctx.quadLineIndexBuffer) ctx.gl.deleteBuffer(ctx.quadLineIndexBuffer);
     if (ctx.lineProgram) ctx.gl.deleteProgram(ctx.lineProgram.program);
     if (ctx.quadProgram) ctx.gl.deleteProgram(ctx.quadProgram.program);
     if (ctx.barProgram) ctx.gl.deleteProgram(ctx.barProgram.program);
@@ -222,6 +227,7 @@ export function resetGpuState(ctx: WebGL2RendererContext): void {
   ctx.barProgram = null;
   ctx.quadCornerBuffer = null;
   ctx.quadIndexBuffer = null;
+  ctx.quadLineIndexBuffer = null;
   ctx.gpuText = null;
   ctx.gl = null;
   ctx.textMode = ctx.options.textLayer ? "canvas" : "none";

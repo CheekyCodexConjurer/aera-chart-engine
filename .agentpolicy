@@ -1,0 +1,24 @@
+# Agent Policy (Command Guard)
+# Define commands that are denied or require confirmation.
+# Update this list to match your repo risk profile.
+
+version: 1
+deny:
+  - "rm -rf"
+  - "git reset --hard"
+  - "git checkout --"
+  - "kubectl apply"
+  - "terraform apply"
+  - "helm upgrade"
+  - "ansible-playbook"
+  - "aws "
+confirm:
+  - "npm publish"
+  - "pip install"
+  - "docker build"
+  - "docker push"
+  - "kubectl "
+  - "terraform plan"
+notes:
+  - "Use deny for destructive or production-impacting commands."
+  - "Use confirm for commands that need explicit approval."

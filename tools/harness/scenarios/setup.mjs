@@ -1,11 +1,30 @@
 import { getScenarioSpec } from "./registry.mjs";
 
+function includeVolume(spec) {
+  return spec.includeVolume === true;
+}
+
+function filterPaneLayout(spec) {
+  if (!spec.paneLayout) return null;
+  if (includeVolume(spec)) return spec.paneLayout;
+  return spec.paneLayout.filter((entry) => entry.paneId !== "volume");
+}
+
+function filterSeries(spec, series) {
+  if (!includeVolume(spec) && (series.id === "volume" || series.paneId === "volume")) {
+    return false;
+  }
+  return true;
+}
+
 export function loadScenarioIntoEngine(engine, dataset, scenarioId) {
   const spec = getScenarioSpec(scenarioId ?? dataset.manifest.scenarioId);
-  if (spec.paneLayout) {
-    engine.setPaneLayout(spec.paneLayout);
+  const paneLayout = filterPaneLayout(spec);
+  if (paneLayout) {
+    engine.setPaneLayout(paneLayout);
   }
-  for (const series of dataset.manifest.series) {
+  const seriesToLoad = dataset.manifest.series.filter((series) => filterSeries(spec, series));
+  for (const series of seriesToLoad) {
     engine.defineSeries({
       id: series.id,
       type: series.type,
@@ -13,7 +32,7 @@ export function loadScenarioIntoEngine(engine, dataset, scenarioId) {
       scaleId: series.scaleId
     });
   }
-  for (const series of dataset.manifest.series) {
+  for (const series of seriesToLoad) {
     const fields = dataset.seriesData.get(series.id);
     engine.setSeriesData(series.id, fields, "replace");
   }

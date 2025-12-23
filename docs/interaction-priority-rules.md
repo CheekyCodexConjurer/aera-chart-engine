@@ -10,6 +10,8 @@ This document defines priority ordering for input handling, rendering, and backg
 5. Indicator result ingestion.
 6. Diagnostics aggregation and logging.
 
+- Vertical pan scale-domain updates are treated as transform updates and must not block input.
+
 ## Cancellation and coalescing
 - Long-running tasks must be cancellable.
 - Multiple invalidations are coalesced into a single frame.

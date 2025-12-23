@@ -13,6 +13,8 @@ This document defines the canonical time domain and the required data invariants
 - The engine is timezone-agnostic and does not apply timezone shifts.
 - Any display timezone adjustment is a host responsibility.
 - Pointer and visible range events always use the canonical domain.
+- Default time axis labels are UTC and show time within the day, with date labels on day boundaries.
+- Hosts can override time axis labels via `timeAxisConfig.labelFormatter`.
 
 ## Sorting and deduplication rules
 - Time values in each series snapshot are strictly increasing.

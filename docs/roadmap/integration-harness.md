@@ -22,9 +22,10 @@ Owners: Integration Agent (harness UI/headless), Data Pipeline Agent (dataset sc
 
 ## Required features
 - Pan, zoom, and reset controls (pointer + keyboard).
+- Price scale drag to adjust vertical zoom on the primary scale.
 - Replay controls: off, arming, paused, playing with cutoff advance.
 - Overlay toggles for line, zone, marker, label, table, right-label.
-- Multi-pane layout with independent Y scales.
+- Multi-pane layout with independent Y scales (volume pane optional in UI harness).
 
 ## Dataset scenarios
 - Baseline: 10k, 100k, 1M bars with 500-2k visible.

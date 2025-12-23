@@ -15,7 +15,7 @@ This document defines explicit latency targets for quant-lab critical actions.
 | Indicator toggle: time-to-visible-change | 100 ms / 250 ms |
 | Replay scrub: input-to-visual latency | 50 ms / 100 ms |
 | Last candle update: time-to-render | 50 ms / 100 ms |
-| Pan/zoom under 2k visible points | 12 ms / 16.6 ms frame time |
+| Pan/zoom (horizontal + vertical) under 2k visible points | 12 ms / 16.6 ms frame time |
 
 ## Reporting requirements
 - Include dataset size and visible range.

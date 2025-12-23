@@ -276,12 +276,36 @@ WorkerAdapter: {
 ```
 
 ## Theme and styling precedence
-- Global theme -> pane theme -> series defaults -> plot overrides.
+- Renderer theme (global) -> series defaults -> plot overrides.
+- Pane and per-series theme overrides are planned but not implemented yet.
 - "Kind" tags may influence defaults but must not enforce indicator-specific behavior.
 
 ## Theme update guarantees
 - Theme updates are incremental and must not require full teardown.
 - Partial theme updates merge deterministically with existing theme state.
+
+## Renderer theme API (implemented)
+- `new WebGL2Renderer(canvas, { theme? })`
+- `renderer.setTheme(partialTheme)` merges with existing theme and applies on the next render.
+- Theme colors accept CSS `#rgb`, `#rrggbb`, `#rrggbbaa`, `rgb()`, and `rgba()` formats.
+
+**ChartTheme**
+```
+{
+  background?: string,
+  grid?: string,
+  axis?: string,
+  axisText?: string,
+  crosshair?: string,
+  crosshairText?: string,
+  crosshairLabelBackground?: string,
+  candle?: {
+    body?: { up?: string, down?: string },
+    wick?: { up?: string, down?: string },
+    border?: { up?: string, down?: string, enabled?: boolean }
+  }
+}
+```
 
 ## Multi-pane and scale identity
 - All API calls use `paneId` and optional `scaleId`.

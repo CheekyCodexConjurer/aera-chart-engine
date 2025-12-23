@@ -42,6 +42,7 @@ import { OverlayStore } from "./overlays.js";
 import { FrameScheduler } from "./scheduler.js";
 import type { SeriesState } from "./series.js";
 import { getEngineContext } from "./engine/context.js";
+import type { PanAnchor } from "./engine/context.js";
 import { generateSessionId } from "./engine/util.js";
 import { renderFrame } from "./engine/render.js";
 import { captureReproBundle, applyReproBundle } from "./engine/repro.js";
@@ -117,7 +118,7 @@ export class ChartEngine {
   private interaction: InteractionStateMachine;
   private pointer = new PointerState();
   private pointerCapturePaneId: string | null = null;
-  private panAnchor: { paneId: string; range: Range; screenX: number } | null = null;
+  private panAnchor: PanAnchor | null = null;
   private pendingCrosshairMove: CrosshairEvent | null = null;
   private crosshairMoveScheduled = false;
   private crosshairState: CrosshairEvent | null = null;

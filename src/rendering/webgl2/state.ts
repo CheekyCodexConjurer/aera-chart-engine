@@ -95,6 +95,8 @@ export type QuadProgramInfo = {
     plotSize: WebGLUniformLocation;
     viewport: WebGLUniformLocation;
     halfWidth: WebGLUniformLocation;
+    colorUp: WebGLUniformLocation;
+    colorDown: WebGLUniformLocation;
   };
 };
 

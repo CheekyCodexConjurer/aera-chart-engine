@@ -119,25 +119,12 @@ function buildOverlays(spec, timeMs, close, arrays) {
   const batchId = `${spec.id}-overlays`;
 
   if (spec.overlayProfile === "basic") {
-    const linePoints = buildOverlayPoints(timeMs, close, 200, rng);
-    const linePacked = packPoints(linePoints, ["timeMs", "value"]);
-    const linePath = `overlays/${spec.id}/line-points.f64`;
-    const lineDescriptor = addArray(arrays, linePath, linePacked.packed);
-
     const labels = buildLabelPoints(timeMs, close, 12, rng);
     const labelPacked = packPoints(labels.points, ["timeMs", "value", "textIndex"]);
     const labelPath = `overlays/${spec.id}/label-points.f64`;
     const labelDescriptor = addArray(arrays, labelPath, labelPacked.packed);
 
     overlays.push(
-      {
-        id: "line-basic",
-        type: "line",
-        data: {
-          format: "packed-points",
-          points: { ...lineDescriptor, stride: linePacked.stride, fields: linePacked.fields }
-        }
-      },
       {
         id: "labels-basic",
         type: "label",

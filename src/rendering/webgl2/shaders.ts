@@ -68,7 +68,9 @@ export function createQuadProgramInfo(
   gl.enableVertexAttribArray(timeLow);
   gl.enableVertexAttribArray(value0);
   gl.enableVertexAttribArray(value1);
-  gl.enableVertexAttribArray(color);
+  if (color >= 0) {
+    gl.enableVertexAttribArray(color);
+  }
   gl.bindVertexArray(null);
   return {
     program,
@@ -84,7 +86,9 @@ export function createQuadProgramInfo(
       plotOrigin: gl.getUniformLocation(program, "u_plotOrigin")!,
       plotSize: gl.getUniformLocation(program, "u_plotSize")!,
       viewport: gl.getUniformLocation(program, "u_viewport")!,
-      halfWidth: gl.getUniformLocation(program, "u_halfWidth")!
+      halfWidth: gl.getUniformLocation(program, "u_halfWidth")!,
+      colorUp: gl.getUniformLocation(program, "u_colorUp")!,
+      colorDown: gl.getUniformLocation(program, "u_colorDown")!
     }
   };
 }
@@ -207,7 +211,6 @@ in float a_timeHigh;
 in float a_timeLow;
 in float a_value0;
 in float a_value1;
-in vec4 a_color;
 uniform float u_rangeStartHigh;
 uniform float u_rangeStartLow;
 uniform float u_rangeEndHigh;
@@ -218,6 +221,8 @@ uniform vec2 u_plotOrigin;
 uniform vec2 u_plotSize;
 uniform vec2 u_viewport;
 uniform float u_halfWidth;
+uniform vec4 u_colorUp;
+uniform vec4 u_colorDown;
 out vec4 v_color;
 
 float combineTime(float high, float low) {
@@ -233,12 +238,13 @@ void main() {
   float maxValue = max(a_value0, a_value1);
   float mixValue = (a_corner.y + 0.5);
   float value = mix(minValue, maxValue, mixValue);
+  float isUp = step(0.0, a_value1 - a_value0);
   float v = (value - u_domainMin) / (u_domainMax - u_domainMin);
   float x = u_plotOrigin.x + t * u_plotSize.x + a_corner.x * u_halfWidth * u_plotSize.x / (rangeEnd - rangeStart);
   float y = u_plotOrigin.y + u_plotSize.y - clamp(v, 0.0, 1.0) * u_plotSize.y;
   vec2 ndc = vec2((x / u_viewport.x) * 2.0 - 1.0, 1.0 - (y / u_viewport.y) * 2.0);
   gl_Position = vec4(ndc, 0.0, 1.0);
-  v_color = a_color;
+  v_color = mix(u_colorDown, u_colorUp, isUp);
 }
 `;
 

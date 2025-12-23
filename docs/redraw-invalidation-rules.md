@@ -19,6 +19,7 @@ This document defines redraw triggers and invalidation scope per interaction typ
 - Transform-only in steady state.
 - No full re-tessellation of 1M points.
 - Pinch zoom follows the same transform-only rules.
+- Vertical pan updates the primary scale domain and axis ticks without reuploading series buffers.
 
 **Crosshair move**
 - Overlay pass only.

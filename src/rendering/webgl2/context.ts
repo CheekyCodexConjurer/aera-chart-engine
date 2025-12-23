@@ -1,9 +1,10 @@
-import type { Diagnostic, RendererMetrics } from "../../api/public-types.js";
+import type { ChartTheme, Diagnostic, RendererMetrics } from "../../api/public-types.js";
 import type { PlotArea } from "../../core/transform.js";
 import type { RgbaColor } from "../color.js";
 import type { GpuBuffer } from "../gpu-buffer.js";
 import type { GpuTextRenderer, TextLayer } from "../text/index.js";
 import type { DynamicVertexBuffer } from "../vertex-buffer.js";
+import type { ResolvedTheme } from "../theme.js";
 import type { WebGL2Renderer } from "../webgl2-renderer.js";
 import type { BarProgramInfo, LineProgramInfo, QuadProgramInfo, SeriesGpuEntry } from "./state.js";
 
@@ -11,6 +12,7 @@ export type WebGL2RendererOptions = {
   onError?: (message: string) => void;
   onDiagnostic?: (diag: Diagnostic) => void;
   clearColor?: RgbaColor;
+  theme?: ChartTheme;
   textLayer?: TextLayer;
   useGpuText?: boolean;
   textFont?: string;
@@ -31,6 +33,7 @@ export type WebGL2RendererContext = {
   barProgram: BarProgramInfo | null;
   quadCornerBuffer: WebGLBuffer | null;
   quadIndexBuffer: WebGLBuffer | null;
+  quadLineIndexBuffer: WebGLBuffer | null;
   seriesCache: Map<string, SeriesGpuEntry>;
   gpuText: GpuTextRenderer | null;
   diagnosticHandler?: (diag: Diagnostic) => void;
@@ -43,6 +46,8 @@ export type WebGL2RendererContext = {
   warnedTextAtlasFull: boolean;
   textMode: "gpu" | "canvas" | "none";
   lastTextMode: "gpu" | "canvas" | "none";
+  theme: ChartTheme;
+  resolvedTheme: ResolvedTheme;
   clipStack: PlotArea[];
   hasContextListeners: boolean;
   isContextLost: boolean;

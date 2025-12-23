@@ -24,9 +24,12 @@ import {
   TimeAxisConfig,
   TransformEvent,
   TimeMs,
-  VisibleRangeEvent
+  VisibleRangeEvent,
+  WorkerAdapter,
+  WorkerMode,
+  WorkerStatus
 } from "../api/public-types.js";
-import { ComputePipeline } from "../compute/pipeline.js";
+import type { ComputePipelineLike } from "../compute/pipeline.js";
 import { LruCache } from "../data/cache.js";
 import { PointerState } from "../interaction/pointer.js";
 import { InteractionStateMachine } from "../interaction/state-machine.js";
@@ -64,6 +67,7 @@ import {
   postComputeRequest,
   setComputePipeline
 } from "./engine/compute.js";
+import { getWorkerStatus, setWorkerAdapter } from "./engine/worker.js";
 import { focusTime, resetAroundAnchor, resetToLatest, setReplayState, setVisibleRange } from "./engine/replay.js";
 import { priceToY, timeToX, xToTime, yToPrice } from "./engine/coordinates.js";
 import {
@@ -98,7 +102,13 @@ export class ChartEngine {
   private panes = new Map<string, PaneState>();
   private series = new Map<string, SeriesState>();
   private overlays = new OverlayStore();
-  private computePipeline: ComputePipeline;
+  private computePipeline: ComputePipelineLike;
+  private workerAdapter: WorkerAdapter | null = null;
+  private workerMode: WorkerMode = "main";
+  private workerStatus: WorkerStatus = { available: false, mode: "main", reason: "not-configured" };
+  private workerRenderer: Renderer | null = null;
+  private workerRendererFallback: Renderer | null = null;
+  private workerPipelineFallback: ComputePipelineLike | null = null;
   private renderCache = new Map<string, RenderSeriesCache>();
   private lodCache: LruCache<string, RenderSeries>;
   private lodState = new Map<string, LodState>();
@@ -257,12 +267,16 @@ export class ChartEngine {
   removeSeries(seriesId: string): void { removeSeries(getEngineContext(this), seriesId); }
   setOverlays(batch: OverlayBatch): void { setOverlays(getEngineContext(this), batch); }
   removeOverlayBatch(batchId: string): void { removeOverlayBatch(getEngineContext(this), batchId); }
-  setComputePipeline(pipeline: ComputePipeline | null): void { setComputePipeline(getEngineContext(this), pipeline); }
+  setComputePipeline(pipeline: ComputePipelineLike | null): void { setComputePipeline(getEngineContext(this), pipeline); }
   postComputeRequest(request: ComputeRequest): void { postComputeRequest(getEngineContext(this), request); }
   cancelComputeIndicator(indicatorId: string, version?: number): void { cancelComputeIndicator(getEngineContext(this), indicatorId, version); }
   cancelComputeWindow(windowId: string): void { cancelComputeWindow(getEngineContext(this), windowId); }
   applyComputeResult(result: ComputeResult): boolean { return applyComputeResult(getEngineContext(this), result); }
   getComputeStatus(): { pendingIndicators: number; pendingSeries: number } { return getComputeStatus(getEngineContext(this)); }
+  setWorkerAdapter(adapter: WorkerAdapter | null, options?: { mode?: WorkerMode }): WorkerStatus {
+    return setWorkerAdapter(getEngineContext(this), adapter, options);
+  }
+  getWorkerStatus(): WorkerStatus { return getWorkerStatus(getEngineContext(this)); }
   setReplayState(state: ReplayState): void { setReplayState(getEngineContext(this), state); }
   resetToLatest(paneId = "price"): void { resetToLatest(getEngineContext(this), paneId); }
   resetAroundAnchor(timeMs: TimeMs, paneId = "price"): void { resetAroundAnchor(getEngineContext(this), timeMs, paneId); }

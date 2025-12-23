@@ -4,6 +4,12 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "files": [
     "dist"
   ],
@@ -24,7 +30,10 @@
     "auto:debug:analyze": "node ./tools/auto-debug/run.mjs --mode=analyze --probe=off",
     "test:auto-debug": "node ./tests/auto-debug-smoke.mjs",
     "test:replay": "npm run build && node ./tests/replay-harness.mjs",
-    "test:pinescript:parity": "npm run build && node ./tests/pinescript-parity.mjs"
+    "test:pinescript:parity": "npm run build && node ./tests/pinescript-parity.mjs",
+    "test:public-api": "npm run build && node ./tests/public-api-surface.mjs",
+    "test:compute": "npm run build && node ./tests/compute-pipeline.mjs && node ./tests/worker-pipeline.mjs && node ./tests/worker-renderer.mjs",
+    "release:check": "node ./tools/release/verify.mjs"
   },
   "devDependencies": {
     "typescript": "^5.5.4"

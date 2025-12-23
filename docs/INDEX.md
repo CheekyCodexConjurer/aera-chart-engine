@@ -30,6 +30,7 @@ This index maps all canonical documentation for the chart engine. Each page is s
 - `quant-lab-integration-guide.md` - how the host uses the engine today.
 - `indicator-engine-performance-contract.md` - indicator output guarantees.
 - `data-rendering-pipeline-contract.md` - LOD and invalidation rules.
+- `compatibility-matrix.md` - host adapter vs engine compatibility table.
 
 ## Performance and responsiveness
 - `large-dataset-handling.md` - dataset size guarantees and cache caps.

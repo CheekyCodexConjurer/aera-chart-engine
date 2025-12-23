@@ -7,7 +7,7 @@ This spec defines contract versioning, compatibility rules, and adapter guidance
 - Contract version is independent of package version but must be compatible.
 - Breaking changes require a major bump of `engineContractVersion`.
 - Initial contract version should match the package version until the first breaking change.
-- Canonical engineContractVersion: `0.3.0`.
+- Canonical engineContractVersion: `0.4.0`.
 
 ## Source of truth (required)
 - The canonical contract version lives in documentation and is exposed via `getEngineInfo()`.
@@ -50,6 +50,14 @@ This spec defines contract versioning, compatibility rules, and adapter guidance
 - Migration steps: accept new metrics fields in diagnostics pipelines and update any hash comparators to account for pane render windows.
 - Rollback: ignore new metrics fields and pin to engine contract 0.2.x.
 
+### Contract change: Worker compute + offscreen adapter (0.4.0)
+- Rationale: move indicator compute off the main thread and expose an offscreen renderer bridge.
+- Old behavior: worker APIs documented only; no worker adapter or status; compute requests were main-thread only.
+- New behavior: `setWorkerAdapter` and `getWorkerStatus` are implemented; `postComputeRequest` supports optional `transfer` for worker payloads; offscreen mode posts render commands to a worker adapter.
+- Compatibility impact: backward-compatible additions; existing consumers unaffected.
+- Migration steps: pass a `WorkerAdapter` to `setWorkerAdapter` and handle `compute_request`/`compute_result` messages; opt into `mode: "offscreen"` only when supported.
+- Rollback: remove worker adapter usage and pin to engine contract 0.3.x.
+
 ## Contract tests (doc-first)
 - Contract tests fail when the API surface changes without a version bump.
 - Tests validate: event payloads, type unions, required options, and default behaviors.
@@ -83,7 +91,7 @@ The contract test suite must validate the following surfaces against the canonic
 - Record adapter version in the compatibility matrix on release.
 
 ## Compatibility matrix
-- Maintain a matrix: host adapter version x engineContractVersion.
+- Maintain a matrix in `docs/compatibility-matrix.md`: host adapter version x engineContractVersion.
 - Minimum: last 2 minor contract versions must remain supported.
 
 ## References

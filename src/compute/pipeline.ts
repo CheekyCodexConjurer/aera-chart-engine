@@ -1,13 +1,30 @@
 import { ComputeRequest, ComputeResult, Diagnostic, OverlayBatch } from "../api/public-types.js";
 
+export type ComputePipelineLike = {
+  postRequest(request: ComputeRequest): void;
+  cancelIndicator(indicatorId: string, version?: number): void;
+  cancelWindow(windowId: string): void;
+  applyResult(result: ComputeResult): boolean;
+  getStatus(): { pendingIndicators: number; pendingSeries: number };
+  dispose?(): void;
+};
+
+export type ComputeQueueDrop = {
+  request: ComputeRequest;
+  scope: "indicator" | "series";
+  key: string;
+  maxPending: number;
+};
+
 export type ComputePipelineOptions = {
   maxPendingPerIndicator?: number;
   maxPendingPerSeries?: number;
   applyOverlays?: (batch: OverlayBatch) => void;
   emitDiagnostic?: (diagnostic: Diagnostic) => void;
+  onDrop?: (drop: ComputeQueueDrop) => void;
 };
 
-export class ComputePipeline {
+export class ComputePipeline implements ComputePipelineLike {
   private pendingByIndicator = new Map<string, ComputeRequest[]>();
   private pendingBySeries = new Map<string, ComputeRequest[]>();
   private latestRequested = new Map<string, number>();
@@ -18,12 +35,14 @@ export class ComputePipeline {
   private maxPendingPerSeries: number;
   private applyOverlays?: (batch: OverlayBatch) => void;
   private emitDiagnostic?: (diagnostic: Diagnostic) => void;
+  private onDrop?: (drop: ComputeQueueDrop) => void;
 
   constructor(options: ComputePipelineOptions = {}) {
     this.maxPendingPerIndicator = Math.max(1, options.maxPendingPerIndicator ?? 2);
     this.maxPendingPerSeries = Math.max(1, options.maxPendingPerSeries ?? 2);
     this.applyOverlays = options.applyOverlays;
     this.emitDiagnostic = options.emitDiagnostic;
+    this.onDrop = options.onDrop;
   }
 
   postRequest(request: ComputeRequest): void {
@@ -134,6 +153,12 @@ export class ComputePipeline {
           key,
           maxPending,
           droppedVersion: dropped.version
+        });
+        this.onDrop?.({
+          request: dropped,
+          scope,
+          key,
+          maxPending
         });
       }
     }

@@ -10,10 +10,13 @@ import type {
   ReplayState,
   TransformEvent,
   TimeAxisConfig,
-  VisibleRangeEvent
+  VisibleRangeEvent,
+  WorkerAdapter,
+  WorkerMode,
+  WorkerStatus
 } from "../../api/public-types.js";
 import type { LruCache } from "../../data/cache.js";
-import type { ComputePipeline } from "../../compute/pipeline.js";
+import type { ComputePipelineLike } from "../../compute/pipeline.js";
 import type { PointerState } from "../../interaction/pointer.js";
 import type { InteractionStateMachine } from "../../interaction/state-machine.js";
 import type { RenderSeries, Renderer } from "../../rendering/renderer.js";
@@ -39,7 +42,13 @@ export type EngineContext = {
   panes: Map<string, PaneState>;
   series: Map<string, SeriesState>;
   overlays: OverlayStore;
-  computePipeline: ComputePipeline;
+  computePipeline: ComputePipelineLike;
+  workerAdapter: WorkerAdapter | null;
+  workerMode: WorkerMode;
+  workerStatus: WorkerStatus;
+  workerRenderer: Renderer | null;
+  workerRendererFallback: Renderer | null;
+  workerPipelineFallback: ComputePipelineLike | null;
   renderCache: Map<string, RenderSeriesCache>;
   lodCache: LruCache<string, RenderSeries>;
   lodState: Map<string, LodState>;

@@ -8,26 +8,29 @@ This spec defines packaging targets, release hygiene, and compatibility matrices
 - Versioned artifacts in `dist/` with source maps.
 
 ## Export surface (required)
-- Default: `import { createChartEngine } from "aera-chart-engine"`.
+- Default: `import { ChartEngine } from "aera-chart-engine"`.
 - Types are exported from `dist/index.d.ts`.
 - Internal modules are not exported.
+- `package.json` must define `exports` for the root entrypoint only.
 
 ## Release hygiene
-- Changelog entry per release with contract version and migration notes.
+- `CHANGELOG.md` entry per release with contract version and migration notes.
 - Tag releases with `vX.Y.Z` and include contract version in notes.
 - Archive benchmark artifacts alongside release notes.
- - Update compatibility matrix on every release.
+- Update `docs/compatibility-matrix.md` on every release.
 
 ## Release checklist (minimum)
 - `engineContractVersion` updated if behavior changed.
 - Benchmarks executed for the canonical scenarios.
 - Repro bundle schema version bumped if changed.
 - CI gates pass (check, smoke, contracts, benchmarks).
+- `npm run release:check` passes.
+- `npm pack --dry-run` succeeds.
 
 ## Compatibility matrix
-- Track host adapter version x engineContractVersion.
+- Track host adapter version x engineContractVersion in `docs/compatibility-matrix.md`.
 - Require a documented support window (min: last 2 minor versions).
- - Deprecations include planned removal version.
+- Deprecations include planned removal version.
 
 ## References
 - `contracts-and-compat.md`

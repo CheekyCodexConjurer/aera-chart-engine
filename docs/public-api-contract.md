@@ -165,20 +165,20 @@ Supported commands:
 - Conversions use the active axis transform at the time of the call.
 - `onTransformChange` provides the plot area, visible range, and gutters for event-driven conversions.
 
-## Worker / OffscreenCanvas (planned, doc-only)
-These APIs describe the intended boundary; they are not implemented yet.
+## Worker / OffscreenCanvas (implemented)
+These APIs define the worker boundary and optional offscreen renderer mode.
 
-**Planned methods**
-- `setWorkerAdapter(adapter)`
-- `getWorkerStatus() -> { available: boolean, mode: "main" | "worker" | "offscreen" }`
-- `postComputeRequest({ windowId, version, payload, priority? })`
+**Methods**
+- `setWorkerAdapter(adapter, { mode? })`
+- `getWorkerStatus() -> { available: boolean, mode: "main" | "worker" | "offscreen", reason? }`
+- `postComputeRequest({ windowId, version, payload, priority?, transfer? })`
 - `cancelCompute(windowId)`
 
-**Adapter interface (planned)**
+**Adapter interface**
 ```
 WorkerAdapter: {
-  post(message): void
-  onMessage(handler): void
+  post(message, transfer?): void
+  onMessage(handler): () => void
   terminate(): void
   supportsOffscreenCanvas?: boolean
 }
@@ -186,6 +186,7 @@ WorkerAdapter: {
 
 **Rules**
 - Worker results are versioned and dropped if stale.
+- `mode: "offscreen"` is opt-in and falls back to `worker` with diagnostics when unsupported.
 - Fallback to main thread emits diagnostics and never happens silently.
 
 ## Compute pipeline (implemented)
@@ -200,6 +201,7 @@ WorkerAdapter: {
 - Results with versions older than the latest request are dropped deterministically.
 - Queue depth is capped (default 2 per indicator/series) with diagnostics on drop.
 - Cancellation is explicit and logged.
+- `transfer` is forwarded to the worker adapter when present.
 
 ## Axis and scale configuration
 - `setScaleConfig(paneId, scaleId, { position?, visible?, tickCount?, labelFormatter? })`

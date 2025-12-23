@@ -9,6 +9,7 @@ export type ComputeRequest = {
   payload: unknown;
   seriesId?: string;
   priority?: ComputePriority;
+  transfer?: Transferable[];
 };
 
 export type ComputeResult = {

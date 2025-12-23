@@ -413,15 +413,15 @@ M0–M8 establish the contract and documentation baseline. The milestones below 
   - Deps: M0.
 ### M13 - Compute + threading (implementation)
 **Goal**: Run indicators off the main thread and prepare worker rendering.
-
-- [ ] T13.1 Implement worker compute pipeline with cancellation + backpressure.
+- Plan: `docs/roadmap/m13-compute-threading-design.md`.
+- [x] T13.1 Implement worker compute pipeline with cancellation + backpressure.
   - Context: compute docs exist; runtime is partial.
   - Changes: worker pool, request versioning, cancellation, queue caps.
   - DoD: indicator toggles do not block; stale results dropped deterministically.
   - Risks: queue buildup; Mitigation: max queue depth + coalescing.
   - Deps: M5.
 
-- [ ] T13.2 Implement OffscreenCanvas render path (optional mode).
+- [x] T13.2 Implement OffscreenCanvas render path (optional mode).
   - Context: threading plan is doc-only.
   - Changes: renderer adapter for worker, message bridge, fallback rules.
   - DoD: parity with main-thread rendering for core flows.
@@ -469,15 +469,15 @@ M0–M8 establish the contract and documentation baseline. The milestones below 
 
 ### M16 - Packaging + release (implementation)
 **Goal**: Ship predictable builds with explicit compatibility.
-
-- [ ] T16.1 Implement build outputs (ESM + types) with export map.
+- Plan: `docs/roadmap/m16-packaging-release-design.md`.
+- [x] T16.1 Implement build outputs (ESM + types) with export map.
   - Context: packaging rules are doc-only.
   - Changes: build config, export map, public API surface tests.
   - DoD: consumption works via documented entrypoints.
   - Risks: export drift; Mitigation: contract tests.
   - Deps: M0.
 
-- [ ] T16.2 Implement release workflow + compatibility matrix updates.
+- [x] T16.2 Implement release workflow + compatibility matrix updates.
   - Context: release hygiene requires automation.
   - Changes: changelog enforcement, version tagging, matrix update gate.
   - DoD: releases fail without required notes + compatibility updates.

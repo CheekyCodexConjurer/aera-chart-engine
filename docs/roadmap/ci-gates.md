@@ -10,6 +10,8 @@ This spec defines the minimum CI pipeline and gating policy.
 - PineScript parity (`npm run test:pinescript:parity`).
 - Benchmark suite (`npm run bench:baseline`, `npm run bench:interaction`).
 - Contract tests (`npm run test:contracts`).
+- Compute pipeline tests (`npm run test:compute`).
+- Public API surface check (`npm run test:public-api`).
 
 ## Gate policy
 - PRs fail if contract tests or smoke tests fail.
@@ -17,6 +19,11 @@ This spec defines the minimum CI pipeline and gating policy.
 - Benchmark thresholds and waiver rules are defined in `performance-gates.md` and require explicit approval.
 - Any contract change requires version bump and migration notes.
 - Contract tests must verify `engineContractVersion` against a golden spec.
+
+## Release workflow (tags)
+- Tags `vX.Y.Z` trigger a release gate workflow.
+- Release gate runs the CI suite plus `npm run release:check` and `npm pack --dry-run`.
+- Release gate fails if `CHANGELOG.md` or `docs/compatibility-matrix.md` are not updated for the tagged version.
 
 ## Benchmark gate rollout
 - Phase A: observe-only (collect artifacts, no gating).
@@ -37,6 +44,8 @@ This spec defines the minimum CI pipeline and gating policy.
 - `npm run test:contracts`
 - `npm run test:replay`
 - `npm run test:pinescript:parity`
+- `npm run test:compute`
+- `npm run test:public-api`
 - `npm run bench:baseline`
 - `npm run bench:interaction`
 - `npm run bench:gate`

@@ -1,6 +1,6 @@
 # Threading Plan (Worker / OffscreenCanvas)
 
-This spec outlines the future worker and OffscreenCanvas architecture without adding implementation.
+This spec outlines the worker and OffscreenCanvas architecture and the implemented boundary.
 
 ## Goals
 - Preserve main-thread responsiveness under heavy compute and rendering.
@@ -26,12 +26,17 @@ This spec outlines the future worker and OffscreenCanvas architecture without ad
 - `diagnostic`: worker-side diagnostics mirrored to host.
 - `control`: lifecycle and backpressure signals.
 
-## API boundaries (doc-only)
-- `setWorkerAdapter(adapter)` to register worker transport.
+## API boundaries (implemented)
+- `setWorkerAdapter(adapter, { mode? })` to register worker transport.
 - `postComputeRequest({ windowId, version, payload, priority? })`.
 - `cancelCompute(windowId)` to drop stale work.
 - `getWorkerStatus()` to report availability and mode.
 - Renderer must accept a command stream from worker without blocking UI.
+
+**Worker status**
+```
+{ available: boolean, mode: "main" | "worker" | "offscreen", reason?: string }
+```
 
 ## Compute request payload (planned)
 ```
@@ -57,7 +62,8 @@ This spec outlines the future worker and OffscreenCanvas architecture without ad
 ```
 
 ## Data handoff rules
-- Use transferables for TypedArrays; no structured clone of large arrays.
+- Use transferables for compute payloads when provided; no blocking on worker.
+- Render commands use structured clone to avoid detaching cached buffers.
 - SharedArrayBuffer is allowed only when COOP/COEP is enabled.
 - Results are versioned and tagged with `seriesId`/`overlayId`.
 
@@ -66,10 +72,16 @@ This spec outlines the future worker and OffscreenCanvas architecture without ad
 - The engine drops any result with a stale `requestId`.
 - Max queue depth must be bounded; overflow emits diagnostics.
 
+## Worker message channels (implemented)
+- `compute_request` -> worker, `compute_result` -> engine.
+- `compute_cancel_indicator` / `compute_cancel_window` / `compute_cancel_request`.
+- `render_command` for offscreen renderer (`initialize`, `resize`, `render`, `removeSeries`).
+- `diagnostic` and `status` for worker-side reporting.
+
 ## Fallback policy
 - If OffscreenCanvas is unavailable, fall back to main-thread renderer.
 - Fallback must be explicit and surfaced via diagnostics.
- - Diagnostic codes: `worker/unavailable`, `worker/offscreen-unavailable`.
+ - Diagnostic codes: `worker.offscreen.unavailable`.
 
 ## References
 - `../backpressure-cancellation-contract.md`

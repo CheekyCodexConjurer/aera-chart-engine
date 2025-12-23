@@ -1,9 +1,9 @@
 import type { ComputeRequest, ComputeResult } from "../../api/public-types.js";
-import { ComputePipeline } from "../../compute/pipeline.js";
+import { ComputePipeline, type ComputePipelineLike } from "../../compute/pipeline.js";
 import type { EngineContext } from "./context.js";
 import { setOverlays } from "./overlays.js";
 
-export function setComputePipeline(ctx: EngineContext, pipeline: ComputePipeline | null): ComputePipeline {
+export function setComputePipeline(ctx: EngineContext, pipeline: ComputePipelineLike | null): ComputePipelineLike {
   if (pipeline) {
     ctx.computePipeline = pipeline;
     return pipeline;

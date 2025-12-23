@@ -65,6 +65,8 @@ export type {
 
 export type { ComputePriority, ComputeRequest, ComputeResult } from "./types/compute.js";
 
+export type { WorkerAdapter, WorkerMode, WorkerStatus } from "./types/worker.js";
+
 export type { ReplayMode, ReplayState } from "./types/replay.js";
 
 export type {

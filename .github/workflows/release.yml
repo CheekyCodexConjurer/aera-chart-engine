@@ -1,13 +1,13 @@
-name: CI
+name: Release Gate
 
 on:
   push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
+    tags:
+      - "v*"
+  workflow_dispatch:
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -39,3 +39,7 @@ jobs:
         run: npm run bench:interaction
       - name: Bench gate
         run: npm run bench:gate
+      - name: Release checks
+        run: npm run release:check
+      - name: Package dry run
+        run: npm pack --dry-run

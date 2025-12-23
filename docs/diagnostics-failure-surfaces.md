@@ -39,6 +39,8 @@ This document defines error surfaces, diagnostic expectations, and reproducibili
 - `compute.result.canceled`
 - `compute.result.stale`
 - `compute.result.untracked`
+- `worker.offscreen.unavailable`
+- `worker.message.unknown`
 - `pinescript.limit.exceeded`
 - `pinescript.output.invalid`
 - `pinescript.output.unsupported`

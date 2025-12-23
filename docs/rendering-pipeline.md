@@ -18,6 +18,8 @@ This document defines the WebGL2-first render pipeline, resource strategy, and r
 - Buffer pools are bounded and reused across frames.
 - Dynamic buffers are reserved for interaction overlays and label backgrounds.
 - Series geometry is cached in GPU buffers and transformed in shader space.
+- Pan/zoom steady state reuses series buffers and updates uniforms only.
+- Clip stacks restore scissor state per pane/layer without leaking across passes.
 
 ## Instancing and batching
 - Batching is by material, shader, and texture atlas.
@@ -28,6 +30,8 @@ This document defines the WebGL2-first render pipeline, resource strategy, and r
 - Default: GPU glyph atlas with cached metrics.
 - CPU layout is deterministic and cached per label run.
 - Canvas text is an explicit fallback when configured.
+- If the GPU atlas cannot admit new glyphs, the renderer falls back once and stays deterministic.
+- When no text renderer is available, label rendering is skipped with an explicit error callback.
 
 ## Precision management
 - CPU transforms use double precision.

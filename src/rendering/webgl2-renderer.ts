@@ -38,6 +38,9 @@ export class WebGL2Renderer implements Renderer {
   private height = 0;
   private dpr = 1;
   private warnedMissingTextLayer = false;
+  private warnedTextAtlasFull = false;
+  private textMode: "gpu" | "canvas" | "none";
+  private lastTextMode: "gpu" | "canvas" | "none";
   private clipStack: PlotArea[] = [];
   private hasContextListeners = false;
   private isContextLost = false;
@@ -52,6 +55,9 @@ export class WebGL2Renderer implements Renderer {
   constructor(private canvas: HTMLCanvasElement, private options: WebGL2RendererOptions = {}) {
     this.diagnosticHandler = options.onDiagnostic;
     this.maxSeriesGpuBytes = options.maxSeriesGpuBytes ?? 256 * 1024 * 1024;
+    const preferGpuText = options.useGpuText ?? !options.textLayer;
+    this.textMode = preferGpuText ? "gpu" : options.textLayer ? "canvas" : "none";
+    this.lastTextMode = this.textMode;
   }
 
   initialize(): void { initializeRenderer(getRendererContext(this)); }

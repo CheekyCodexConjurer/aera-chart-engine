@@ -149,6 +149,10 @@ export function initializeRenderer(ctx: WebGL2RendererContext): void {
   if (useGpuText) {
     ctx.gpuText = new GpuTextRenderer(ctx.gl, { font: ctx.options.textFont });
   }
+  ctx.textMode = useGpuText ? "gpu" : ctx.options.textLayer ? "canvas" : "none";
+  ctx.lastTextMode = ctx.textMode;
+  ctx.warnedTextAtlasFull = false;
+  ctx.warnedMissingTextLayer = false;
 }
 
 export function resizeRenderer(ctx: WebGL2RendererContext, width: number, height: number, devicePixelRatio: number): void {
@@ -220,4 +224,7 @@ export function resetGpuState(ctx: WebGL2RendererContext): void {
   ctx.quadIndexBuffer = null;
   ctx.gpuText = null;
   ctx.gl = null;
+  ctx.textMode = ctx.options.textLayer ? "canvas" : "none";
+  ctx.lastTextMode = ctx.textMode;
+  ctx.warnedTextAtlasFull = false;
 }

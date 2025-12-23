@@ -70,6 +70,21 @@ engine.flush();
 const gutterB = engine.getRightGutterWidth("price");
 assert.ok(Math.abs(gutterA - gutterB) <= 2, "right gutter should remain stable");
 
+engine.setScaleDomain("price", "price", { min: 0, max: 10_000_000 });
+engine.flush();
+const gutterLarge = engine.getRightGutterWidth("price");
+assert.ok(gutterLarge > gutterB, "gutter should expand for large labels");
+
+engine.setScaleDomain("price", "price", { min: 0, max: 1_000_000 });
+engine.flush();
+const gutterHold = engine.getRightGutterWidth("price");
+assert.equal(gutterHold, gutterLarge, "gutter should not shrink within hysteresis band");
+
+engine.setScaleDomain("price", "price", { min: 0, max: 1_000 });
+engine.flush();
+const gutterShrink = engine.getRightGutterWidth("price");
+assert.ok(gutterShrink < gutterHold, "gutter should shrink after a large label drop");
+
 engine.defineSeries({ id: "line-2", type: "line", paneId: "price", scaleId: "secondary" });
 engine.setSeriesData("line-2", buildLine(200, 0, 60000, 70));
 engine.setScaleConfig("price", "secondary", { position: "right", visible: true });

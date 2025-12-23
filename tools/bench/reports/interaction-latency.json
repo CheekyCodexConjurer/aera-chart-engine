@@ -1,5 +1,5 @@
 {
-  "runId": "2025-12-22T16-40-48-834Z",
+  "runId": "2025-12-22T22-49-03-608Z",
   "scenarioId": "interaction-latency",
   "engineVersion": "0.1.0",
   "engineContractVersion": "0.1.0",
@@ -21,20 +21,20 @@
   },
   "metrics": {
     "crosshairLatencyMs": {
-      "p50": 0.009000000000000341,
-      "p95": 0.0683000000000078
+      "p50": 0.01269999999999527,
+      "p95": 0.13009999999999877
     },
     "panLatencyMs": {
-      "p50": 0.04549999999998988,
-      "p95": 0.1478000000000037
+      "p50": 0.06850000000000023,
+      "p95": 0.220799999999997
     },
     "zoomLatencyMs": {
-      "p50": 0.03459999999999752,
-      "p95": 0.17860000000000298
+      "p50": 0.04990000000000805,
+      "p95": 0.3316999999999837
     },
     "replayScrubLatencyMs": {
-      "p50": 0.048700000000010846,
-      "p95": 0.17840000000001055
+      "p50": 0.09860000000000468,
+      "p95": 0.24669999999997572
     }
   },
   "assertions": {
@@ -45,7 +45,7 @@
     "zoomPass": true,
     "replayPass": true
   },
-  "timestamp": "2025-12-22T16:40:48.835Z",
+  "timestamp": "2025-12-22T22:49:03.610Z",
   "renderer": "null",
   "notes": "Headless Node measurements; latency approximated by action+flush time."
 }

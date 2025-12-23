@@ -238,15 +238,17 @@ export function updateScaleDomain(ctx: EngineContext, paneId: string): void {
 export function updateAxisLayout(ctx: EngineContext, paneId: string, allowGutterUpdate = true): void {
   const pane = ensurePane(ctx, paneId);
   const layout = computeAxisLayout(ctx, pane);
+  const leftStable = stabilizeGutterWidth(ctx, pane.leftGutterWidth, layout.leftGutterWidth, ctx.baseLeftGutterWidth);
+  const rightStable = stabilizeGutterWidth(ctx, pane.rightGutterWidth, layout.rightGutterWidth, ctx.baseRightGutterWidth);
   pane.axisTicks = layout.axisTicks;
   pane.timeTicks = layout.timeTicks;
   pane.primaryScaleId = layout.primaryScaleId;
 
-  const leftChanged = Math.abs(layout.leftGutterWidth - pane.leftGutterWidth) > 2;
-  const rightChanged = Math.abs(layout.rightGutterWidth - pane.rightGutterWidth) > 2;
+  const leftChanged = Math.abs(leftStable - pane.leftGutterWidth) > 0.5;
+  const rightChanged = Math.abs(rightStable - pane.rightGutterWidth) > 0.5;
   if (allowGutterUpdate && (leftChanged || rightChanged)) {
-    pane.leftGutterWidth = layout.leftGutterWidth;
-    pane.rightGutterWidth = layout.rightGutterWidth;
+    pane.leftGutterWidth = leftStable;
+    pane.rightGutterWidth = rightStable;
     recomputeLayout(ctx);
     updateAxisLayout(ctx, paneId, false);
   }
@@ -267,10 +269,34 @@ export function computeAxisLayout(
   const labelHeight = Math.max(8, ctx.axisLabelHeight);
   const targetCount = Math.max(2, Math.floor(pane.plotArea.height / (labelHeight + ctx.axisLabelPadding)));
 
+  const leftCandidates: string[] = [];
+  const rightCandidates: string[] = [];
+  for (const [scaleId, config] of pane.scaleConfigs.entries()) {
+    if (config.visible === false) continue;
+    if (config.position === "left") {
+      leftCandidates.push(scaleId);
+    } else {
+      rightCandidates.push(scaleId);
+    }
+  }
+  const keepLeft =
+    leftCandidates.length > 1
+      ? pickScaleToKeep(leftCandidates.map((scaleId) => ({ scaleId })), primaryScaleId)
+      : leftCandidates[0];
+  const keepRight =
+    rightCandidates.length > 1
+      ? pickScaleToKeep(rightCandidates.map((scaleId) => ({ scaleId })), primaryScaleId)
+      : rightCandidates[0];
+  const activeLeft = new Set<string>(keepLeft ? [keepLeft] : []);
+  const activeRight = new Set<string>(keepRight ? [keepRight] : []);
+
   let maxLeftLabel = 0;
   let maxRightLabel = 0;
   for (const [scaleId, config] of pane.scaleConfigs.entries()) {
-    if (config.visible === false) {
+    const isVisible =
+      config.visible !== false &&
+      (config.position === "left" ? activeLeft.has(scaleId) : activeRight.has(scaleId));
+    if (!isVisible) {
       axisTicks.set(scaleId, []);
       continue;
     }
@@ -419,4 +445,20 @@ export function measureLabelWidth(ctx: EngineContext, text: string): number {
     if (Number.isFinite(measured)) return Math.max(0, measured);
   }
   return text.length * ctx.axisLabelCharWidth;
+}
+
+function stabilizeGutterWidth(
+  ctx: EngineContext,
+  current: number,
+  target: number,
+  base: number
+): number {
+  if (!Number.isFinite(target) || target <= 0) return Math.max(base, current);
+  const snap = Math.max(2, Math.round(ctx.axisLabelPadding));
+  const shrinkThreshold = Math.max(snap * 2, Math.round(ctx.axisLabelCharWidth));
+  const snapped = Math.max(base, Math.ceil(target / snap) * snap);
+  if (!Number.isFinite(current) || current <= 0) return snapped;
+  if (snapped >= current) return snapped;
+  if (current - snapped <= shrinkThreshold) return current;
+  return snapped;
 }

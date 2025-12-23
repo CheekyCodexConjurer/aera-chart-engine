@@ -13,5 +13,8 @@ This index links the detailed specs referenced by the executable ROADMAP.
 - `ci-gates.md` - CI stages, gating policy, and local run guidance.
 - `refactor-llm-friendly.md` - urgent refactor plan for LLM-friendly code layout.
 
+## Design notes
+- `m10-rendering-layout-design.md` - rendering buffers, text fallback, and axis gutter stability decisions.
+
 ## Legacy backlog
 - `legacy-workstreams.md` - preserved workstreams from the original ROADMAP.

@@ -41,6 +41,17 @@ This spec defines benchmark budgets and regression rules.
 - Any regression beyond 10% p95 requires a fix or explicit waiver.
 - Regression waivers must include a mitigation plan and an expiry milestone.
 
+## Latest results (M10)
+- `baseline-1m` (headless, NullRenderer): p50=0.01ms p95=0.01ms p99=0.02ms.
+  - Report: `tools/bench/reports/baseline-1m.json`.
+- `interaction-latency` (headless, NullRenderer):
+  - Crosshair p50=0.01ms p95=0.13ms.
+  - Pan p50=0.07ms p95=0.22ms.
+  - Zoom p50=0.05ms p95=0.33ms.
+  - Replay p50=0.10ms p95=0.25ms.
+  - Report: `tools/bench/reports/interaction-latency.json`.
+- Notes: headless Node baselines do not capture GPU time; on-device GPU profiling remains required for renderer changes.
+
 ## References
 - `../benchmark-regression-policy.md`
 - `../responsiveness-slos.md`

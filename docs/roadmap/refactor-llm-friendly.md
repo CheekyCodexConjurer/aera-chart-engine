@@ -49,6 +49,9 @@ Owners and coordination:
 | `ROADMAP.md` | 474 | Close to limit | Convert to index when it exceeds 500 lines |
 | `agents.md` | 478 | Close to limit | Split roles into leaf docs when it exceeds 500 lines |
 
+## Recent refactors
+- `src/rendering/webgl2/frame.ts` split into `frame-axes.ts` and `frame-series.ts` to keep the frame surface under the 500 line cap.
+
 ## Refactor map (by subsystem)
 
 ### 1) Core engine (ChartEngine)
@@ -86,7 +89,9 @@ Owners and coordination:
 **Target structure**
 - `src/rendering/webgl2-renderer.ts` (facade + lifecycle)
 - `src/rendering/webgl2/context.ts` (GL init, resize, reset state)
-- `src/rendering/webgl2/frame.ts` (render + renderPane + append frame commands)
+- `src/rendering/webgl2/frame.ts` (render + renderPane + dynamic flush)
+- `src/rendering/webgl2/frame-axes.ts` (grid, axes, crosshair labels)
+- `src/rendering/webgl2/frame-series.ts` (CPU path for series appenders)
 - `src/rendering/webgl2/series.ts` (series entry lifecycle + budgets)
 - `src/rendering/webgl2/geometry.ts` (build line/area/bar/candle data)
 - `src/rendering/webgl2/buffers.ts` (create/upload/upsert/release buffers)

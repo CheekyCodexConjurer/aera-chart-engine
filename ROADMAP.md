@@ -338,21 +338,21 @@ M0–M8 establish the contract and documentation baseline. The milestones below 
 ### M10 - Rendering + layout (implementation)
 **Goal**: Complete the GPU rendering pipeline and layout guarantees in code.
 
-- [ ] T10.1 Implement persistent GPU buffers, instancing, and clip stacks.
+- [x] T10.1 Implement persistent GPU buffers, instancing, and clip stacks.
   - Context: required for stable frame budgets under 1M points.
   - Changes: renderer buffer strategy, instancing, clip masks per pane/layer.
   - DoD: pan/zoom steady state uses transform-only updates.
   - Risks: GPU regressions; Mitigation: perf benchmarks in M2 + gates in M7.
   - Deps: M2.
 
-- [ ] T10.2 Implement text atlas + GPU text rendering with fallback policy.
+- [x] T10.2 Implement text atlas + GPU text rendering with fallback policy.
   - Context: text must be stable without Canvas2D thrash.
   - Changes: SDF/MSDF atlas, glyph cache, fallback detection.
   - DoD: label rendering meets SLOs with deterministic cache behavior.
   - Risks: atlas thrash; Mitigation: cache caps + diagnostics.
   - Deps: T10.1.
 
-- [ ] T10.3 Implement axis layout, gutters, and multi-scale rules in runtime.
+- [x] T10.3 Implement axis layout, gutters, and multi-scale rules in runtime.
   - Context: docs define one visible scale per side per pane.
   - Changes: axis layout engine, gutter sizing, tick collision rules.
   - DoD: no label overlap; right gutter width stable across pan/zoom.

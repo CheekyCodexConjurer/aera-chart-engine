@@ -56,6 +56,13 @@ export class GpuTextRenderer {
     };
   }
 
+  canRender(labels: TextLabel[]): { ok: boolean; missing: number; capacity: number; glyphs: number } {
+    const missing = this.countMissingGlyphs(labels);
+    const capacity = this.atlas.getCapacity();
+    const glyphs = this.atlas.getGlyphCount();
+    return { ok: glyphs + missing <= capacity, missing, capacity, glyphs };
+  }
+
   render(labels: TextLabel[]): void {
     if (!this.program || !this.vao || !this.vbo) return;
     if (labels.length === 0) return;
@@ -129,6 +136,21 @@ export class GpuTextRenderer {
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, null);
       }
     }
+  }
+
+  private countMissingGlyphs(labels: TextLabel[]): number {
+    const missing = new Set<string>();
+    for (const label of labels) {
+      const text = label.text ?? "";
+      if (!text) continue;
+      for (let i = 0; i < text.length; i += 1) {
+        const char = text[i];
+        if (!this.atlas.hasGlyph(char)) {
+          missing.add(char);
+        }
+      }
+    }
+    return missing.size;
   }
 
   private appendLabel(label: TextLabel): void {

@@ -73,14 +73,26 @@ export class GlyphAtlas {
   }
 
   getMetrics(): { pages: number; glyphs: number; capacity: number; occupancy: number } {
-    const capacity = this.cols * this.rows;
-    const glyphs = Math.min(this.nextIndex, capacity);
+    const capacity = this.getCapacity();
+    const glyphs = this.getGlyphCount();
     const occupancy = capacity > 0 ? glyphs / capacity : 0;
     return { pages: 1, glyphs, capacity, occupancy };
   }
 
+  getCapacity(): number {
+    return this.cols * this.rows;
+  }
+
+  getGlyphCount(): number {
+    return Math.min(this.nextIndex, this.getCapacity());
+  }
+
+  hasGlyph(char: string): boolean {
+    return this.glyphs.has(this.normalizeChar(char));
+  }
+
   getGlyph(char: string): Glyph {
-    const normalized = char.length === 0 ? "?" : char[0];
+    const normalized = this.normalizeChar(char);
     let glyph = this.glyphs.get(normalized);
     if (!glyph) {
       glyph = this.addGlyph(normalized);
@@ -106,6 +118,11 @@ export class GlyphAtlas {
     const metrics = this.ctx.measureText("M");
     this.ascent = metrics.actualBoundingBoxAscent || 10;
     this.descent = metrics.actualBoundingBoxDescent || 4;
+  }
+
+  private normalizeChar(char: string): string {
+    if (!char) return "?";
+    return char[0] ?? "?";
   }
 
   private seedAsciiGlyphs(): void {

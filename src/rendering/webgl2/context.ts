@@ -40,6 +40,9 @@ export type WebGL2RendererContext = {
   height: number;
   dpr: number;
   warnedMissingTextLayer: boolean;
+  warnedTextAtlasFull: boolean;
+  textMode: "gpu" | "canvas" | "none";
+  lastTextMode: "gpu" | "canvas" | "none";
   clipStack: PlotArea[];
   hasContextListeners: boolean;
   isContextLost: boolean;

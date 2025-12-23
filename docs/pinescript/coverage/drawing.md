@@ -5,176 +5,176 @@ Count: 169
 
 ## Defaults
 - owner: host+engine
-- status: planned
+- status: covered
 - notes: host normalizes; engine renders primitives
 
 ## Entries
-- box.all | host+engine | planned | host normalizes; engine renders box/zone
-- box.copy() | host+engine | planned | host normalizes; engine renders box/zone
-- box.delete() | host+engine | planned | host normalizes; engine renders box/zone
-- box.get_bottom() | host+engine | planned | host normalizes; engine renders box/zone
-- box.get_left() | host+engine | planned | host normalizes; engine renders box/zone
-- box.get_right() | host+engine | planned | host normalizes; engine renders box/zone
-- box.get_top() | host+engine | planned | host normalizes; engine renders box/zone
-- box.new() | host+engine | planned | host normalizes; engine renders box/zone
-- box.set_bgcolor() | host+engine | planned | host normalizes; engine renders box/zone
-- box.set_border_color() | host+engine | planned | host normalizes; engine renders box/zone
-- box.set_border_style() | host+engine | planned | host normalizes; engine renders box/zone
-- box.set_border_width() | host+engine | planned | host normalizes; engine renders box/zone
-- box.set_bottom_right_point() | host+engine | planned | host normalizes; engine renders box/zone
-- box.set_bottom() | host+engine | planned | host normalizes; engine renders box/zone
-- box.set_extend() | host+engine | planned | host normalizes; engine renders box/zone
-- box.set_left() | host+engine | planned | host normalizes; engine renders box/zone
-- box.set_lefttop() | host+engine | planned | host normalizes; engine renders box/zone
-- box.set_right() | host+engine | planned | host normalizes; engine renders box/zone
-- box.set_rightbottom() | host+engine | planned | host normalizes; engine renders box/zone
-- box.set_text_color() | host+engine | planned | host normalizes; engine renders box/zone
-- box.set_text_font_family() | host+engine | planned | host normalizes; engine renders box/zone
-- box.set_text_formatting() | host+engine | planned | host normalizes; engine renders box/zone
-- box.set_text_halign() | host+engine | planned | host normalizes; engine renders box/zone
-- box.set_text_size() | host+engine | planned | host normalizes; engine renders box/zone
-- box.set_text_valign() | host+engine | planned | host normalizes; engine renders box/zone
-- box.set_text_wrap() | host+engine | planned | host normalizes; engine renders box/zone
-- box.set_text() | host+engine | planned | host normalizes; engine renders box/zone
-- box.set_top_left_point() | host+engine | planned | host normalizes; engine renders box/zone
-- box.set_top() | host+engine | planned | host normalizes; engine renders box/zone
-- box.set_xloc() | host+engine | planned | host normalizes; engine renders box/zone
-- hline.style_dashed | host+engine | planned | host normalizes; engine renders line
-- hline.style_dotted | host+engine | planned | host normalizes; engine renders line
-- hline.style_solid | host+engine | planned | host normalizes; engine renders line
-- label.all | host+engine | planned | host normalizes; engine renders label
-- label.copy() | host+engine | planned | host normalizes; engine renders label
-- label.delete() | host+engine | planned | host normalizes; engine renders label
-- label.get_text() | host+engine | planned | host normalizes; engine renders label
-- label.get_x() | host+engine | planned | host normalizes; engine renders label
-- label.get_y() | host+engine | planned | host normalizes; engine renders label
-- label.new() | host+engine | planned | host normalizes; engine renders label
-- label.set_color() | host+engine | planned | host normalizes; engine renders label
-- label.set_point() | host+engine | planned | host normalizes; engine renders label
-- label.set_size() | host+engine | planned | host normalizes; engine renders label
-- label.set_style() | host+engine | planned | host normalizes; engine renders label
-- label.set_text_font_family() | host+engine | planned | host normalizes; engine renders label
-- label.set_text_formatting() | host+engine | planned | host normalizes; engine renders label
-- label.set_text() | host+engine | planned | host normalizes; engine renders label
-- label.set_textalign() | host+engine | planned | host normalizes; engine renders label
-- label.set_textcolor() | host+engine | planned | host normalizes; engine renders label
-- label.set_tooltip() | host+engine | planned | host normalizes; engine renders label
-- label.set_x() | host+engine | planned | host normalizes; engine renders label
-- label.set_xloc() | host+engine | planned | host normalizes; engine renders label
-- label.set_xy() | host+engine | planned | host normalizes; engine renders label
-- label.set_y() | host+engine | planned | host normalizes; engine renders label
-- label.set_yloc() | host+engine | planned | host normalizes; engine renders label
-- label.style_arrowdown | host+engine | planned | host normalizes; engine renders label
-- label.style_arrowup | host+engine | planned | host normalizes; engine renders label
-- label.style_circle | host+engine | planned | host normalizes; engine renders label
-- label.style_cross | host+engine | planned | host normalizes; engine renders label
-- label.style_diamond | host+engine | planned | host normalizes; engine renders label
-- label.style_flag | host+engine | planned | host normalizes; engine renders label
-- label.style_label_center | host+engine | planned | host normalizes; engine renders label
-- label.style_label_down | host+engine | planned | host normalizes; engine renders label
-- label.style_label_left | host+engine | planned | host normalizes; engine renders label
-- label.style_label_lower_left | host+engine | planned | host normalizes; engine renders label
-- label.style_label_lower_right | host+engine | planned | host normalizes; engine renders label
-- label.style_label_right | host+engine | planned | host normalizes; engine renders label
-- label.style_label_up | host+engine | planned | host normalizes; engine renders label
-- label.style_label_upper_left | host+engine | planned | host normalizes; engine renders label
-- label.style_label_upper_right | host+engine | planned | host normalizes; engine renders label
-- label.style_none | host+engine | planned | host normalizes; engine renders label
-- label.style_square | host+engine | planned | host normalizes; engine renders label
-- label.style_text_outline | host+engine | planned | host normalizes; engine renders label
-- label.style_triangledown | host+engine | planned | host normalizes; engine renders label
-- label.style_triangleup | host+engine | planned | host normalizes; engine renders label
-- label.style_xcross | host+engine | planned | host normalizes; engine renders label
-- line.all | host+engine | planned | host normalizes; engine renders line
-- line.copy() | host+engine | planned | host normalizes; engine renders line
-- line.delete() | host+engine | planned | host normalizes; engine renders line
-- line.get_price() | host+engine | planned | host normalizes; engine renders line
-- line.get_x1() | host+engine | planned | host normalizes; engine renders line
-- line.get_x2() | host+engine | planned | host normalizes; engine renders line
-- line.get_y1() | host+engine | planned | host normalizes; engine renders line
-- line.get_y2() | host+engine | planned | host normalizes; engine renders line
-- line.new() | host+engine | planned | host normalizes; engine renders line
-- line.set_color() | host+engine | planned | host normalizes; engine renders line
-- line.set_extend() | host+engine | planned | host normalizes; engine renders line
-- line.set_first_point() | host+engine | planned | host normalizes; engine renders line
-- line.set_second_point() | host+engine | planned | host normalizes; engine renders line
-- line.set_style() | host+engine | planned | host normalizes; engine renders line
-- line.set_width() | host+engine | planned | host normalizes; engine renders line
-- line.set_x1() | host+engine | planned | host normalizes; engine renders line
-- line.set_x2() | host+engine | planned | host normalizes; engine renders line
-- line.set_xloc() | host+engine | planned | host normalizes; engine renders line
-- line.set_xy1() | host+engine | planned | host normalizes; engine renders line
-- line.set_xy2() | host+engine | planned | host normalizes; engine renders line
-- line.set_y1() | host+engine | planned | host normalizes; engine renders line
-- line.set_y2() | host+engine | planned | host normalizes; engine renders line
-- line.style_arrow_both | host+engine | planned | host normalizes; engine renders line
-- line.style_arrow_left | host+engine | planned | host normalizes; engine renders line
-- line.style_arrow_right | host+engine | planned | host normalizes; engine renders line
-- line.style_dashed | host+engine | planned | host normalizes; engine renders line
-- line.style_dotted | host+engine | planned | host normalizes; engine renders line
-- line.style_solid | host+engine | planned | host normalizes; engine renders line
-- linefill.all | host+engine | planned | host normalizes; engine renders fill
-- linefill.delete() | host+engine | planned | host normalizes; engine renders fill
-- linefill.get_line1() | host+engine | planned | host normalizes; engine renders fill
-- linefill.get_line2() | host+engine | planned | host normalizes; engine renders fill
-- linefill.new() | host+engine | planned | host normalizes; engine renders fill
-- linefill.set_color() | host+engine | planned | host normalizes; engine renders fill
-- plot.style_area | host+engine | planned | host normalizes; engine renders series
-- plot.style_areabr | host+engine | planned | host normalizes; engine renders series
-- plot.style_circles | host+engine | planned | host normalizes; engine renders series
-- plot.style_columns | host+engine | planned | host normalizes; engine renders series
-- plot.style_cross | host+engine | planned | host normalizes; engine renders series
-- plot.style_histogram | host+engine | planned | host normalizes; engine renders series
-- plot.style_line | host+engine | planned | host normalizes; engine renders series
-- plot.style_linebr | host+engine | planned | host normalizes; engine renders series
-- plot.style_stepline | host+engine | planned | host normalizes; engine renders series
-- plot.style_stepline_diamond | host+engine | planned | host normalizes; engine renders series
-- plot.style_steplinebr | host+engine | planned | host normalizes; engine renders series
-- polyline.all | host+engine | planned | host normalizes; engine renders polyline
-- polyline.delete() | host+engine | planned | host normalizes; engine renders polyline
-- polyline.new() | host+engine | planned | host normalizes; engine renders polyline
-- shape.arrowdown | host+engine | planned | host normalizes; engine renders marker
-- shape.arrowup | host+engine | planned | host normalizes; engine renders marker
-- shape.circle | host+engine | planned | host normalizes; engine renders marker
-- shape.cross | host+engine | planned | host normalizes; engine renders marker
-- shape.diamond | host+engine | planned | host normalizes; engine renders marker
-- shape.flag | host+engine | planned | host normalizes; engine renders marker
-- shape.labeldown | host+engine | planned | host normalizes; engine renders marker
-- shape.labelup | host+engine | planned | host normalizes; engine renders marker
-- shape.square | host+engine | planned | host normalizes; engine renders marker
-- shape.triangledown | host+engine | planned | host normalizes; engine renders marker
-- shape.triangleup | host+engine | planned | host normalizes; engine renders marker
-- shape.xcross | host+engine | planned | host normalizes; engine renders marker
-- table.all | host+engine | planned | host DOM overlay; engine provides coordinates
-- table.cell_set_bgcolor() | host+engine | planned | host DOM overlay; engine provides coordinates
-- table.cell_set_height() | host+engine | planned | host DOM overlay; engine provides coordinates
-- table.cell_set_text_color() | host+engine | planned | host DOM overlay; engine provides coordinates
-- table.cell_set_text_font_family() | host+engine | planned | host DOM overlay; engine provides coordinates
-- table.cell_set_text_formatting() | host+engine | planned | host DOM overlay; engine provides coordinates
-- table.cell_set_text_halign() | host+engine | planned | host DOM overlay; engine provides coordinates
-- table.cell_set_text_size() | host+engine | planned | host DOM overlay; engine provides coordinates
-- table.cell_set_text_valign() | host+engine | planned | host DOM overlay; engine provides coordinates
-- table.cell_set_text() | host+engine | planned | host DOM overlay; engine provides coordinates
-- table.cell_set_tooltip() | host+engine | planned | host DOM overlay; engine provides coordinates
-- table.cell_set_width() | host+engine | planned | host DOM overlay; engine provides coordinates
-- table.cell() | host+engine | planned | host DOM overlay; engine provides coordinates
-- table.clear() | host+engine | planned | host DOM overlay; engine provides coordinates
-- table.delete() | host+engine | planned | host DOM overlay; engine provides coordinates
-- table.merge_cells() | host+engine | planned | host DOM overlay; engine provides coordinates
-- table.new() | host+engine | planned | host DOM overlay; engine provides coordinates
-- table.set_bgcolor() | host+engine | planned | host DOM overlay; engine provides coordinates
-- table.set_border_color() | host+engine | planned | host DOM overlay; engine provides coordinates
-- table.set_border_width() | host+engine | planned | host DOM overlay; engine provides coordinates
-- table.set_frame_color() | host+engine | planned | host DOM overlay; engine provides coordinates
-- table.set_frame_width() | host+engine | planned | host DOM overlay; engine provides coordinates
-- table.set_position() | host+engine | planned | host DOM overlay; engine provides coordinates
-- text.align_bottom | host+engine | planned | host normalizes; engine renders label
-- text.align_center | host+engine | planned | host normalizes; engine renders label
-- text.align_left | host+engine | planned | host normalizes; engine renders label
-- text.align_right | host+engine | planned | host normalizes; engine renders label
-- text.align_top | host+engine | planned | host normalizes; engine renders label
-- text.format_bold | host+engine | planned | host normalizes; engine renders label
-- text.format_italic | host+engine | planned | host normalizes; engine renders label
-- text.format_none | host+engine | planned | host normalizes; engine renders label
-- text.wrap_auto | host+engine | planned | host normalizes; engine renders label
-- text.wrap_none | host+engine | planned | host normalizes; engine renders label
+- box.all | host+engine | covered | host normalizes; engine renders box/zone
+- box.copy() | host+engine | covered | host normalizes; engine renders box/zone
+- box.delete() | host+engine | covered | host normalizes; engine renders box/zone
+- box.get_bottom() | host+engine | covered | host normalizes; engine renders box/zone
+- box.get_left() | host+engine | covered | host normalizes; engine renders box/zone
+- box.get_right() | host+engine | covered | host normalizes; engine renders box/zone
+- box.get_top() | host+engine | covered | host normalizes; engine renders box/zone
+- box.new() | host+engine | covered | host normalizes; engine renders box/zone
+- box.set_bgcolor() | host+engine | covered | host normalizes; engine renders box/zone
+- box.set_border_color() | host+engine | covered | host normalizes; engine renders box/zone
+- box.set_border_style() | host+engine | covered | host normalizes; engine renders box/zone
+- box.set_border_width() | host+engine | covered | host normalizes; engine renders box/zone
+- box.set_bottom_right_point() | host+engine | covered | host normalizes; engine renders box/zone
+- box.set_bottom() | host+engine | covered | host normalizes; engine renders box/zone
+- box.set_extend() | host+engine | covered | host normalizes; engine renders box/zone
+- box.set_left() | host+engine | covered | host normalizes; engine renders box/zone
+- box.set_lefttop() | host+engine | covered | host normalizes; engine renders box/zone
+- box.set_right() | host+engine | covered | host normalizes; engine renders box/zone
+- box.set_rightbottom() | host+engine | covered | host normalizes; engine renders box/zone
+- box.set_text_color() | host+engine | covered | host normalizes; engine renders box/zone
+- box.set_text_font_family() | host+engine | covered | host normalizes; engine renders box/zone
+- box.set_text_formatting() | host+engine | covered | host normalizes; engine renders box/zone
+- box.set_text_halign() | host+engine | covered | host normalizes; engine renders box/zone
+- box.set_text_size() | host+engine | covered | host normalizes; engine renders box/zone
+- box.set_text_valign() | host+engine | covered | host normalizes; engine renders box/zone
+- box.set_text_wrap() | host+engine | covered | host normalizes; engine renders box/zone
+- box.set_text() | host+engine | covered | host normalizes; engine renders box/zone
+- box.set_top_left_point() | host+engine | covered | host normalizes; engine renders box/zone
+- box.set_top() | host+engine | covered | host normalizes; engine renders box/zone
+- box.set_xloc() | host+engine | covered | host normalizes; engine renders box/zone
+- hline.style_dashed | host+engine | covered | host normalizes; engine renders line
+- hline.style_dotted | host+engine | covered | host normalizes; engine renders line
+- hline.style_solid | host+engine | covered | host normalizes; engine renders line
+- label.all | host+engine | covered | host normalizes; engine renders label
+- label.copy() | host+engine | covered | host normalizes; engine renders label
+- label.delete() | host+engine | covered | host normalizes; engine renders label
+- label.get_text() | host+engine | covered | host normalizes; engine renders label
+- label.get_x() | host+engine | covered | host normalizes; engine renders label
+- label.get_y() | host+engine | covered | host normalizes; engine renders label
+- label.new() | host+engine | covered | host normalizes; engine renders label
+- label.set_color() | host+engine | covered | host normalizes; engine renders label
+- label.set_point() | host+engine | covered | host normalizes; engine renders label
+- label.set_size() | host+engine | covered | host normalizes; engine renders label
+- label.set_style() | host+engine | covered | host normalizes; engine renders label
+- label.set_text_font_family() | host+engine | covered | host normalizes; engine renders label
+- label.set_text_formatting() | host+engine | covered | host normalizes; engine renders label
+- label.set_text() | host+engine | covered | host normalizes; engine renders label
+- label.set_textalign() | host+engine | covered | host normalizes; engine renders label
+- label.set_textcolor() | host+engine | covered | host normalizes; engine renders label
+- label.set_tooltip() | host+engine | covered | host normalizes; engine renders label
+- label.set_x() | host+engine | covered | host normalizes; engine renders label
+- label.set_xloc() | host+engine | covered | host normalizes; engine renders label
+- label.set_xy() | host+engine | covered | host normalizes; engine renders label
+- label.set_y() | host+engine | covered | host normalizes; engine renders label
+- label.set_yloc() | host+engine | covered | host normalizes; engine renders label
+- label.style_arrowdown | host+engine | covered | host normalizes; engine renders label
+- label.style_arrowup | host+engine | covered | host normalizes; engine renders label
+- label.style_circle | host+engine | covered | host normalizes; engine renders label
+- label.style_cross | host+engine | covered | host normalizes; engine renders label
+- label.style_diamond | host+engine | covered | host normalizes; engine renders label
+- label.style_flag | host+engine | covered | host normalizes; engine renders label
+- label.style_label_center | host+engine | covered | host normalizes; engine renders label
+- label.style_label_down | host+engine | covered | host normalizes; engine renders label
+- label.style_label_left | host+engine | covered | host normalizes; engine renders label
+- label.style_label_lower_left | host+engine | covered | host normalizes; engine renders label
+- label.style_label_lower_right | host+engine | covered | host normalizes; engine renders label
+- label.style_label_right | host+engine | covered | host normalizes; engine renders label
+- label.style_label_up | host+engine | covered | host normalizes; engine renders label
+- label.style_label_upper_left | host+engine | covered | host normalizes; engine renders label
+- label.style_label_upper_right | host+engine | covered | host normalizes; engine renders label
+- label.style_none | host+engine | covered | host normalizes; engine renders label
+- label.style_square | host+engine | covered | host normalizes; engine renders label
+- label.style_text_outline | host+engine | covered | host normalizes; engine renders label
+- label.style_triangledown | host+engine | covered | host normalizes; engine renders label
+- label.style_triangleup | host+engine | covered | host normalizes; engine renders label
+- label.style_xcross | host+engine | covered | host normalizes; engine renders label
+- line.all | host+engine | covered | host normalizes; engine renders line
+- line.copy() | host+engine | covered | host normalizes; engine renders line
+- line.delete() | host+engine | covered | host normalizes; engine renders line
+- line.get_price() | host+engine | covered | host normalizes; engine renders line
+- line.get_x1() | host+engine | covered | host normalizes; engine renders line
+- line.get_x2() | host+engine | covered | host normalizes; engine renders line
+- line.get_y1() | host+engine | covered | host normalizes; engine renders line
+- line.get_y2() | host+engine | covered | host normalizes; engine renders line
+- line.new() | host+engine | covered | host normalizes; engine renders line
+- line.set_color() | host+engine | covered | host normalizes; engine renders line
+- line.set_extend() | host+engine | covered | host normalizes; engine renders line
+- line.set_first_point() | host+engine | covered | host normalizes; engine renders line
+- line.set_second_point() | host+engine | covered | host normalizes; engine renders line
+- line.set_style() | host+engine | covered | host normalizes; engine renders line
+- line.set_width() | host+engine | covered | host normalizes; engine renders line
+- line.set_x1() | host+engine | covered | host normalizes; engine renders line
+- line.set_x2() | host+engine | covered | host normalizes; engine renders line
+- line.set_xloc() | host+engine | covered | host normalizes; engine renders line
+- line.set_xy1() | host+engine | covered | host normalizes; engine renders line
+- line.set_xy2() | host+engine | covered | host normalizes; engine renders line
+- line.set_y1() | host+engine | covered | host normalizes; engine renders line
+- line.set_y2() | host+engine | covered | host normalizes; engine renders line
+- line.style_arrow_both | host+engine | covered | host normalizes; engine renders line
+- line.style_arrow_left | host+engine | covered | host normalizes; engine renders line
+- line.style_arrow_right | host+engine | covered | host normalizes; engine renders line
+- line.style_dashed | host+engine | covered | host normalizes; engine renders line
+- line.style_dotted | host+engine | covered | host normalizes; engine renders line
+- line.style_solid | host+engine | covered | host normalizes; engine renders line
+- linefill.all | host+engine | covered | host normalizes; engine renders fill
+- linefill.delete() | host+engine | covered | host normalizes; engine renders fill
+- linefill.get_line1() | host+engine | covered | host normalizes; engine renders fill
+- linefill.get_line2() | host+engine | covered | host normalizes; engine renders fill
+- linefill.new() | host+engine | covered | host normalizes; engine renders fill
+- linefill.set_color() | host+engine | covered | host normalizes; engine renders fill
+- plot.style_area | host+engine | covered | host normalizes; engine renders series
+- plot.style_areabr | host+engine | covered | host normalizes; engine renders series
+- plot.style_circles | host+engine | covered | host normalizes; engine renders series
+- plot.style_columns | host+engine | covered | host normalizes; engine renders series
+- plot.style_cross | host+engine | covered | host normalizes; engine renders series
+- plot.style_histogram | host+engine | covered | host normalizes; engine renders series
+- plot.style_line | host+engine | covered | host normalizes; engine renders series
+- plot.style_linebr | host+engine | covered | host normalizes; engine renders series
+- plot.style_stepline | host+engine | covered | host normalizes; engine renders series
+- plot.style_stepline_diamond | host+engine | covered | host normalizes; engine renders series
+- plot.style_steplinebr | host+engine | covered | host normalizes; engine renders series
+- polyline.all | host+engine | covered | host normalizes; engine renders polyline
+- polyline.delete() | host+engine | covered | host normalizes; engine renders polyline
+- polyline.new() | host+engine | covered | host normalizes; engine renders polyline
+- shape.arrowdown | host+engine | covered | host normalizes; engine renders marker
+- shape.arrowup | host+engine | covered | host normalizes; engine renders marker
+- shape.circle | host+engine | covered | host normalizes; engine renders marker
+- shape.cross | host+engine | covered | host normalizes; engine renders marker
+- shape.diamond | host+engine | covered | host normalizes; engine renders marker
+- shape.flag | host+engine | covered | host normalizes; engine renders marker
+- shape.labeldown | host+engine | covered | host normalizes; engine renders marker
+- shape.labelup | host+engine | covered | host normalizes; engine renders marker
+- shape.square | host+engine | covered | host normalizes; engine renders marker
+- shape.triangledown | host+engine | covered | host normalizes; engine renders marker
+- shape.triangleup | host+engine | covered | host normalizes; engine renders marker
+- shape.xcross | host+engine | covered | host normalizes; engine renders marker
+- table.all | host+engine | covered | host DOM overlay; engine provides coordinates
+- table.cell_set_bgcolor() | host+engine | covered | host DOM overlay; engine provides coordinates
+- table.cell_set_height() | host+engine | covered | host DOM overlay; engine provides coordinates
+- table.cell_set_text_color() | host+engine | covered | host DOM overlay; engine provides coordinates
+- table.cell_set_text_font_family() | host+engine | covered | host DOM overlay; engine provides coordinates
+- table.cell_set_text_formatting() | host+engine | covered | host DOM overlay; engine provides coordinates
+- table.cell_set_text_halign() | host+engine | covered | host DOM overlay; engine provides coordinates
+- table.cell_set_text_size() | host+engine | covered | host DOM overlay; engine provides coordinates
+- table.cell_set_text_valign() | host+engine | covered | host DOM overlay; engine provides coordinates
+- table.cell_set_text() | host+engine | covered | host DOM overlay; engine provides coordinates
+- table.cell_set_tooltip() | host+engine | covered | host DOM overlay; engine provides coordinates
+- table.cell_set_width() | host+engine | covered | host DOM overlay; engine provides coordinates
+- table.cell() | host+engine | covered | host DOM overlay; engine provides coordinates
+- table.clear() | host+engine | covered | host DOM overlay; engine provides coordinates
+- table.delete() | host+engine | covered | host DOM overlay; engine provides coordinates
+- table.merge_cells() | host+engine | covered | host DOM overlay; engine provides coordinates
+- table.new() | host+engine | covered | host DOM overlay; engine provides coordinates
+- table.set_bgcolor() | host+engine | covered | host DOM overlay; engine provides coordinates
+- table.set_border_color() | host+engine | covered | host DOM overlay; engine provides coordinates
+- table.set_border_width() | host+engine | covered | host DOM overlay; engine provides coordinates
+- table.set_frame_color() | host+engine | covered | host DOM overlay; engine provides coordinates
+- table.set_frame_width() | host+engine | covered | host DOM overlay; engine provides coordinates
+- table.set_position() | host+engine | covered | host DOM overlay; engine provides coordinates
+- text.align_bottom | host+engine | covered | host normalizes; engine renders label
+- text.align_center | host+engine | covered | host normalizes; engine renders label
+- text.align_left | host+engine | covered | host normalizes; engine renders label
+- text.align_right | host+engine | covered | host normalizes; engine renders label
+- text.align_top | host+engine | covered | host normalizes; engine renders label
+- text.format_bold | host+engine | covered | host normalizes; engine renders label
+- text.format_italic | host+engine | covered | host normalizes; engine renders label
+- text.format_none | host+engine | covered | host normalizes; engine renders label
+- text.wrap_auto | host+engine | covered | host normalizes; engine renders label
+- text.wrap_none | host+engine | covered | host normalizes; engine renders label

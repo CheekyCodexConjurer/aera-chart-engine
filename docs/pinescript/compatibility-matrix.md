@@ -33,3 +33,4 @@ Goal: 100 percent parity with PineScript behavior through a host compatibility l
 - The engine must remain indicator-agnostic. Any indicator-specific behavior is forbidden.
 - Host owns PineScript execution and provides normalized outputs in UTC epoch milliseconds.
 - Engine enforces replay cutoff and clipping for all primitives.
+- Adapter mapping lives in `tools/pinescript/adapter/index.mjs` and is validated by parity tests.

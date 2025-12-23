@@ -28,6 +28,8 @@ Note: `data_window_requested` includes `requestId`, `reason`, and `pendingCount`
   - Buffer allocations, uploads, and pool reuse counts.
   - Text atlas usage (pages, occupancy, evictions).
   - LOD selection changes, cache hit/miss rates, and cache evictions.
+- Renderer snapshot fields: `drawCalls`, `batchCount`, `stateChanges`, `bufferUploads`, `bufferAllocations`, `bufferBytes`, `bufferReuses`, `textAtlas.evictions`.
+- Engine snapshot fields: `lodCacheHits`, `lodCacheMisses`, `lodCacheEvictions`, `lodSelectionChanges`, `renderCacheHits`, `renderCacheMisses`.
 - Sampling cadence:
   - Per frame for frame time and draw calls.
   - Every 250ms for atlas/cache metrics.

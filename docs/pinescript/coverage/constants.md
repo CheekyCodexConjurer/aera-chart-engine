@@ -5,211 +5,211 @@ Count: 204
 
 ## Defaults
 - owner: host
-- status: planned
+- status: covered
 - notes: language constants
 
 ## Entries
-- adjustment.dividends | host | planned | language constants
-- adjustment.none | host | planned | language constants
-- adjustment.splits | host | planned | language constants
-- alert.freq_all | host | planned | language constants
-- alert.freq_once_per_bar | host | planned | language constants
-- alert.freq_once_per_bar_close | host | planned | language constants
-- backadjustment.inherit | host | planned | language constants
-- backadjustment.off | host | planned | language constants
-- backadjustment.on | host | planned | language constants
-- barmerge.gaps_off | host | planned | language constants
-- barmerge.gaps_on | host | planned | language constants
-- barmerge.lookahead_off | host | planned | language constants
-- barmerge.lookahead_on | host | planned | language constants
-- color.aqua | host | planned | language constants
-- color.black | host | planned | language constants
-- color.blue | host | planned | language constants
-- color.fuchsia | host | planned | language constants
-- color.gray | host | planned | language constants
-- color.green | host | planned | language constants
-- color.lime | host | planned | language constants
-- color.maroon | host | planned | language constants
-- color.navy | host | planned | language constants
-- color.olive | host | planned | language constants
-- color.orange | host | planned | language constants
-- color.purple | host | planned | language constants
-- color.red | host | planned | language constants
-- color.silver | host | planned | language constants
-- color.teal | host | planned | language constants
-- color.white | host | planned | language constants
-- color.yellow | host | planned | language constants
-- currency.AUD | host | planned | language constants
-- currency.BTC | host | planned | language constants
-- currency.CAD | host | planned | language constants
-- currency.CHF | host | planned | language constants
-- currency.EGP | host | planned | language constants
-- currency.ETH | host | planned | language constants
-- currency.EUR | host | planned | language constants
-- currency.GBP | host | planned | language constants
-- currency.HKD | host | planned | language constants
-- currency.INR | host | planned | language constants
-- currency.JPY | host | planned | language constants
-- currency.KRW | host | planned | language constants
-- currency.MYR | host | planned | language constants
-- currency.NOK | host | planned | language constants
-- currency.NONE | host | planned | language constants
-- currency.NZD | host | planned | language constants
-- currency.PKR | host | planned | language constants
-- currency.PLN | host | planned | language constants
-- currency.RUB | host | planned | language constants
-- currency.SEK | host | planned | language constants
-- currency.SGD | host | planned | language constants
-- currency.TRY | host | planned | language constants
-- currency.USD | host | planned | language constants
-- currency.USDT | host | planned | language constants
-- currency.ZAR | host | planned | language constants
-- dayofweek.friday | host | planned | language constants
-- dayofweek.monday | host | planned | language constants
-- dayofweek.saturday | host | planned | language constants
-- dayofweek.sunday | host | planned | language constants
-- dayofweek.thursday | host | planned | language constants
-- dayofweek.tuesday | host | planned | language constants
-- dayofweek.wednesday | host | planned | language constants
-- display.all | host | planned | language constants
-- display.data_window | host | planned | language constants
-- display.none | host | planned | language constants
-- display.pane | host | planned | language constants
-- display.price_scale | host | planned | language constants
-- display.status_line | host | planned | language constants
-- dividends.gross | host | planned | language constants
-- dividends.net | host | planned | language constants
-- earnings.actual | host | planned | language constants
-- earnings.estimate | host | planned | language constants
-- earnings.standardized | host | planned | language constants
-- extend.both | host | planned | language constants
-- extend.left | host | planned | language constants
-- extend.none | host | planned | language constants
-- extend.right | host | planned | language constants
-- false | host | planned | language constants
-- font.family_default | host | planned | language constants
-- font.family_monospace | host | planned | language constants
-- format.inherit | host | planned | language constants
-- format.mintick | host | planned | language constants
-- format.percent | host | planned | language constants
-- format.price | host | planned | language constants
-- format.volume | host | planned | language constants
-- hline.style_dashed | host+engine | planned | host normalizes; engine renders line
-- hline.style_dotted | host+engine | planned | host normalizes; engine renders line
-- hline.style_solid | host+engine | planned | host normalizes; engine renders line
-- label.style_arrowdown | host+engine | planned | host normalizes; engine renders label
-- label.style_arrowup | host+engine | planned | host normalizes; engine renders label
-- label.style_circle | host+engine | planned | host normalizes; engine renders label
-- label.style_cross | host+engine | planned | host normalizes; engine renders label
-- label.style_diamond | host+engine | planned | host normalizes; engine renders label
-- label.style_flag | host+engine | planned | host normalizes; engine renders label
-- label.style_label_center | host+engine | planned | host normalizes; engine renders label
-- label.style_label_down | host+engine | planned | host normalizes; engine renders label
-- label.style_label_left | host+engine | planned | host normalizes; engine renders label
-- label.style_label_lower_left | host+engine | planned | host normalizes; engine renders label
-- label.style_label_lower_right | host+engine | planned | host normalizes; engine renders label
-- label.style_label_right | host+engine | planned | host normalizes; engine renders label
-- label.style_label_up | host+engine | planned | host normalizes; engine renders label
-- label.style_label_upper_left | host+engine | planned | host normalizes; engine renders label
-- label.style_label_upper_right | host+engine | planned | host normalizes; engine renders label
-- label.style_none | host+engine | planned | host normalizes; engine renders label
-- label.style_square | host+engine | planned | host normalizes; engine renders label
-- label.style_text_outline | host+engine | planned | host normalizes; engine renders label
-- label.style_triangledown | host+engine | planned | host normalizes; engine renders label
-- label.style_triangleup | host+engine | planned | host normalizes; engine renders label
-- label.style_xcross | host+engine | planned | host normalizes; engine renders label
-- line.style_arrow_both | host+engine | planned | host normalizes; engine renders line
-- line.style_arrow_left | host+engine | planned | host normalizes; engine renders line
-- line.style_arrow_right | host+engine | planned | host normalizes; engine renders line
-- line.style_dashed | host+engine | planned | host normalizes; engine renders line
-- line.style_dotted | host+engine | planned | host normalizes; engine renders line
-- line.style_solid | host+engine | planned | host normalizes; engine renders line
-- location.abovebar | host | planned | language constants
-- location.absolute | host | planned | language constants
-- location.belowbar | host | planned | language constants
-- location.bottom | host | planned | language constants
-- location.top | host | planned | language constants
-- math.e | host | planned | language constants
-- math.phi | host | planned | language constants
-- math.pi | host | planned | language constants
-- math.rphi | host | planned | language constants
-- order.ascending | host | planned | language constants
-- order.descending | host | planned | language constants
-- plot.style_area | host+engine | planned | host normalizes; engine renders series
-- plot.style_areabr | host+engine | planned | host normalizes; engine renders series
-- plot.style_circles | host+engine | planned | host normalizes; engine renders series
-- plot.style_columns | host+engine | planned | host normalizes; engine renders series
-- plot.style_cross | host+engine | planned | host normalizes; engine renders series
-- plot.style_histogram | host+engine | planned | host normalizes; engine renders series
-- plot.style_line | host+engine | planned | host normalizes; engine renders series
-- plot.style_linebr | host+engine | planned | host normalizes; engine renders series
-- plot.style_stepline | host+engine | planned | host normalizes; engine renders series
-- plot.style_stepline_diamond | host+engine | planned | host normalizes; engine renders series
-- plot.style_steplinebr | host+engine | planned | host normalizes; engine renders series
-- position.bottom_center | host | planned | language constants
-- position.bottom_left | host | planned | language constants
-- position.bottom_right | host | planned | language constants
-- position.middle_center | host | planned | language constants
-- position.middle_left | host | planned | language constants
-- position.middle_right | host | planned | language constants
-- position.top_center | host | planned | language constants
-- position.top_left | host | planned | language constants
-- position.top_right | host | planned | language constants
-- scale.left | host | planned | language constants
-- scale.none | host | planned | language constants
-- scale.right | host | planned | language constants
-- session.extended | host | planned | language constants
-- session.regular | host | planned | language constants
-- settlement_as_close.inherit | host | planned | language constants
-- settlement_as_close.off | host | planned | language constants
-- settlement_as_close.on | host | planned | language constants
-- shape.arrowdown | host+engine | planned | host normalizes; engine renders marker
-- shape.arrowup | host+engine | planned | host normalizes; engine renders marker
-- shape.circle | host+engine | planned | host normalizes; engine renders marker
-- shape.cross | host+engine | planned | host normalizes; engine renders marker
-- shape.diamond | host+engine | planned | host normalizes; engine renders marker
-- shape.flag | host+engine | planned | host normalizes; engine renders marker
-- shape.labeldown | host+engine | planned | host normalizes; engine renders marker
-- shape.labelup | host+engine | planned | host normalizes; engine renders marker
-- shape.square | host+engine | planned | host normalizes; engine renders marker
-- shape.triangledown | host+engine | planned | host normalizes; engine renders marker
-- shape.triangleup | host+engine | planned | host normalizes; engine renders marker
-- shape.xcross | host+engine | planned | host normalizes; engine renders marker
-- size.auto | host | planned | language constants
-- size.huge | host | planned | language constants
-- size.large | host | planned | language constants
-- size.normal | host | planned | language constants
-- size.small | host | planned | language constants
-- size.tiny | host | planned | language constants
-- splits.denominator | host | planned | language constants
-- splits.numerator | host | planned | language constants
-- strategy.cash | host | planned | language constants
-- strategy.commission.cash_per_contract | host | planned | language constants
-- strategy.commission.cash_per_order | host | planned | language constants
-- strategy.commission.percent | host | planned | language constants
-- strategy.direction.all | host | planned | language constants
-- strategy.direction.long | host | planned | language constants
-- strategy.direction.short | host | planned | language constants
-- strategy.fixed | host | planned | language constants
-- strategy.long | host | planned | language constants
-- strategy.oca.cancel | host | planned | language constants
-- strategy.oca.none | host | planned | language constants
-- strategy.oca.reduce | host | planned | language constants
-- strategy.percent_of_equity | host | planned | language constants
-- strategy.short | host | planned | language constants
-- text.align_bottom | host+engine | planned | host normalizes; engine renders label
-- text.align_center | host+engine | planned | host normalizes; engine renders label
-- text.align_left | host+engine | planned | host normalizes; engine renders label
-- text.align_right | host+engine | planned | host normalizes; engine renders label
-- text.align_top | host+engine | planned | host normalizes; engine renders label
-- text.format_bold | host+engine | planned | host normalizes; engine renders label
-- text.format_italic | host+engine | planned | host normalizes; engine renders label
-- text.format_none | host+engine | planned | host normalizes; engine renders label
-- text.wrap_auto | host+engine | planned | host normalizes; engine renders label
-- text.wrap_none | host+engine | planned | host normalizes; engine renders label
-- true | host | planned | language constants
-- xloc.bar_index | host | planned | language constants
-- xloc.bar_time | host | planned | language constants
-- yloc.abovebar | host | planned | language constants
-- yloc.belowbar | host | planned | language constants
-- yloc.price | host | planned | language constants
+- adjustment.dividends | host | covered | language constants
+- adjustment.none | host | covered | language constants
+- adjustment.splits | host | covered | language constants
+- alert.freq_all | host | covered | language constants
+- alert.freq_once_per_bar | host | covered | language constants
+- alert.freq_once_per_bar_close | host | covered | language constants
+- backadjustment.inherit | host | covered | language constants
+- backadjustment.off | host | covered | language constants
+- backadjustment.on | host | covered | language constants
+- barmerge.gaps_off | host | covered | language constants
+- barmerge.gaps_on | host | covered | language constants
+- barmerge.lookahead_off | host | covered | language constants
+- barmerge.lookahead_on | host | covered | language constants
+- color.aqua | host | covered | language constants
+- color.black | host | covered | language constants
+- color.blue | host | covered | language constants
+- color.fuchsia | host | covered | language constants
+- color.gray | host | covered | language constants
+- color.green | host | covered | language constants
+- color.lime | host | covered | language constants
+- color.maroon | host | covered | language constants
+- color.navy | host | covered | language constants
+- color.olive | host | covered | language constants
+- color.orange | host | covered | language constants
+- color.purple | host | covered | language constants
+- color.red | host | covered | language constants
+- color.silver | host | covered | language constants
+- color.teal | host | covered | language constants
+- color.white | host | covered | language constants
+- color.yellow | host | covered | language constants
+- currency.AUD | host | covered | language constants
+- currency.BTC | host | covered | language constants
+- currency.CAD | host | covered | language constants
+- currency.CHF | host | covered | language constants
+- currency.EGP | host | covered | language constants
+- currency.ETH | host | covered | language constants
+- currency.EUR | host | covered | language constants
+- currency.GBP | host | covered | language constants
+- currency.HKD | host | covered | language constants
+- currency.INR | host | covered | language constants
+- currency.JPY | host | covered | language constants
+- currency.KRW | host | covered | language constants
+- currency.MYR | host | covered | language constants
+- currency.NOK | host | covered | language constants
+- currency.NONE | host | covered | language constants
+- currency.NZD | host | covered | language constants
+- currency.PKR | host | covered | language constants
+- currency.PLN | host | covered | language constants
+- currency.RUB | host | covered | language constants
+- currency.SEK | host | covered | language constants
+- currency.SGD | host | covered | language constants
+- currency.TRY | host | covered | language constants
+- currency.USD | host | covered | language constants
+- currency.USDT | host | covered | language constants
+- currency.ZAR | host | covered | language constants
+- dayofweek.friday | host | covered | language constants
+- dayofweek.monday | host | covered | language constants
+- dayofweek.saturday | host | covered | language constants
+- dayofweek.sunday | host | covered | language constants
+- dayofweek.thursday | host | covered | language constants
+- dayofweek.tuesday | host | covered | language constants
+- dayofweek.wednesday | host | covered | language constants
+- display.all | host | covered | language constants
+- display.data_window | host | covered | language constants
+- display.none | host | covered | language constants
+- display.pane | host | covered | language constants
+- display.price_scale | host | covered | language constants
+- display.status_line | host | covered | language constants
+- dividends.gross | host | covered | language constants
+- dividends.net | host | covered | language constants
+- earnings.actual | host | covered | language constants
+- earnings.estimate | host | covered | language constants
+- earnings.standardized | host | covered | language constants
+- extend.both | host | covered | language constants
+- extend.left | host | covered | language constants
+- extend.none | host | covered | language constants
+- extend.right | host | covered | language constants
+- false | host | covered | language constants
+- font.family_default | host | covered | language constants
+- font.family_monospace | host | covered | language constants
+- format.inherit | host | covered | language constants
+- format.mintick | host | covered | language constants
+- format.percent | host | covered | language constants
+- format.price | host | covered | language constants
+- format.volume | host | covered | language constants
+- hline.style_dashed | host+engine | covered | host normalizes; engine renders line
+- hline.style_dotted | host+engine | covered | host normalizes; engine renders line
+- hline.style_solid | host+engine | covered | host normalizes; engine renders line
+- label.style_arrowdown | host+engine | covered | host normalizes; engine renders label
+- label.style_arrowup | host+engine | covered | host normalizes; engine renders label
+- label.style_circle | host+engine | covered | host normalizes; engine renders label
+- label.style_cross | host+engine | covered | host normalizes; engine renders label
+- label.style_diamond | host+engine | covered | host normalizes; engine renders label
+- label.style_flag | host+engine | covered | host normalizes; engine renders label
+- label.style_label_center | host+engine | covered | host normalizes; engine renders label
+- label.style_label_down | host+engine | covered | host normalizes; engine renders label
+- label.style_label_left | host+engine | covered | host normalizes; engine renders label
+- label.style_label_lower_left | host+engine | covered | host normalizes; engine renders label
+- label.style_label_lower_right | host+engine | covered | host normalizes; engine renders label
+- label.style_label_right | host+engine | covered | host normalizes; engine renders label
+- label.style_label_up | host+engine | covered | host normalizes; engine renders label
+- label.style_label_upper_left | host+engine | covered | host normalizes; engine renders label
+- label.style_label_upper_right | host+engine | covered | host normalizes; engine renders label
+- label.style_none | host+engine | covered | host normalizes; engine renders label
+- label.style_square | host+engine | covered | host normalizes; engine renders label
+- label.style_text_outline | host+engine | covered | host normalizes; engine renders label
+- label.style_triangledown | host+engine | covered | host normalizes; engine renders label
+- label.style_triangleup | host+engine | covered | host normalizes; engine renders label
+- label.style_xcross | host+engine | covered | host normalizes; engine renders label
+- line.style_arrow_both | host+engine | covered | host normalizes; engine renders line
+- line.style_arrow_left | host+engine | covered | host normalizes; engine renders line
+- line.style_arrow_right | host+engine | covered | host normalizes; engine renders line
+- line.style_dashed | host+engine | covered | host normalizes; engine renders line
+- line.style_dotted | host+engine | covered | host normalizes; engine renders line
+- line.style_solid | host+engine | covered | host normalizes; engine renders line
+- location.abovebar | host | covered | language constants
+- location.absolute | host | covered | language constants
+- location.belowbar | host | covered | language constants
+- location.bottom | host | covered | language constants
+- location.top | host | covered | language constants
+- math.e | host | covered | language constants
+- math.phi | host | covered | language constants
+- math.pi | host | covered | language constants
+- math.rphi | host | covered | language constants
+- order.ascending | host | covered | language constants
+- order.descending | host | covered | language constants
+- plot.style_area | host+engine | covered | host normalizes; engine renders series
+- plot.style_areabr | host+engine | covered | host normalizes; engine renders series
+- plot.style_circles | host+engine | covered | host normalizes; engine renders series
+- plot.style_columns | host+engine | covered | host normalizes; engine renders series
+- plot.style_cross | host+engine | covered | host normalizes; engine renders series
+- plot.style_histogram | host+engine | covered | host normalizes; engine renders series
+- plot.style_line | host+engine | covered | host normalizes; engine renders series
+- plot.style_linebr | host+engine | covered | host normalizes; engine renders series
+- plot.style_stepline | host+engine | covered | host normalizes; engine renders series
+- plot.style_stepline_diamond | host+engine | covered | host normalizes; engine renders series
+- plot.style_steplinebr | host+engine | covered | host normalizes; engine renders series
+- position.bottom_center | host | covered | language constants
+- position.bottom_left | host | covered | language constants
+- position.bottom_right | host | covered | language constants
+- position.middle_center | host | covered | language constants
+- position.middle_left | host | covered | language constants
+- position.middle_right | host | covered | language constants
+- position.top_center | host | covered | language constants
+- position.top_left | host | covered | language constants
+- position.top_right | host | covered | language constants
+- scale.left | host | covered | language constants
+- scale.none | host | covered | language constants
+- scale.right | host | covered | language constants
+- session.extended | host | covered | language constants
+- session.regular | host | covered | language constants
+- settlement_as_close.inherit | host | covered | language constants
+- settlement_as_close.off | host | covered | language constants
+- settlement_as_close.on | host | covered | language constants
+- shape.arrowdown | host+engine | covered | host normalizes; engine renders marker
+- shape.arrowup | host+engine | covered | host normalizes; engine renders marker
+- shape.circle | host+engine | covered | host normalizes; engine renders marker
+- shape.cross | host+engine | covered | host normalizes; engine renders marker
+- shape.diamond | host+engine | covered | host normalizes; engine renders marker
+- shape.flag | host+engine | covered | host normalizes; engine renders marker
+- shape.labeldown | host+engine | covered | host normalizes; engine renders marker
+- shape.labelup | host+engine | covered | host normalizes; engine renders marker
+- shape.square | host+engine | covered | host normalizes; engine renders marker
+- shape.triangledown | host+engine | covered | host normalizes; engine renders marker
+- shape.triangleup | host+engine | covered | host normalizes; engine renders marker
+- shape.xcross | host+engine | covered | host normalizes; engine renders marker
+- size.auto | host | covered | language constants
+- size.huge | host | covered | language constants
+- size.large | host | covered | language constants
+- size.normal | host | covered | language constants
+- size.small | host | covered | language constants
+- size.tiny | host | covered | language constants
+- splits.denominator | host | covered | language constants
+- splits.numerator | host | covered | language constants
+- strategy.cash | host | covered | language constants
+- strategy.commission.cash_per_contract | host | covered | language constants
+- strategy.commission.cash_per_order | host | covered | language constants
+- strategy.commission.percent | host | covered | language constants
+- strategy.direction.all | host | covered | language constants
+- strategy.direction.long | host | covered | language constants
+- strategy.direction.short | host | covered | language constants
+- strategy.fixed | host | covered | language constants
+- strategy.long | host | covered | language constants
+- strategy.oca.cancel | host | covered | language constants
+- strategy.oca.none | host | covered | language constants
+- strategy.oca.reduce | host | covered | language constants
+- strategy.percent_of_equity | host | covered | language constants
+- strategy.short | host | covered | language constants
+- text.align_bottom | host+engine | covered | host normalizes; engine renders label
+- text.align_center | host+engine | covered | host normalizes; engine renders label
+- text.align_left | host+engine | covered | host normalizes; engine renders label
+- text.align_right | host+engine | covered | host normalizes; engine renders label
+- text.align_top | host+engine | covered | host normalizes; engine renders label
+- text.format_bold | host+engine | covered | host normalizes; engine renders label
+- text.format_italic | host+engine | covered | host normalizes; engine renders label
+- text.format_none | host+engine | covered | host normalizes; engine renders label
+- text.wrap_auto | host+engine | covered | host normalizes; engine renders label
+- text.wrap_none | host+engine | covered | host normalizes; engine renders label
+- true | host | covered | language constants
+- xloc.bar_index | host | covered | language constants
+- xloc.bar_time | host | covered | language constants
+- yloc.abovebar | host | covered | language constants
+- yloc.belowbar | host | covered | language constants
+- yloc.price | host | covered | language constants

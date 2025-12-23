@@ -39,6 +39,9 @@ This document defines error surfaces, diagnostic expectations, and reproducibili
 - `compute.result.canceled`
 - `compute.result.stale`
 - `compute.result.untracked`
+- `pinescript.limit.exceeded`
+- `pinescript.output.invalid`
+- `pinescript.output.unsupported`
 
 ## Failure surfaces (must be explicit)
 - Data validation failures (ordering, NaN, duplicates).

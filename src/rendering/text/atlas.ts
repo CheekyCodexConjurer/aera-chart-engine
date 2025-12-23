@@ -29,6 +29,7 @@ export class GlyphAtlas {
   private ascent = 0;
   private descent = 0;
   private dirty = true;
+  private evictions = 0;
   private font: string;
   private atlasSize: number;
   private cellSize: number;
@@ -72,11 +73,11 @@ export class GlyphAtlas {
     };
   }
 
-  getMetrics(): { pages: number; glyphs: number; capacity: number; occupancy: number } {
+  getMetrics(): { pages: number; glyphs: number; capacity: number; occupancy: number; evictions: number } {
     const capacity = this.getCapacity();
     const glyphs = this.getGlyphCount();
     const occupancy = capacity > 0 ? glyphs / capacity : 0;
-    return { pages: 1, glyphs, capacity, occupancy };
+    return { pages: 1, glyphs, capacity, occupancy, evictions: this.evictions };
   }
 
   getCapacity(): number {
@@ -139,6 +140,7 @@ export class GlyphAtlas {
     if (!this.ctx) return undefined;
     if (this.glyphs.has(char)) return this.glyphs.get(char)!;
     if (this.nextIndex >= this.cols * this.rows) {
+      this.evictions += 1;
       return this.glyphs.get("?");
     }
     const index = this.nextIndex;

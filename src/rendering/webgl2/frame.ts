@@ -11,7 +11,7 @@ import { uploadBuffer } from "./buffers.js";
 import { drawAreaSeries, drawCandleSeries, drawHistogramSeries, drawLineSeries } from "./draw.js";
 import { appendCrosshair, appendGridAndAxes } from "./frame-axes.js";
 import { computeLabelRect, measureLabel } from "./labels.js";
-import { resetFrameMetrics, recordDrawCalls } from "./metrics.js";
+import { recordBatchCount, recordDrawCalls, recordStateChange, resetFrameMetrics } from "./metrics.js";
 import { appendOverlays } from "./overlays.js";
 import { getSeriesEntry } from "./series-cache.js";
 import {
@@ -38,14 +38,18 @@ export function renderFrame(ctx: WebGL2RendererContext, frame: RenderFrame): voi
   resetFrameMetrics(ctx);
   const gl = ctx.gl;
   gl.enable(gl.BLEND);
+  recordStateChange(ctx);
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  recordStateChange(ctx);
   gl.enable(gl.SCISSOR_TEST);
+  recordStateChange(ctx);
   ctx.clipStack.length = 0;
   const clear = ctx.options.clearColor ?? DEFAULT_CLEAR;
   gl.clearColor(clear[0], clear[1], clear[2], clear[3]);
   gl.clear(gl.COLOR_BUFFER_BIT);
 
   const labels: TextLabel[] = [];
+  let atlasEvictions = 0;
   const bottomPaneId = findBottomPaneId(frame.panes);
   const crosshairs = frame.crosshairs ?? [];
   for (const pane of frame.panes) {
@@ -71,6 +75,7 @@ export function renderFrame(ctx: WebGL2RendererContext, frame: RenderFrame): voi
         );
         ctx.warnedTextAtlasFull = true;
       }
+      atlasEvictions += 1;
       ctx.textMode = textLayer ? "canvas" : "none";
     }
   }
@@ -88,6 +93,9 @@ export function renderFrame(ctx: WebGL2RendererContext, frame: RenderFrame): voi
     if (hasLabels) {
       renderLabelBackgrounds(ctx, labels);
       ctx.gpuText.render(labels);
+      recordDrawCalls(ctx, 1);
+      recordBatchCount(ctx, 1);
+      recordStateChange(ctx, 4);
     }
   } else if (hasLabels && !ctx.warnedMissingTextLayer && !ctx.warnedTextAtlasFull) {
     ctx.options.onError?.("Label overlays skipped: text renderer not configured");
@@ -97,10 +105,14 @@ export function renderFrame(ctx: WebGL2RendererContext, frame: RenderFrame): voi
   if (ctx.gpuText) {
     ctx.metrics.textAtlas = ctx.gpuText.getMetrics();
   } else {
-    ctx.metrics.textAtlas = { pages: 0, glyphs: 0, capacity: 0, occupancy: 0 };
+    ctx.metrics.textAtlas = { pages: 0, glyphs: 0, capacity: 0, occupancy: 0, evictions: 0 };
+  }
+  if (atlasEvictions > 0) {
+    ctx.metrics.textAtlas.evictions += atlasEvictions;
   }
 
   gl.disable(gl.SCISSOR_TEST);
+  recordStateChange(ctx);
 }
 
 function renderPane(
@@ -181,13 +193,17 @@ function flushDynamic(ctx: WebGL2RendererContext, gl: WebGL2RenderingContext, co
   const data = ctx.dynamicBuffer.buffer;
   const optimized = coalesceDrawCommands(commands);
   gl.useProgram(ctx.dynamicProgram);
+  recordStateChange(ctx);
   gl.bindVertexArray(ctx.dynamicVao);
+  recordStateChange(ctx);
   gl.bindBuffer(gl.ARRAY_BUFFER, ctx.dynamicVbo);
+  recordStateChange(ctx);
   uploadBuffer(ctx, gl, ctx.dynamicGpuBuffer, data, gl.DYNAMIC_DRAW);
   for (const command of optimized) {
     gl.drawArrays(command.mode, command.first, command.count);
   }
   recordDrawCalls(ctx, optimized.length);
+  recordBatchCount(ctx, optimized.length);
   gl.bindVertexArray(null);
   gl.bindBuffer(gl.ARRAY_BUFFER, null);
   ctx.dynamicBuffer.reset();
@@ -237,6 +253,7 @@ function appendRect(
 function pushClip(ctx: WebGL2RendererContext, gl: WebGL2RenderingContext, plotArea: RenderFrame["panes"][number]["plotArea"]): void {
   ctx.clipStack.push(plotArea);
   applyScissor(ctx, gl, plotArea);
+  recordStateChange(ctx);
 }
 
 function popClip(ctx: WebGL2RendererContext, gl: WebGL2RenderingContext): void {

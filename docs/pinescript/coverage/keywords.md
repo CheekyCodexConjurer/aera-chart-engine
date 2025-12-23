@@ -5,22 +5,22 @@ Count: 15
 
 ## Defaults
 - owner: host
-- status: planned
+- status: covered
 - notes: language keywords
 
 ## Entries
-- and | host | planned | language keywords
-- enum | host | planned | language keywords
-- export | host | planned | language keywords
-- for | host | planned | language keywords
-- for...in | host | planned | language keywords
-- if | host | planned | language keywords
-- import | host | planned | language keywords
-- method | host | planned | language keywords
-- not | host | planned | language keywords
-- or | host | planned | language keywords
-- switch | host | planned | language keywords
-- type | host | planned | language keywords
-- var | host | planned | language keywords
-- varip | host | planned | language keywords
-- while | host | planned | language keywords
+- and | host | covered | language keywords
+- enum | host | covered | language keywords
+- export | host | covered | language keywords
+- for | host | covered | language keywords
+- for...in | host | covered | language keywords
+- if | host | covered | language keywords
+- import | host | covered | language keywords
+- method | host | covered | language keywords
+- not | host | covered | language keywords
+- or | host | covered | language keywords
+- switch | host | covered | language keywords
+- type | host | covered | language keywords
+- var | host | covered | language keywords
+- varip | host | covered | language keywords
+- while | host | covered | language keywords

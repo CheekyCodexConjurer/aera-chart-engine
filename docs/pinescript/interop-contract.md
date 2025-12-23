@@ -22,6 +22,11 @@ This document defines the non-negotiable contract between PineScript compatibili
 2. Host normalizes to engine primitives.
 3. Engine validates, clips, and renders.
 
+## Adapter diagnostics and limits
+- Adapter enforces PineScript output caps before sending to the engine.
+- Limit violations emit `pinescript.limit.exceeded` diagnostics with counts and limits.
+- Unsupported outputs emit `pinescript.output.unsupported` diagnostics.
+
 ## Error handling
 - Compilation and runtime errors are host-owned.
 - Render-time validation errors are engine-owned.

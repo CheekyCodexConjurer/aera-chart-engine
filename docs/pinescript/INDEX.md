@@ -22,3 +22,5 @@ PineScript -> host runtime -> Plot API normalization -> engine primitives
 - `interop-contract.md` - host and engine responsibilities for PineScript parity.
 - `catalog/INDEX.md` - full PineScript catalog (functions, variables, constants, keywords, types).
 - `coverage/INDEX.md` - full PineScript coverage matrix (owner/status per entry).
+- `../../tools/pinescript/adapter/index.mjs` - reference adapter that normalizes PineScript outputs to engine primitives.
+- `../../tools/pinescript/coverage-runner.mjs` - parity coverage validation runner.

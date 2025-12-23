@@ -197,6 +197,7 @@ export function selectLod(ctx: EngineContext, series: SeriesState, width: number
       pointsPerPixel: selection.pointsPerPixel
     });
     if (previous) {
+      ctx.engineMetrics.lodSelectionChanges += 1;
       ctx.diagnostics.addInfo("lod.level.changed", "lod level changed", {
         seriesId: series.id,
         from: previous.level,

@@ -13,6 +13,14 @@ function normalizeRange(range) {
   };
 }
 
+function normalizePane(pane) {
+  return {
+    paneId: pane.paneId,
+    visibleRange: normalizeRange(pane.visibleRange),
+    renderWindow: normalizeRange(pane.renderWindow ?? null)
+  };
+}
+
 function computeSeriesStats(timeMs, range, cutoffTimeMs) {
   let count = 0;
   let first = null;
@@ -34,24 +42,36 @@ function computeSeriesStats(timeMs, range, cutoffTimeMs) {
   };
 }
 
-function getOverlayPoints(overlay) {
-  const data = overlay.data ?? {};
-  if (Array.isArray(data.points)) {
-    return data.points.map((point) => ({
-      timeMs: point.timeMs,
-      value: point.value ?? point.top ?? 0
-    }));
+function overlayPointsFromData(type, data) {
+  if (!data) return [];
+  if (type === "zone") {
+    return (data.points ?? []).map((point) => ({ timeMs: point.timeMs }));
   }
-  if (Array.isArray(data.labels)) {
-    return data.labels
-      .filter((label) => label.timeMs != null)
-      .map((label) => ({ timeMs: label.timeMs, value: label.price ?? 0 }));
+  if (type === "hline") {
+    const points = [];
+    if (data.fromTimeMs != null) points.push({ timeMs: data.fromTimeMs });
+    if (data.toTimeMs != null) points.push({ timeMs: data.toTimeMs });
+    return points;
   }
-  return [];
+  if (type === "right-label") {
+    return (data.labels ?? []).filter((label) => label.timeMs != null).map((label) => ({ timeMs: label.timeMs }));
+  }
+  if (type === "table") {
+    return [];
+  }
+  const points = data.points ?? data.labels ?? [];
+  return points.map((point) => ({ timeMs: point.timeMs }));
 }
 
 function computeOverlayStats(overlay, range, cutoffTimeMs) {
-  const points = getOverlayPoints(overlay);
+  const points = overlayPointsFromData(overlay.type, overlay.data);
+  if (points.length === 0) {
+    return {
+      visibleCount: overlay.type === "table" ? (overlay.data?.rows?.length ?? 0) : 1,
+      firstVisibleTimeMs: null,
+      lastVisibleTimeMs: null
+    };
+  }
   let count = 0;
   let first = null;
   let last = null;
@@ -73,32 +93,42 @@ function computeOverlayStats(overlay, range, cutoffTimeMs) {
   };
 }
 
-export function computeStateHash({ dataset, visibleRange, dataWindow, replayState }) {
-  const cutoffTimeMs = replayState?.cutoffTimeMs ?? null;
-  const previewTimeMs = replayState?.previewTimeMs ?? null;
-  const seriesStats = dataset.manifest.series
+export function computeStateHash(bundle) {
+  const cutoffTimeMs = bundle.view?.replayState?.cutoffTimeMs ?? null;
+  const previewTimeMs = bundle.view?.replayState?.previewTimeMs ?? null;
+  const panes = (bundle.view?.panes ?? []).map(normalizePane);
+  const paneRanges = new Map(
+    (bundle.view?.panes ?? []).map((pane) => [pane.paneId, pane.visibleRange ?? null])
+  );
+
+  const seriesStats = (bundle.inputs?.series ?? [])
     .map((series) => {
-      const timeMs = dataset.seriesData.get(series.id)?.timeMs ?? [];
+      const range = paneRanges.get(series.definition.paneId) ?? null;
+      const timeMs = series.data?.timeMs ?? [];
       return {
-        id: series.id,
-        ...computeSeriesStats(timeMs, visibleRange, cutoffTimeMs)
+        id: series.definition.id,
+        paneId: series.definition.paneId,
+        ...computeSeriesStats(timeMs, range, cutoffTimeMs)
       };
     })
     .sort((a, b) => a.id.localeCompare(b.id));
 
-  const overlayStats = (dataset.overlayBatches ?? [])
+  const overlayStats = (bundle.inputs?.overlays ?? [])
     .flatMap((batch) => batch.overlays.map((overlay) => ({ batchId: batch.batchId, overlay })))
-    .map(({ batchId, overlay }) => ({
-      id: overlay.id,
-      type: overlay.type,
-      batchId,
-      ...computeOverlayStats(overlay, visibleRange, cutoffTimeMs)
-    }))
+    .map(({ batchId, overlay }) => {
+      const paneId = overlay.paneId ?? "price";
+      const range = paneRanges.get(paneId) ?? null;
+      return {
+        id: overlay.id,
+        type: overlay.type,
+        batchId,
+        ...computeOverlayStats(overlay, range, cutoffTimeMs)
+      };
+    })
     .sort((a, b) => a.id.localeCompare(b.id));
 
   const digest = {
-    visibleRange: normalizeRange(visibleRange),
-    dataWindow: normalizeRange(dataWindow),
+    panes,
     cutoffTimeMs: cutoffTimeMs == null ? null : quantize(cutoffTimeMs),
     previewTimeMs: previewTimeMs == null ? null : quantize(previewTimeMs),
     series: seriesStats,

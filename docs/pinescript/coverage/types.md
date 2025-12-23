@@ -5,25 +5,25 @@ Count: 18
 
 ## Defaults
 - owner: host
-- status: planned
+- status: covered
 - notes: type system
 
 ## Entries
-- array | host | planned | type system
-- bool | host | planned | type system
-- box | host | planned | type system
-- chart.point | host | planned | type system
-- color | host | planned | type system
-- const | host | planned | type system
-- float | host | planned | type system
-- int | host | planned | type system
-- label | host | planned | type system
-- line | host | planned | type system
-- linefill | host | planned | type system
-- map | host | planned | type system
-- matrix | host | planned | type system
-- polyline | host | planned | type system
-- series | host | planned | type system
-- simple | host | planned | type system
-- string | host | planned | type system
-- table | host | planned | type system
+- array | host | covered | type system
+- bool | host | covered | type system
+- box | host | covered | type system
+- chart.point | host | covered | type system
+- color | host | covered | type system
+- const | host | covered | type system
+- float | host | covered | type system
+- int | host | covered | type system
+- label | host | covered | type system
+- line | host | covered | type system
+- linefill | host | covered | type system
+- map | host | covered | type system
+- matrix | host | covered | type system
+- polyline | host | covered | type system
+- series | host | covered | type system
+- simple | host | covered | type system
+- string | host | covered | type system
+- table | host | covered | type system

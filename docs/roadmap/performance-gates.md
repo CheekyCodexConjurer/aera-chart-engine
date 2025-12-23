@@ -27,6 +27,7 @@ This spec defines benchmark budgets and regression rules.
 - Headless runner with fixed dataset seeds.
 - Captures p50/p95 frame time, input latency, memory deltas.
 - Produces artifacted JSON summary + trace ids.
+- `bench:gate` enforces both baseline and interaction latency thresholds.
 
 ## Benchmark artifact schema (required)
 - `runId`, `scenarioId`, `seed`, `engineVersion`, `engineContractVersion`, `runnerVersion`.
@@ -42,13 +43,13 @@ This spec defines benchmark budgets and regression rules.
 - Regression waivers must include a mitigation plan and an expiry milestone.
 
 ## Latest results (M11/M12)
-- `baseline-1m` (headless, NullRenderer): p50=0.01ms p95=0.01ms p99=0.01ms.
+- `baseline-1m` (headless, NullRenderer): p50=0.01ms p95=0.01ms p99=0.02ms.
   - Report: `tools/bench/reports/baseline-1m.json`.
 - `interaction-latency` (headless, NullRenderer):
-  - Crosshair p50=0.01ms p95=0.09ms.
-  - Pan p50=0.08ms p95=0.25ms.
-  - Zoom p50=0.06ms p95=0.16ms.
-  - Replay p50=0.09ms p95=0.29ms.
+  - Crosshair p50=0.01ms p95=0.10ms.
+  - Pan p50=0.07ms p95=0.36ms.
+  - Zoom p50=0.06ms p95=0.26ms.
+  - Replay p50=0.12ms p95=0.39ms.
   - Report: `tools/bench/reports/interaction-latency.json`.
 - Notes: headless Node baselines do not capture GPU time; on-device GPU profiling remains required for renderer changes.
 

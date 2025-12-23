@@ -142,19 +142,15 @@ function smokeScenario(engine, dataset, spec, observers, assertions) {
   );
 }
 
-function runReplayTrace(engine, dataset, spec, observers, assertions) {
+function runReplayTrace(engine, spec, observers, assertions) {
   if (!spec.replayTrace) return [];
   const stateHashes = [];
   for (let i = 0; i < spec.replayTrace.length; i += 1) {
     const step = spec.replayTrace[i];
     engine.setReplayState(step);
     engine.flush();
-    const hashEntry = computeStateHash({
-      dataset,
-      visibleRange: observers.visibleRanges.at(-1)?.range ?? null,
-      dataWindow: observers.dataWindows.at(-1)?.range ?? null,
-      replayState: step
-    });
+    const bundle = engine.captureReproBundle();
+    const hashEntry = computeStateHash(bundle);
     stateHashes.push({ step: i, hash: hashEntry.hash, digest: hashEntry.digest });
   }
   recordAssertion(
@@ -203,7 +199,7 @@ export async function runScenario({ scenarioId, mode = "smoke", reportDir }) {
   } else {
     smokeScenario(engine, dataset, spec, observers, assertions);
     if (mode === "replay" || spec.replayTrace) {
-      stateHashes = runReplayTrace(engine, dataset, spec, observers, assertions);
+      stateHashes = runReplayTrace(engine, spec, observers, assertions);
     }
   }
 

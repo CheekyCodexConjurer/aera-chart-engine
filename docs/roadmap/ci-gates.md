@@ -6,6 +6,8 @@ This spec defines the minimum CI pipeline and gating policy.
 - Typecheck and build (`npm run check`).
 - Unit tests for data/LOD/replay (when added).
 - Harness smoke tests (`npm run harness:smoke`).
+- Replay harness (`npm run test:replay`).
+- PineScript parity (`npm run test:pinescript:parity`).
 - Benchmark suite (`npm run bench:baseline`, `npm run bench:interaction`).
 - Contract tests (`npm run test:contracts`).
 
@@ -33,6 +35,8 @@ This spec defines the minimum CI pipeline and gating policy.
 - `npm run test:ui:smoke`
 - `npm run harness:smoke`
 - `npm run test:contracts`
+- `npm run test:replay`
+- `npm run test:pinescript:parity`
 - `npm run bench:baseline`
 - `npm run bench:interaction`
 - `npm run bench:gate`

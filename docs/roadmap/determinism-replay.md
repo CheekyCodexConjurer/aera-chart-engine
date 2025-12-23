@@ -37,13 +37,14 @@ This spec defines deterministic update invariants and replay harness expectation
   - Quantize floats to 1e-4 before hashing.
   - Exclude GPU raster output and timing-only counters.
 - Required digest fields:
-  - `visibleRange`, `renderWindow`, `cutoffTimeMs`, `previewTimeMs`.
+  - `panes[]` with `visibleRange` and `renderWindow`.
+  - `cutoffTimeMs`, `previewTimeMs`.
   - Counts: visible points per series and overlay.
   - First/last visible times per series and overlay.
 - Use SHA-256 for hashing.
 
 **Implementation note**
-- Headless harness computes hashes in `tools/harness/headless/state-hash.mjs`.
+- Headless harness computes hashes in `tools/harness/headless/state-hash.mjs` and validates sequences via `tools/harness/headless/replay-runner.mjs`.
 
 ## Replay harness expectations
 - Identical inputs produce identical hash sequences.

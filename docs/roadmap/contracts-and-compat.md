@@ -7,7 +7,7 @@ This spec defines contract versioning, compatibility rules, and adapter guidance
 - Contract version is independent of package version but must be compatible.
 - Breaking changes require a major bump of `engineContractVersion`.
 - Initial contract version should match the package version until the first breaking change.
-- Canonical engineContractVersion: `0.2.0`.
+- Canonical engineContractVersion: `0.3.0`.
 
 ## Source of truth (required)
 - The canonical contract version lives in documentation and is exposed via `getEngineInfo()`.
@@ -41,6 +41,14 @@ This spec defines contract versioning, compatibility rules, and adapter guidance
 - Compatibility impact: backward-compatible additions; existing handlers remain valid.
 - Migration steps: accept new payload fields, use `setDataWindowCoverage` and `dataWindowMaxPending` where paging matters, wire `handlePinchZoom` for touch input.
 - Rollback: remove usage of new fields/methods and pin to engine contract 0.1.x.
+
+### Contract change: Renderer metrics expansion + replay hashing (0.3.0)
+- Rationale: expose renderer state changes/batch counts and align replay hash digest with pane render windows.
+- Old behavior: `getMetrics().renderer` omitted batch/state/buffer reuse counters and text atlas evictions; replay hash digest did not include per-pane render windows.
+- New behavior: renderer metrics include `batchCount`, `stateChanges`, `bufferReuses`, and `textAtlas.evictions`; replay hash digest includes per-pane `visibleRange` and `renderWindow`.
+- Compatibility impact: backward-compatible additions; existing consumers can ignore new fields.
+- Migration steps: accept new metrics fields in diagnostics pipelines and update any hash comparators to account for pane render windows.
+- Rollback: ignore new metrics fields and pin to engine contract 0.2.x.
 
 ## Contract tests (doc-first)
 - Contract tests fail when the API surface changes without a version bump.

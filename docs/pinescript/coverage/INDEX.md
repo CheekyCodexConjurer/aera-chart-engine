@@ -2,6 +2,10 @@
 
 This index lists the full coverage matrix for all PineScript entries.
 
+## Status definitions
+- `covered`: adapter mapping is defined and validated; execution remains host-owned.
+- `exempt`: explicitly out of scope for the engine adapter with documented rationale.
+
 ## Coverage files
 - `collections.md` - 115 entries
 - `constants.md` - 204 entries

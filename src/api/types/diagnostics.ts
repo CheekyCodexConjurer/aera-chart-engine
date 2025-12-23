@@ -30,21 +30,28 @@ export type RendererMetrics = {
   frameCount: number;
   lastFrame: {
     drawCalls: number;
+    batchCount: number;
+    stateChanges: number;
     bufferUploads: number;
     bufferAllocations: number;
     bufferBytes: number;
+    bufferReuses: number;
   };
   totals: {
     drawCalls: number;
+    batchCount: number;
+    stateChanges: number;
     bufferUploads: number;
     bufferAllocations: number;
     bufferBytes: number;
+    bufferReuses: number;
   };
   textAtlas: {
     pages: number;
     glyphs: number;
     capacity: number;
     occupancy: number;
+    evictions: number;
   };
 };
 
@@ -52,6 +59,7 @@ export type EngineMetrics = {
   lodCacheHits: number;
   lodCacheMisses: number;
   lodCacheEvictions: number;
+  lodSelectionChanges: number;
   renderCacheHits: number;
   renderCacheMisses: number;
 };

@@ -358,11 +358,9 @@ M0–M8 establish the contract and documentation baseline. The milestones below 
   - DoD: no label overlap; right gutter width stable across pan/zoom.
   - Risks: label jitter; Mitigation: collision tests + deterministic layout.
   - Deps: M0.
-
 ### M11 - Data pipeline + LOD (implementation)
 **Goal**: Deliver deterministic windowing, LOD, and cache behavior.
 - Plan: `docs/roadmap/m11-data-window-lod-design.md`.
-
 - [x] T11.1 Implement window request handshake with prefetch + backpressure.
   - Context: host/engine window contract is doc-only.
   - Changes: request/response API, window cache, prefetch margin handling.
@@ -383,11 +381,9 @@ M0–M8 establish the contract and documentation baseline. The milestones below 
   - DoD: gaps render per policy; crosshair behavior is deterministic.
   - Risks: domain drift; Mitigation: canonical time semantics in M3.
   - Deps: M3.
-
 ### M12 - Interaction + overlays (implementation)
 **Goal**: Deliver deterministic interactions and full overlay primitive coverage.
 - Plan: `docs/roadmap/m12-interaction-overlays-plan.md`.
-
 - [x] T12.1 Implement pointer capture, wheel/pinch zoom, and keyboard controls.
   - Context: interaction model is spec-only.
   - Changes: input handlers + state machine, priority rules enforced.
@@ -415,7 +411,6 @@ M0–M8 establish the contract and documentation baseline. The milestones below 
   - DoD: overlays can be placed deterministically with event triggers.
   - Risks: desync; Mitigation: versioned update events.
   - Deps: M0.
-
 ### M13 - Compute + threading (implementation)
 **Goal**: Run indicators off the main thread and prepare worker rendering.
 
@@ -432,25 +427,23 @@ M0–M8 establish the contract and documentation baseline. The milestones below 
   - DoD: parity with main-thread rendering for core flows.
   - Risks: browser support gaps; Mitigation: explicit fallback diagnostics.
   - Deps: M5.
-
 ### M14 - Observability + determinism (implementation)
 **Goal**: Make runtime behavior fully observable and reproducible.
-
-- [ ] T14.1 Wire structured logs + metrics to all hot paths.
+- Plan: `docs/roadmap/m14-observability-determinism-design.md`.
+- [x] T14.1 Wire structured logs + metrics to all hot paths.
   - Context: log/metrics schema exists, integration partial.
   - Changes: log emitters in renderer, pipeline, interaction.
   - DoD: repro bundle captures logs + metrics for a session.
   - Risks: overhead; Mitigation: sampling + caps.
   - Deps: M4.
-
-- [ ] T14.2 Implement deterministic replay harness + snapshot checks.
+- [x] T14.2 Implement deterministic replay harness + snapshot checks.
   - Context: replay harness is doc-only.
   - Changes: replay runner, snapshot hashing, assert tooling.
   - DoD: same inputs yield same hashes across runs.
   - Risks: hash instability; Mitigation: normalized ordering rules.
   - Deps: M3.
 
-- [ ] T14.3 Integrate benchmark gate into CI with thresholds.
+- [x] T14.3 Integrate benchmark gate into CI with thresholds.
   - Context: benches exist but not enforced.
   - Changes: CI gate, baseline artifacts, regression reporting.
   - DoD: CI blocks on perf regressions.
@@ -459,15 +452,15 @@ M0–M8 establish the contract and documentation baseline. The milestones below 
 
 ### M15 - PineScript parity (host adapter)
 **Goal**: Reach 100% PineScript parity via host-owned runtime and adapter.
-
-- [ ] T15.1 Implement PineScript adapter layer (host-owned).
+- Plan: `docs/roadmap/m15-pinescript-parity-design.md`.
+- [x] T15.1 Implement PineScript adapter layer (host-owned).
   - Context: compatibility matrix is defined but unimplemented.
   - Changes: adapter mapping outputs -> engine primitives.
   - DoD: parity suite maps catalog entries to expected primitives.
   - Risks: scope creep; Mitigation: strict host/engine boundaries.
   - Deps: M12.
 
-- [ ] T15.2 Implement parity coverage tests against the catalog.
+- [x] T15.2 Implement parity coverage tests against the catalog.
   - Context: catalog exists without executable validation.
   - Changes: coverage harness + per-entry status checks.
   - DoD: 100% catalog entries are covered or explicitly exempted.

@@ -115,6 +115,7 @@ export class ChartEngine {
     lodCacheHits: 0,
     lodCacheMisses: 0,
     lodCacheEvictions: 0,
+    lodSelectionChanges: 0,
     renderCacheHits: 0,
     renderCacheMisses: 0
   };

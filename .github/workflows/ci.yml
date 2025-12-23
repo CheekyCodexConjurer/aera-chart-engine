@@ -25,3 +25,13 @@ jobs:
         run: npm run test:contracts
       - name: Harness smoke
         run: npm run test:ui:smoke
+      - name: Replay harness
+        run: npm run test:replay
+      - name: PineScript parity
+        run: npm run test:pinescript:parity
+      - name: Bench baseline
+        run: npm run bench:baseline
+      - name: Bench interaction
+        run: npm run bench:interaction
+      - name: Bench gate
+        run: npm run bench:gate

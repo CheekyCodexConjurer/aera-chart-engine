@@ -12,6 +12,10 @@ This document defines limits required to reach PineScript parity while preservin
 - Excess overlays are dropped deterministically.
 - Memory budgets are enforced for large datasets.
 
+## Adapter enforcement
+- The host adapter enforces caps before ingestion and emits `pinescript.limit.exceeded` diagnostics with counts and limits.
+- Adapter caps default to the engine budgets unless overridden by host config.
+
 ## Target budgets
 - Lines: 200k points per pane.
 - Markers: 50k points per pane.

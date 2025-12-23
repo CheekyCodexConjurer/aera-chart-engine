@@ -1,13 +1,13 @@
 # PineScript Coverage Summary
 
-Total entries: 1332
+Total entries: 1281
 
 ## By owner
-- host: 1034
+- host: 983
 - host+engine: 298
 
 ## By status
-- planned: 1332
+- covered: 1281
 
 ## By file
 - collections.md: 115
@@ -19,7 +19,6 @@ Total entries: 1332
 - misc.md: 47
 - strategy.md: 107
 - style-display.md: 60
-- summary.md: 51
 - system.md: 92
 - ta.md: 69
 - types.md: 18

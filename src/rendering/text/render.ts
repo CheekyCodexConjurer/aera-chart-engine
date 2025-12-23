@@ -93,7 +93,7 @@ export class GpuTextRenderer {
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, null);
   }
 
-  getMetrics(): { pages: number; glyphs: number; capacity: number; occupancy: number } {
+  getMetrics(): { pages: number; glyphs: number; capacity: number; occupancy: number; evictions: number } {
     return this.atlas.getMetrics();
   }
 

@@ -296,3 +296,13 @@ WorkerAdapter: {
 - `captureReproBundle() -> ReproBundle`
 - `applyReproBundle(bundle)`
 - `ChartEngine.fromReproBundle(bundle)`
+
+**Renderer metrics snapshot**
+- `renderer.lastFrame`: `drawCalls`, `batchCount`, `stateChanges`, `bufferUploads`, `bufferAllocations`, `bufferBytes`, `bufferReuses`.
+- `renderer.totals`: same counters accumulated across frames.
+- `renderer.textAtlas`: `pages`, `glyphs`, `capacity`, `occupancy`, `evictions`.
+
+**Engine metrics snapshot**
+- `engine.lodCacheHits`, `engine.lodCacheMisses`, `engine.lodCacheEvictions`.
+- `engine.lodSelectionChanges` (LOD churn counter).
+- `engine.renderCacheHits`, `engine.renderCacheMisses`.

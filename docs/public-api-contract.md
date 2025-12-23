@@ -38,6 +38,8 @@ Point: { x: number, y: number }
 - `chartId`: stable chart identifier for logs and repro bundles.
 - `sessionId`: optional session identifier (auto-generated if omitted).
 - `logEventLimit`: max log events retained for repro bundles.
+- `dataWindowMaxPending`: max pending data window requests before coalescing (default 2).
+- `gapThresholdRatio`: multiple of median bar interval that defines a gap (default 3).
 
 ## Viewport control (required)
 - `resetToLatest(paneId?)`
@@ -64,7 +66,10 @@ Point: { x: number, y: number }
 {
   paneId: PaneId,
   range: Range,          // render window with prefetch margin
-  prefetchRatio: number
+  prefetchRatio: number,
+  requestId: number,
+  reason: "render-window" | "coverage-gap" | "backpressure",
+  pendingCount: number
 }
 ```
 
@@ -72,6 +77,16 @@ Point: { x: number, y: number }
 - Emitted when the active render window shifts or when coverage is insufficient.
 - Requests are coalesced; the engine will not spam identical windows.
 - If host responds with a smaller window, the engine emits a diagnostic.
+- Hosts may acknowledge coverage explicitly via `setDataWindowCoverage(paneId, range | null)`.
+
+**Coverage override**
+- `setDataWindowCoverage(paneId, range | null)` sets or clears host-reported coverage bounds.
+- Passing `null` reverts to primary-series derived coverage.
+
+**Reason values**
+- `render-window`: initial request or render window shift.
+- `coverage-gap`: coverage does not include the target range.
+- `backpressure`: request coalesced due to pending cap.
 
 ## Pointer events contract
 - `onCrosshairMove(callback(event))`
@@ -92,6 +107,7 @@ Point: { x: number, y: number }
 **Rules**
 - The engine emits both continuous time and nearest data time.
 - Snapping to bars is a host decision unless explicitly configured.
+- `nearestTimeMs` is `null` when the cursor is inside a gap or outside coverage.
 - Events are coalesced and must not exceed frame rate.
 - During active drag/selection, crosshair and hit-test emissions are suppressed.
 
@@ -119,6 +135,7 @@ Point: { x: number, y: number }
 - `updatePan(paneId, x)`
 - `endPan()`
 - `handleWheelZoom(paneId, x, deltaY, zoomSpeed?)`
+- `handlePinchZoom(paneId, x, scale)`
 - `clearPointer(paneId?)`
 - `handleKeyCommand(paneId, command, anchorTimeMs?)`
 
@@ -146,6 +163,7 @@ Supported commands:
 **Rules**
 - Returns `null` when conversion is out of range.
 - Conversions use the active axis transform at the time of the call.
+- `onTransformChange` provides the plot area, visible range, and gutters for event-driven conversions.
 
 ## Worker / OffscreenCanvas (planned, doc-only)
 These APIs describe the intended boundary; they are not implemented yet.
@@ -196,7 +214,7 @@ WorkerAdapter: {
 ## Host overlay support (DOM overlays)
 - Host overlays are positioned via conversion APIs and plot area metrics.
 - Preferred update triggers:
-  - `onTransformChange(callback(paneId))`
+  - `onTransformChange(callback(event))`
   - `onLayoutChange(callback(event))`
 - `onOverlayLayoutChange(callback(event))` emits precomputed layout anchors for `table` and `right-label`.
 - Polling every frame is discouraged by default.
@@ -207,7 +225,21 @@ WorkerAdapter: {
   paneId: PaneId,
   plotArea: { x: number, y: number, width: number, height: number },
   index: number,
-  count: number
+  count: number,
+  leftGutterWidth: number,
+  rightGutterWidth: number
+}
+```
+
+**Transform event payload**
+```
+{
+  paneId: PaneId,
+  plotArea: { x: number, y: number, width: number, height: number },
+  visibleRange: Range,
+  leftGutterWidth: number,
+  rightGutterWidth: number,
+  devicePixelRatio: number
 }
 ```
 

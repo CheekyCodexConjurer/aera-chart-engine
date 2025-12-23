@@ -1,4 +1,5 @@
 import type { PaneLayout, PlotArea, Range, ScaleConfig, TimeAxisConfig } from "../../api/public-types.js";
+import { findIndexRange } from "../../data/window.js";
 import { generateNumericTicks, generateTimeTicks, type AxisTick } from "../axis.js";
 import { computeSeriesDomain, type SeriesState } from "../series.js";
 import { priceToY, timeToX } from "../transform.js";
@@ -34,9 +35,10 @@ export function ensurePane(ctx: EngineContext, paneId: string): PaneState {
     lastEmittedRange: null,
     renderWindow: null,
     dataWindowCoverage: null,
-    pendingDataWindow: null,
+    dataWindowCoverageOverride: null,
+    pendingDataWindowRequests: [],
     lastRequestedDataWindow: null,
-    lastCoverageWarning: null,
+    lastCoverageWarningId: null,
     lastScaleConflict: null
   };
   ctx.panes.set(paneId, pane);
@@ -85,8 +87,15 @@ export function recomputeLayout(ctx: EngineContext): void {
       height
     };
     yOffset += height + ctx.paneGap;
-    ctx.layoutEmitter.emit({ paneId: pane.id, plotArea: pane.plotArea, index: i, count: panes.length });
-    ctx.transformEmitter.emit({ paneId: pane.id });
+    ctx.layoutEmitter.emit({
+      paneId: pane.id,
+      plotArea: pane.plotArea,
+      index: i,
+      count: panes.length,
+      leftGutterWidth: pane.leftGutterWidth,
+      rightGutterWidth: pane.rightGutterWidth
+    });
+    emitTransform(ctx, pane.id);
   }
 }
 
@@ -117,7 +126,9 @@ export function setViewportSize(ctx: EngineContext, width: number, height: numbe
     updateAxisLayout(ctx, pane.id);
   }
   ctx.renderer.resize?.(ctx.width, ctx.height, ctx.devicePixelRatio);
-  ctx.transformEmitter.emit({ paneId: "price" });
+  for (const pane of ctx.panes.values()) {
+    emitTransform(ctx, pane.id);
+  }
   ctx.scheduler.requestFrame();
 }
 
@@ -191,12 +202,24 @@ export function getRightGutterWidth(ctx: EngineContext, paneId: string): number 
   return ensurePane(ctx, paneId).rightGutterWidth;
 }
 
+export function emitTransform(ctx: EngineContext, paneId: string): void {
+  const pane = ensurePane(ctx, paneId);
+  ctx.transformEmitter.emit({
+    paneId,
+    plotArea: { ...pane.plotArea },
+    visibleRange: { ...pane.visibleRange },
+    leftGutterWidth: pane.leftGutterWidth,
+    rightGutterWidth: pane.rightGutterWidth,
+    devicePixelRatio: ctx.devicePixelRatio
+  });
+}
+
 export function setScaleDomain(ctx: EngineContext, paneId: string, scaleId: string, domain: { min: number; max: number }): void {
   const pane = ensurePane(ctx, paneId);
   ensureScale(ctx, paneId, scaleId);
   pane.scaleDomains.set(scaleId, domain);
   pane.autoScale.set(scaleId, false);
-  ctx.transformEmitter.emit({ paneId });
+  emitTransform(ctx, paneId);
   updateAxisLayout(ctx, paneId);
   ctx.scheduler.requestFrame();
 }
@@ -231,7 +254,7 @@ export function updateScaleDomain(ctx: EngineContext, paneId: string): void {
   for (const [scaleId, domain] of merged.entries()) {
     pane.scaleDomains.set(scaleId, domain);
   }
-  ctx.transformEmitter.emit({ paneId });
+  emitTransform(ctx, paneId);
   updateAxisLayout(ctx, paneId);
 }
 
@@ -329,7 +352,8 @@ export function computeAxisLayout(
     ? ctx.timeAxisConfig.tickCount * 90
     : pane.plotArea.width;
   const timeTicksRaw = generateTimeTicks(pane.visibleRange, timePixelWidth, ctx.timeAxisConfig.labelFormatter);
-  const timeTicks = filterTimeTicks(ctx, pane, timeTicksRaw);
+  const gapRanges = getGapRanges(ctx, pane, getPrimarySeries(ctx, pane.id));
+  const timeTicks = filterTimeTicks(ctx, pane, timeTicksRaw, gapRanges);
 
   return {
     axisTicks,
@@ -340,12 +364,27 @@ export function computeAxisLayout(
   };
 }
 
-export function filterTimeTicks(ctx: EngineContext, pane: PaneState, ticks: AxisTick[]): AxisTick[] {
+export function filterTimeTicks(
+  ctx: EngineContext,
+  pane: PaneState,
+  ticks: AxisTick[],
+  gapRanges: Range[] = []
+): AxisTick[] {
   if (ticks.length <= 2) return ticks;
   const minGap = Math.max(4, ctx.axisLabelPadding);
   let lastRight = -Infinity;
   const result: AxisTick[] = [];
+  let gapIndex = 0;
   for (const tick of ticks) {
+    while (gapIndex < gapRanges.length && tick.value > gapRanges[gapIndex].endMs) {
+      gapIndex += 1;
+    }
+    if (gapIndex < gapRanges.length) {
+      const gap = gapRanges[gapIndex];
+      if (tick.value > gap.startMs && tick.value < gap.endMs) {
+        continue;
+      }
+    }
     const x = timeToX(pane.visibleRange, pane.plotArea, tick.value);
     if (x === null) continue;
     const width = measureLabelWidth(ctx, tick.label);
@@ -445,6 +484,42 @@ export function measureLabelWidth(ctx: EngineContext, text: string): number {
     if (Number.isFinite(measured)) return Math.max(0, measured);
   }
   return text.length * ctx.axisLabelCharWidth;
+}
+
+function getGapRanges(ctx: EngineContext, pane: PaneState, series: SeriesState | null): Range[] {
+  const snapshot = series?.snapshot;
+  if (!snapshot || snapshot.timeMs.length < 2) return [];
+  const interval = series?.approxBarIntervalMs;
+  if (!interval || !Number.isFinite(interval) || interval <= 0) return [];
+  const ratio = ctx.gapThresholdRatio;
+  if (!Number.isFinite(ratio) || ratio <= 1) return [];
+  const threshold = interval * ratio;
+  const cutoff = getCutoffTime(ctx);
+  const range: Range = {
+    startMs: pane.visibleRange.startMs,
+    endMs: cutoff !== undefined ? Math.min(pane.visibleRange.endMs, cutoff) : pane.visibleRange.endMs
+  };
+  if (range.endMs <= range.startMs) return [];
+  const indices = findIndexRange(snapshot.timeMs, range);
+  if (!indices) return [];
+  const startIndex = Math.max(0, indices.start - 1);
+  const endIndex = Math.min(snapshot.timeMs.length - 1, indices.end + 1);
+  const gaps: Range[] = [];
+  for (let i = startIndex; i < endIndex; i += 1) {
+    const left = snapshot.timeMs[i];
+    const right = snapshot.timeMs[i + 1];
+    if (cutoff !== undefined && left > cutoff) break;
+    const boundedRight = cutoff !== undefined ? Math.min(right, cutoff) : right;
+    const delta = boundedRight - left;
+    if (delta > threshold) {
+      const gapStart = Math.max(left, range.startMs);
+      const gapEnd = Math.min(boundedRight, range.endMs);
+      if (gapEnd > gapStart) {
+        gaps.push({ startMs: gapStart, endMs: gapEnd });
+      }
+    }
+  }
+  return gaps;
 }
 
 function stabilizeGutterWidth(

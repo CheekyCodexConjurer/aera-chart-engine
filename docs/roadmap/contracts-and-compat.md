@@ -7,7 +7,7 @@ This spec defines contract versioning, compatibility rules, and adapter guidance
 - Contract version is independent of package version but must be compatible.
 - Breaking changes require a major bump of `engineContractVersion`.
 - Initial contract version should match the package version until the first breaking change.
-- Canonical engineContractVersion: `0.1.0`.
+- Canonical engineContractVersion: `0.2.0`.
 
 ## Source of truth (required)
 - The canonical contract version lives in documentation and is exposed via `getEngineInfo()`.
@@ -32,6 +32,15 @@ This spec defines contract versioning, compatibility rules, and adapter guidance
 ## Migration note template (required)
 - Title: "Contract change: <feature> (<engineContractVersion>)".
 - Fields: rationale, old behavior, new behavior, compatibility impact, migration steps, rollback.
+
+## Migration notes
+### Contract change: Data window handshake + interaction events (0.2.0)
+- Rationale: expose deterministic window paging, gap-aware cursor semantics, and event-driven overlay positioning.
+- Old behavior: data window requests lacked request ids/reasons; transform events only exposed `paneId`; no pinch zoom API.
+- New behavior: data window requests include `requestId`, `reason`, `pendingCount`; `setDataWindowCoverage` allows explicit coverage; `onTransformChange` includes plot area, visible range, gutters, and devicePixelRatio; `handlePinchZoom` added.
+- Compatibility impact: backward-compatible additions; existing handlers remain valid.
+- Migration steps: accept new payload fields, use `setDataWindowCoverage` and `dataWindowMaxPending` where paging matters, wire `handlePinchZoom` for touch input.
+- Rollback: remove usage of new fields/methods and pin to engine contract 0.1.x.
 
 ## Contract tests (doc-first)
 - Contract tests fail when the API surface changes without a version bump.

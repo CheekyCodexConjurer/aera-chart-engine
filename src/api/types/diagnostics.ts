@@ -51,6 +51,7 @@ export type RendererMetrics = {
 export type EngineMetrics = {
   lodCacheHits: number;
   lodCacheMisses: number;
+  lodCacheEvictions: number;
   renderCacheHits: number;
   renderCacheMisses: number;
 };
@@ -98,6 +99,8 @@ export type ReproEngineOptions = {
   axisLabelPadding?: number;
   axisLabelHeight?: number;
   prefetchRatio?: number;
+  dataWindowMaxPending?: number;
+  gapThresholdRatio?: number;
   paneGap?: number;
   hitTestRadiusPx?: number;
   lodHysteresisRatio?: number;

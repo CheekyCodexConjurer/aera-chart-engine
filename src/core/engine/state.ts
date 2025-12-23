@@ -1,4 +1,4 @@
-import type { Range, ScaleConfig, TimeMs } from "../../api/public-types.js";
+import type { DataWindowRequestReason, Range, ScaleConfig, TimeMs } from "../../api/public-types.js";
 import type { LodLevel } from "../../data/lod-policy.js";
 import type { RenderSeries } from "../../rendering/renderer.js";
 import type { AxisTick } from "../axis.js";
@@ -21,9 +21,10 @@ export type PaneState = {
   lastEmittedRange: Range | null;
   renderWindow: Range | null;
   dataWindowCoverage: Range | null;
-  pendingDataWindow: Range | null;
+  dataWindowCoverageOverride: Range | null;
+  pendingDataWindowRequests: DataWindowRequestState[];
   lastRequestedDataWindow: Range | null;
-  lastCoverageWarning: Range | null;
+  lastCoverageWarningId: number | null;
   lastScaleConflict: { left: string[]; right: string[] } | null;
 };
 
@@ -63,4 +64,11 @@ export type LodState = {
   level: LodLevel;
   density: number;
   pointsPerPixel: number;
+};
+
+export type DataWindowRequestState = {
+  id: number;
+  range: Range;
+  reason: DataWindowRequestReason;
+  requestedAt: number;
 };

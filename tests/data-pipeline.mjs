@@ -49,6 +49,17 @@ const lodChanges = engine.getDiagnostics()
   .filter((diag) => diag.code === "lod.level.changed");
 assert.ok(lodChanges.length >= 1, "LOD hysteresis should eventually switch levels");
 
+const lodRenderer = new CaptureRenderer();
+const lodEngine = new ChartEngine({ width: 500, height: 200, renderer: lodRenderer, lodCacheEntries: 1 });
+lodEngine.defineSeries({ id: "line", type: "line", paneId: "price", scaleId: "price" });
+lodEngine.setSeriesData("line", base);
+lodEngine.setVisibleRange({ startMs: base.timeMs[1000], endMs: base.timeMs[2000] });
+lodEngine.flush();
+lodEngine.setViewportSize(900, 200);
+lodEngine.flush();
+const lodEvictions = lodEngine.getMetrics().engine.lodCacheEvictions;
+assert.ok(lodEvictions >= 1, "LOD cache evictions should be tracked");
+
 let windowRequest = null;
 engine.onDataWindowRequest((event) => {
   windowRequest = event;
@@ -56,12 +67,34 @@ engine.onDataWindowRequest((event) => {
 engine.setVisibleRange({ startMs: base.timeMs[0] - 10_000_000, endMs: base.timeMs[100] });
 engine.flush();
 assert.ok(windowRequest, "data window request should emit for out-of-range view");
+assert.ok(windowRequest.requestId > 0, "data window request includes request id");
+assert.ok(windowRequest.pendingCount >= 1, "data window request reports pending count");
+assert.ok(
+  ["coverage-gap", "backpressure", "render-window"].includes(windowRequest.reason),
+  "data window request includes reason"
+);
 
 const small = buildLine(50, 0, 60_000, 80);
 engine.setSeriesData("line", small);
 engine.flush();
 const windowDiag = engine.getDiagnostics().some((diag) => diag.code === "data.window.incomplete");
 assert.ok(windowDiag, "incomplete data window should emit diagnostic");
+
+const backpressureEngine = new ChartEngine({ width: 800, height: 300, dataWindowMaxPending: 1 });
+backpressureEngine.defineSeries({ id: "line", type: "line", paneId: "price", scaleId: "price" });
+backpressureEngine.setSeriesData("line", small);
+const backpressureRequests = [];
+backpressureEngine.onDataWindowRequest((event) => {
+  backpressureRequests.push(event);
+});
+backpressureEngine.setVisibleRange({ startMs: small.timeMs[0] - 5_000_000, endMs: small.timeMs[10] });
+backpressureEngine.flush();
+backpressureEngine.setVisibleRange({ startMs: small.timeMs[0] - 50_000_000, endMs: small.timeMs[1] });
+backpressureEngine.flush();
+const backpressureDiag = backpressureEngine.getDiagnostics().some((diag) => diag.code === "data.window.backpressure");
+assert.ok(backpressureDiag, "backpressure should emit diagnostic");
+const backpressureRequest = backpressureRequests[backpressureRequests.length - 1];
+assert.equal(backpressureRequest.reason, "backpressure", "backpressure request reason is reported");
 
 const loadRenderer = new CaptureRenderer();
 const loadEngine = new ChartEngine({ width: 900, height: 320, renderer: loadRenderer });

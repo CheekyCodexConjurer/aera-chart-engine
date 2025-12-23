@@ -10,6 +10,15 @@ class CaptureRenderer {
 const renderer = new CaptureRenderer();
 const engine = new ChartEngine({ width: 800, height: 400, renderer });
 
+const transformEvents = [];
+const layoutEvents = [];
+engine.onTransformChange((event) => {
+  transformEvents.push(event);
+});
+engine.onLayoutChange((event) => {
+  layoutEvents.push(event);
+});
+
 engine.setPaneLayout([
   { paneId: "price", weight: 3 },
   { paneId: "volume", weight: 1 }
@@ -33,6 +42,22 @@ engine.setSeriesData("price", { timeMs, value });
 engine.setSeriesData("vol", { timeMs, value: volume });
 engine.setVisibleRange({ startMs: timeMs[100], endMs: timeMs[199] });
 engine.flush();
+
+const layoutEvent = layoutEvents.find((event) => event.paneId === "price");
+assert.ok(layoutEvent, "layout event emitted");
+assert.ok(layoutEvent.plotArea.width > 0 && layoutEvent.plotArea.height > 0, "layout event plot area is valid");
+assert.ok(layoutEvent.leftGutterWidth >= 0, "layout event includes left gutter");
+assert.ok(layoutEvent.rightGutterWidth > 0, "layout event includes right gutter");
+
+const transformEvent = transformEvents
+  .slice()
+  .reverse()
+  .find((event) => event.paneId === "price");
+assert.ok(transformEvent, "transform event emitted");
+assert.ok(transformEvent.plotArea.width > 0, "transform event includes plot area");
+assert.equal(transformEvent.visibleRange.startMs, timeMs[100], "transform event includes visible range start");
+assert.equal(transformEvent.visibleRange.endMs, timeMs[199], "transform event includes visible range end");
+assert.ok(transformEvent.devicePixelRatio > 0, "transform event includes devicePixelRatio");
 
 const x = engine.timeToX("price", timeMs[150]);
 assert.ok(x !== null, "timeToX returns value");

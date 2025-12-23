@@ -60,12 +60,15 @@ This document defines the canonical time domain and the required data invariants
 - The default time axis is explicit and does not compress non-trading time.
 - A compressed time axis is allowed only via an explicit host-provided mapping.
 - Session boundaries must be explicit if displayed.
+- Gap detection uses a sampled median bar interval from the primary series.
+- Adjacent points with delta greater than `gapThresholdRatio * medianInterval` are treated as gaps.
+- Time axis ticks inside gap ranges are omitted to avoid misleading labels.
 
 ## Missing bars and interpolation rules
 - Candle rendering does not interpolate missing bars.
 - Line series interpolation is explicit and configured per series.
 - Hit-testing must respect gaps and never infer data that is absent.
-  - When over gaps, `nearestTimeMs` may be null and must be surfaced as such.
+  - When over gaps or outside coverage, `nearestTimeMs` is `null` and must be surfaced as such.
 
 ## References
 - `interaction-model.md` for pointer time semantics.

@@ -40,6 +40,8 @@ This document defines the core data entities, identity rules, and ownership boun
 - The engine can request more history or future data via callbacks.
 - The host responds with data slices aligned to the canonical time domain.
 - If the host provides a smaller window, the engine must surface a diagnostic.
+- Requests include `requestId`, `reason`, and `pendingCount` for backpressure visibility.
+- Hosts may acknowledge coverage explicitly via `setDataWindowCoverage(paneId, range | null)`.
 
 ## Render window stabilization
 - The engine maintains an internal render window derived from the visible range plus prefetch.
@@ -48,9 +50,10 @@ This document defines the core data entities, identity rules, and ownership boun
 
 ## Window observability (required)
 - Host-visible: `onVisibleRangeChange` emits the view window.
-- Host-visible: `onDataWindowRequest` emits the render window + prefetch ratio.
+- Host-visible: `onDataWindowRequest` emits the render window, request id, and reason.
 - Diagnostics and repro bundles must include render window ranges and shift reasons.
 - Render window shifts are coalesced to avoid churn.
+- `data.window.backpressure` is emitted when pending requests are coalesced.
 
 ## Update types (first-class)
 | Update type | Description | View anchor behavior |

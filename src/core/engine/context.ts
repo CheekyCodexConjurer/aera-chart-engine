@@ -8,6 +8,7 @@ import type {
   OverlayLayoutEvent,
   Range,
   ReplayState,
+  TransformEvent,
   TimeAxisConfig,
   VisibleRangeEvent
 } from "../../api/public-types.js";
@@ -54,7 +55,7 @@ export type EngineContext = {
   engineMetrics: EngineMetrics;
 
   visibleRangeEmitter: EventEmitter<VisibleRangeEvent>;
-  transformEmitter: EventEmitter<{ paneId: string }>;
+  transformEmitter: EventEmitter<TransformEvent>;
   layoutEmitter: EventEmitter<LayoutChangeEvent>;
   overlayLayoutEmitter: EventEmitter<OverlayLayoutEvent>;
   crosshairMoveEmitter: EventEmitter<CrosshairEvent>;
@@ -84,6 +85,9 @@ export type EngineContext = {
   crosshairSync: boolean;
   keyboardPanFraction: number;
   keyboardZoomFactor: number;
+  dataWindowRequestId: number;
+  dataWindowMaxPending: number;
+  gapThresholdRatio: number;
 };
 
 export function getEngineContext(engine: ChartEngine): EngineContext {

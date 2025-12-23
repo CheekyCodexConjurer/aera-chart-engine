@@ -1,8 +1,8 @@
 {
-  "runId": "2025-12-22T22-49-03-608Z",
+  "runId": "2025-12-23T01-43-18-485Z",
   "scenarioId": "interaction-latency",
   "engineVersion": "0.1.0",
-  "engineContractVersion": "0.1.0",
+  "engineContractVersion": "0.2.0",
   "hardwareProfile": {
     "cpu": "AMD Ryzen 9 3900XT 12-Core Processor           ",
     "gpu": "unknown",
@@ -21,20 +21,20 @@
   },
   "metrics": {
     "crosshairLatencyMs": {
-      "p50": 0.01269999999999527,
-      "p95": 0.13009999999999877
+      "p50": 0.008600000000001273,
+      "p95": 0.09019999999999584
     },
     "panLatencyMs": {
-      "p50": 0.06850000000000023,
-      "p95": 0.220799999999997
+      "p50": 0.07550000000000523,
+      "p95": 0.2453000000000003
     },
     "zoomLatencyMs": {
-      "p50": 0.04990000000000805,
-      "p95": 0.3316999999999837
+      "p50": 0.061599999999998545,
+      "p95": 0.1594000000000051
     },
     "replayScrubLatencyMs": {
-      "p50": 0.09860000000000468,
-      "p95": 0.24669999999997572
+      "p50": 0.09099999999997976,
+      "p95": 0.28589999999999804
     }
   },
   "assertions": {
@@ -45,7 +45,7 @@
     "zoomPass": true,
     "replayPass": true
   },
-  "timestamp": "2025-12-22T22:49:03.610Z",
+  "timestamp": "2025-12-23T01:43:18.487Z",
   "renderer": "null",
   "notes": "Headless Node measurements; latency approximated by action+flush time."
 }

@@ -150,6 +150,20 @@ export function handleWheelZoom(ctx: EngineContext, paneId: string, x: number, d
   zoomAt(ctx, paneId, x, factor);
 }
 
+export function handlePinchZoom(ctx: EngineContext, paneId: string, x: number, scale: number): void {
+  if (ctx.interaction.getState() === "disabled") return;
+  if (!Number.isFinite(scale) || scale <= 0) {
+    ctx.diagnostics.addError("zoom.invalid", "pinch scale must be a positive number", {
+      paneId,
+      scale
+    });
+    ctx.diagnosticsEmitter.emit();
+    return;
+  }
+  if (scale === 1) return;
+  zoomAt(ctx, paneId, x, scale);
+}
+
 export function zoomAt(ctx: EngineContext, paneId: string, x: number, zoomFactor: number): void {
   if (!Number.isFinite(zoomFactor) || zoomFactor <= 0) {
     ctx.diagnostics.addError("zoom.invalid", "zoom factor must be a positive number", {

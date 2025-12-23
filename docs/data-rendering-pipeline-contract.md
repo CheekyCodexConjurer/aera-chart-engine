@@ -25,7 +25,7 @@ This document defines the invariant contract between data processing and renderi
 - Render window = visible range plus prefetch margin.
 - Geometry buffers are immutable per version.
 - Switching LOD does not change visible data meaning.
-- LOD selections are cached and evicted via LRU.
+- LOD selections are cached and evicted via LRU; evictions increment `lodCacheEvictions`.
 
 ## References
 - `progressive-rendering-guarantees.md` for coarse-to-fine behavior.

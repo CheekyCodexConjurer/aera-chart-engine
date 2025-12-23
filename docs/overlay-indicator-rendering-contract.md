@@ -26,6 +26,7 @@ This document defines the overlay primitive contract and the engine's responsibi
 **Rules**
 - Engine does not render these primitives; host renders DOM overlays.
 - Engine emits `onOverlayLayoutChange` with plot areas and anchors.
+- `onTransformChange` includes plot area, visible range, and gutters for coordinate conversion.
 - If `anchorTimeMs` / `timeMs` is provided, the engine clips to replay cutoff.
 - If omitted, the host must ensure cutoff compliance before sending data.
 

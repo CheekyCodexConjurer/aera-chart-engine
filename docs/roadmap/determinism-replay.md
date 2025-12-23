@@ -9,6 +9,7 @@ This spec defines deterministic update invariants and replay harness expectation
 - Data window and render window rules are explicit and observable.
 - Inputs are normalized to the canonical time domain before ingestion.
 - Non-increasing snapshot versions are rejected with diagnostics.
+- Gap detection uses `gapThresholdRatio` with median bar intervals; `nearestTimeMs` is `null` inside gaps.
 
 ## Update ordering rules (contract)
 - Updates are processed FIFO per series and overlay.

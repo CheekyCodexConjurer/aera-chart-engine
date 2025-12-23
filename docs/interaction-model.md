@@ -17,6 +17,7 @@ This document defines the interaction state machine, pointer semantics, and mult
 - Zoom is cursor-anchored unless explicitly locked.
 - Inertia is optional and must be explicitly enabled.
 - Wheel zoom uses an exponential factor derived from scroll delta.
+- Pinch zoom uses a scale factor (`handlePinchZoom`) anchored to the cursor.
 
 ## Crosshair and hit-testing
 - Crosshair uses nearest visible data in the active pane.
@@ -31,13 +32,15 @@ This document defines the interaction state machine, pointer semantics, and mult
 - The engine emits continuous `timeMs` under the cursor.
 - The engine also emits `nearestTimeMs` for snapping decisions.
 - Snapping to bars is host-owned unless explicitly configured.
+- `nearestTimeMs` is `null` inside gaps or outside coverage.
 - Pointer events are coalesced and run on the main thread.
 - Pointer input is provided via `handlePointerMove` and `handlePointerClick`.
+- Pinch input is provided via `handlePinchZoom`.
 - Pointer capture prevents auto-clearing when the cursor leaves the plot during drag/selection.
 
 ## Over gaps and between bars
 - Continuous time is derived from axis transform.
-- Nearest time is `null` when no data is in range.
+- Nearest time is `null` when no data is in range or inside a gap.
 - Host decides whether to snap or display gaps explicitly.
 
 ## Keyboard and accessibility

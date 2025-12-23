@@ -1,9 +1,9 @@
 {
-  "runId": "2025-12-22T22-48-52-734Z",
+  "runId": "2025-12-23T01-43-08-277Z",
   "scenarioId": "baseline-1m",
   "seed": 0,
   "engineVersion": "0.1.0",
-  "engineContractVersion": "0.1.0",
+  "engineContractVersion": "0.2.0",
   "runnerVersion": "bench-0.1",
   "hardwareProfile": {
     "cpu": "AMD Ryzen 9 3900XT 12-Core Processor           ",
@@ -23,16 +23,16 @@
   },
   "metrics": {
     "frameTimeMs": {
-      "p50": 0.009799999999984266,
-      "p95": 0.01279999999999859,
-      "p99": 0.02389999999999759
+      "p50": 0.006100000000003547,
+      "p95": 0.009399999999999409,
+      "p99": 0.014099999999984902
     },
     "inputLatencyMs": {
-      "p50": 0.009799999999984266,
-      "p95": 0.01279999999999859
+      "p50": 0.006100000000003547,
+      "p95": 0.009399999999999409
     },
     "memoryDeltaMB": {
-      "cpu": 0.7640151977539062,
+      "cpu": 0.6852951049804688,
       "gpu": 0
     },
     "drawCalls": 0,
@@ -47,7 +47,7 @@
   "artifacts": {
     "traceIds": []
   },
-  "timestamp": "2025-12-22T22:48:52.736Z",
+  "timestamp": "2025-12-23T01:43:08.278Z",
   "renderer": "null",
   "notes": "Headless Node run using NullRenderer; input latency is proxied by frame time."
 }

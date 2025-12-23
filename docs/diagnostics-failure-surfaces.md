@@ -22,7 +22,10 @@ This document defines error surfaces, diagnostic expectations, and reproducibili
 
 **Minimum required codes (implemented)**
 - `axis.scale.overlap`
+- `data.window.backpressure`
+- `data.window.coverage.invalid`
 - `data.window.incomplete`
+- `interaction.state.invalid`
 - `lod.level.changed`
 - `overlay.unsupported`
 - `overlay.points.capped`

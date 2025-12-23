@@ -145,6 +145,8 @@ export function snapshotOptions(ctx: EngineContext): ReproBundle["options"] {
     axisLabelPadding: ctx.axisLabelPadding,
     axisLabelHeight: ctx.axisLabelHeight,
     prefetchRatio: ctx.prefetchRatio,
+    dataWindowMaxPending: ctx.dataWindowMaxPending,
+    gapThresholdRatio: ctx.gapThresholdRatio,
     paneGap: ctx.paneGap,
     hitTestRadiusPx: ctx.hitTestRadiusPx,
     lodHysteresisRatio: ctx.lodHysteresisRatio,

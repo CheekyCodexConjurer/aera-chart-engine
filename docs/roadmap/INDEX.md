@@ -15,6 +15,9 @@ This index links the detailed specs referenced by the executable ROADMAP.
 
 ## Design notes
 - `m10-rendering-layout-design.md` - rendering buffers, text fallback, and axis gutter stability decisions.
+- `m11-data-window-lod-design.md` - data window handshake, LOD cache, and gap handling.
+- `m12-interaction-overlays-design.md` - interaction state, hit-testing, and overlay event decisions.
+- `m12-interaction-overlays-plan.md` - phased plan for interaction + overlay implementation.
 
 ## Legacy backlog
 - `legacy-workstreams.md` - preserved workstreams from the original ROADMAP.

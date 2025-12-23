@@ -19,6 +19,7 @@ This spec defines structured logging, renderer metrics, and the repro bundle for
 - `diagnostic_emitted`
 - `lod_level_changed`
 - `cache_evicted`
+Note: `data_window_requested` includes `requestId`, `reason`, and `pendingCount`.
 
 ## Renderer metrics
 - Metrics are emitted as snapshots and counters.
@@ -26,7 +27,7 @@ This spec defines structured logging, renderer metrics, and the repro bundle for
   - Draw calls per layer, state changes, batch counts.
   - Buffer allocations, uploads, and pool reuse counts.
   - Text atlas usage (pages, occupancy, evictions).
-  - LOD selection changes and cache hit/miss rates.
+  - LOD selection changes, cache hit/miss rates, and cache evictions.
 - Sampling cadence:
   - Per frame for frame time and draw calls.
   - Every 250ms for atlas/cache metrics.

@@ -63,6 +63,8 @@ export type ChartEngineOptions = {
   axisLabelMeasure?: AxisLabelMeasure;
   timeAxisConfig?: TimeAxisConfig;
   prefetchRatio?: number;
+  dataWindowMaxPending?: number;
+  gapThresholdRatio?: number;
   paneGap?: number;
   hitTestRadiusPx?: number;
   lodHysteresisRatio?: number;

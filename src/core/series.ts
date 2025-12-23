@@ -20,9 +20,23 @@ export function normalizeSeries(definition: SeriesDefinition): SeriesState {
 export function updateApproxBarInterval(series: SeriesState): void {
   const snapshot = series.snapshot;
   if (!snapshot || snapshot.timeMs.length < 2) return;
-  const last = snapshot.timeMs[snapshot.timeMs.length - 1];
-  const prev = snapshot.timeMs[snapshot.timeMs.length - 2];
-  series.approxBarIntervalMs = Math.max(1, last - prev);
+  const times = snapshot.timeMs;
+  const total = times.length;
+  const sampleCount = Math.min(50, total - 1);
+  const step = Math.max(1, Math.floor((total - 1) / sampleCount));
+  const intervals: number[] = [];
+  for (let i = total - 1; i - step >= 0 && intervals.length < sampleCount; i -= step) {
+    const delta = times[i] - times[i - step];
+    if (Number.isFinite(delta) && delta > 0) {
+      intervals.push(delta / step);
+    }
+  }
+  if (intervals.length === 0) return;
+  intervals.sort((a, b) => a - b);
+  const mid = Math.floor(intervals.length / 2);
+  const median =
+    intervals.length % 2 === 1 ? intervals[mid] : (intervals[mid - 1] + intervals[mid]) * 0.5;
+  series.approxBarIntervalMs = Math.max(1, median);
 }
 
 export function computeSeriesDomain(series: SeriesState, range: Range): { min: number; max: number } | null {

@@ -22,6 +22,7 @@ import {
   SeriesUpdate,
   SeriesUpdateType,
   TimeAxisConfig,
+  TransformEvent,
   TimeMs,
   VisibleRangeEvent
 } from "../api/public-types.js";
@@ -71,12 +72,14 @@ import {
   endPan,
   flushPendingCrosshairMove,
   handleKeyCommand,
+  handlePinchZoom,
   handlePointerClick,
   handlePointerMove,
   handleWheelZoom,
   updatePan,
   zoomAt
 } from "./engine/interaction.js";
+import { setDataWindowCoverage } from "./engine/windowing.js";
 import type { LodState, PaneState, RenderSeriesCache } from "./engine/state.js";
 import type { PlotArea, ScaleDomain } from "./transform.js";
 
@@ -101,7 +104,7 @@ export class ChartEngine {
   private lodState = new Map<string, LodState>();
   private replayState: ReplayState = { mode: "off" };
   private frameId = 0;
-  private interaction = new InteractionStateMachine();
+  private interaction: InteractionStateMachine;
   private pointer = new PointerState();
   private pointerCapturePaneId: string | null = null;
   private panAnchor: { paneId: string; range: Range; screenX: number } | null = null;
@@ -111,12 +114,13 @@ export class ChartEngine {
   private engineMetrics = {
     lodCacheHits: 0,
     lodCacheMisses: 0,
+    lodCacheEvictions: 0,
     renderCacheHits: 0,
     renderCacheMisses: 0
   };
 
   private visibleRangeEmitter = new EventEmitter<VisibleRangeEvent>();
-  private transformEmitter = new EventEmitter<{ paneId: string }>();
+  private transformEmitter = new EventEmitter<TransformEvent>();
   private layoutEmitter = new EventEmitter<LayoutChangeEvent>();
   private overlayLayoutEmitter = new EventEmitter<OverlayLayoutEvent>();
   private crosshairMoveEmitter = new EventEmitter<CrosshairEvent>();
@@ -146,6 +150,9 @@ export class ChartEngine {
   private crosshairSync: boolean;
   private keyboardPanFraction: number;
   private keyboardZoomFactor: number;
+  private dataWindowRequestId = 0;
+  private dataWindowMaxPending: number;
+  private gapThresholdRatio: number;
 
   constructor(options: ChartEngineInitOptions = {}) {
     this.width = options.width ?? 800;
@@ -163,6 +170,16 @@ export class ChartEngine {
     this.axisLabelMeasure = options.axisLabelMeasure;
     this.timeAxisConfig = options.timeAxisConfig ?? {};
     this.prefetchRatio = options.prefetchRatio ?? 0.2;
+    const maxPending = options.dataWindowMaxPending;
+    this.dataWindowMaxPending =
+      typeof maxPending === "number" && Number.isFinite(maxPending) && maxPending > 0
+        ? Math.floor(maxPending)
+        : 2;
+    const gapRatio = options.gapThresholdRatio;
+    this.gapThresholdRatio =
+      typeof gapRatio === "number" && Number.isFinite(gapRatio) && gapRatio > 1
+        ? Math.min(10, Math.max(1.5, gapRatio))
+        : 3;
     this.paneGap = options.paneGap ?? 0;
     this.hitTestRadiusPx = options.hitTestRadiusPx ?? 8;
     this.lodHysteresisRatio = options.lodHysteresisRatio ?? 0.15;
@@ -170,13 +187,22 @@ export class ChartEngine {
     this.lodCache = new LruCache<string, RenderSeries>(
       this.lodCacheEntries,
       (key) => {
-        recordLog(getEngineContext(this), "info", "cache_evicted", { cache: "lod", key });
+        const ctx = getEngineContext(this);
+        ctx.engineMetrics.lodCacheEvictions += 1;
+        recordLog(ctx, "info", "cache_evicted", { cache: "lod", key });
       }
     );
     this.crosshairSync = options.crosshairSync ?? true;
     this.keyboardPanFraction = options.keyboardPanFraction ?? 0.1;
     this.keyboardZoomFactor = options.keyboardZoomFactor ?? 1.2;
     this.diagnostics = new DiagnosticsStore((diag) => recordDiagnostic(getEngineContext(this), diag));
+    this.interaction = new InteractionStateMachine((from, to) => {
+      this.diagnostics.addWarn("interaction.state.invalid", "interaction state transition is not allowed", {
+        from,
+        to
+      });
+      this.diagnosticsEmitter.emit();
+    });
     this.renderer = options.renderer ?? new NullRenderer();
     this.renderer.setDiagnostics?.((diag) => {
       this.diagnostics.add(diag);
@@ -191,7 +217,7 @@ export class ChartEngine {
   }
 
   onVisibleRangeChange(listener: (event: VisibleRangeEvent) => void): () => void { return this.visibleRangeEmitter.subscribe(listener); }
-  onTransformChange(listener: (event: { paneId: string }) => void): () => void { return this.transformEmitter.subscribe(listener); }
+  onTransformChange(listener: (event: TransformEvent) => void): () => void { return this.transformEmitter.subscribe(listener); }
   onLayoutChange(listener: (event: LayoutChangeEvent) => void): () => void { return this.layoutEmitter.subscribe(listener); }
   onOverlayLayoutChange(listener: (event: OverlayLayoutEvent) => void): () => void { return this.overlayLayoutEmitter.subscribe(listener); }
   onCrosshairMove(listener: (event: CrosshairEvent) => void): () => void { return this.crosshairMoveEmitter.subscribe(listener); }
@@ -241,6 +267,7 @@ export class ChartEngine {
   resetAroundAnchor(timeMs: TimeMs, paneId = "price"): void { resetAroundAnchor(getEngineContext(this), timeMs, paneId); }
   focusTime(timeMs: TimeMs, paneId = "price"): void { focusTime(getEngineContext(this), timeMs, paneId); }
   setVisibleRange(range: Range, paneId = "price"): void { setVisibleRange(getEngineContext(this), range, paneId); }
+  setDataWindowCoverage(paneId: string, range: Range | null): void { setDataWindowCoverage(getEngineContext(this), paneId, range); }
   timeToX(paneId: string, timeMs: TimeMs): number | null { return timeToX(getEngineContext(this), paneId, timeMs); }
   xToTime(paneId: string, x: number): TimeMs | null { return xToTime(getEngineContext(this), paneId, x); }
   priceToY(paneId: string, scaleId: string, price: number): number | null { return priceToY(getEngineContext(this), paneId, scaleId, price); }
@@ -251,6 +278,7 @@ export class ChartEngine {
   beginPan(paneId: string, x: number): void { beginPan(getEngineContext(this), paneId, x); }
   updatePan(paneId: string, x: number): void { updatePan(getEngineContext(this), paneId, x); }
   handleWheelZoom(paneId: string, x: number, deltaY: number, zoomSpeed = 0.002): void { handleWheelZoom(getEngineContext(this), paneId, x, deltaY, zoomSpeed); }
+  handlePinchZoom(paneId: string, x: number, scale: number): void { handlePinchZoom(getEngineContext(this), paneId, x, scale); }
   zoomAt(paneId: string, x: number, zoomFactor: number): void { zoomAt(getEngineContext(this), paneId, x, zoomFactor); }
   endPan(): void { endPan(getEngineContext(this)); }
   setScaleDomain(paneId: string, scaleId: string, domain: ScaleDomain): void { setScaleDomain(getEngineContext(this), paneId, scaleId, domain); }

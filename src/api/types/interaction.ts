@@ -6,14 +6,24 @@ export type VisibleRangeEvent = {
   range: Range;
 };
 
+export type DataWindowRequestReason = "render-window" | "coverage-gap" | "backpressure";
+
 export type DataWindowRequestEvent = {
   paneId: PaneId;
   range: Range;
   prefetchRatio: number;
+  requestId: number;
+  reason: DataWindowRequestReason;
+  pendingCount: number;
 };
 
 export type TransformEvent = {
   paneId: PaneId;
+  plotArea: PlotArea;
+  visibleRange: Range;
+  leftGutterWidth: number;
+  rightGutterWidth: number;
+  devicePixelRatio: number;
 };
 
 export type LayoutChangeEvent = {
@@ -21,6 +31,8 @@ export type LayoutChangeEvent = {
   plotArea: PlotArea;
   index: number;
   count: number;
+  leftGutterWidth: number;
+  rightGutterWidth: number;
 };
 
 export type CrosshairEvent = {

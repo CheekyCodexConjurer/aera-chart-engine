@@ -6,7 +6,7 @@ import type { EngineContext } from "./context.js";
 import { ensurePane, getPrimarySeries } from "./axis-layout.js";
 import { getCutoffTime } from "./replay-state.js";
 import type { PaneState } from "./state.js";
-import { findNearestIndex, findNearestPoint, findNearestZone, upperBound } from "./util.js";
+import { findNearestPoint, findNearestZone, upperBound } from "./util.js";
 import { clamp } from "../../util/math.js";
 
 export function timeToX(ctx: EngineContext, paneId: string, timeMs: TimeMs): number | null {
@@ -37,29 +37,59 @@ export function findNearestTime(ctx: EngineContext, paneId: string, timeMs: Time
   const series = getPrimarySeries(ctx, paneId);
   const snapshot = series?.snapshot;
   if (!snapshot || snapshot.timeMs.length === 0) return null;
-  const times = snapshot.timeMs;
+  const cutoff = getCutoffTime(ctx);
+  const gapThresholdMs = getGapThresholdMs(series, ctx);
+  const index = findNearestIndexWithGaps(snapshot.timeMs, timeMs, cutoff, gapThresholdMs);
+  return index === null ? null : snapshot.timeMs[index];
+}
+
+function getGapThresholdMs(series: SeriesState | null, ctx: EngineContext): number | null {
+  const interval = series?.approxBarIntervalMs;
+  if (!interval || !Number.isFinite(interval) || interval <= 0) return null;
+  const ratio = ctx.gapThresholdRatio;
+  if (!Number.isFinite(ratio) || ratio <= 1) return null;
+  return interval * ratio;
+}
+
+function findNearestIndexWithGaps(
+  times: Float64Array,
+  timeMs: TimeMs,
+  cutoffTimeMs: TimeMs | undefined,
+  gapThresholdMs: number | null
+): number | null {
+  if (times.length === 0) return null;
   let low = 0;
   let high = times.length - 1;
   let maxIndex = high;
-  const cutoff = getCutoffTime(ctx);
-  if (cutoff !== undefined) {
-    const lastIndex = upperBound(times, cutoff) - 1;
+  if (cutoffTimeMs !== undefined) {
+    const lastIndex = upperBound(times, cutoffTimeMs) - 1;
     if (lastIndex < 0) return null;
     maxIndex = Math.min(high, lastIndex);
     high = maxIndex;
   }
+  if (maxIndex < 0) return null;
+  const first = times[0];
+  const last = times[maxIndex];
+  if (timeMs < first || timeMs > last) return null;
   while (low <= high) {
     const mid = (low + high) >> 1;
     const value = times[mid];
-    if (value === timeMs) return value;
+    if (value === timeMs) return mid;
     if (value < timeMs) low = mid + 1;
     else high = mid - 1;
   }
   const left = clamp(high, 0, maxIndex);
   const right = clamp(low, 0, maxIndex);
+  if (left !== right && gapThresholdMs !== null) {
+    const leftTime = times[left];
+    const rightTime = times[right];
+    if (timeMs > leftTime && timeMs < rightTime && rightTime - leftTime > gapThresholdMs) {
+      return null;
+    }
+  }
   const leftDiff = Math.abs(times[left] - timeMs);
   const rightDiff = Math.abs(times[right] - timeMs);
-  return leftDiff <= rightDiff ? times[left] : times[right];
+  return leftDiff <= rightDiff ? left : right;
 }
 
 export function computeHitTest(ctx: EngineContext, paneId: string, timeMs: TimeMs, x: number, y: number): HitTestEvent {
@@ -104,7 +134,12 @@ export function hitTestSeries(
 ): SeriesHit | null {
   const snapshot = series.snapshot;
   if (!snapshot) return null;
-  const index = findNearestIndex(snapshot.timeMs, timeMs, getCutoffTime(ctx));
+  const index = findNearestIndexWithGaps(
+    snapshot.timeMs,
+    timeMs,
+    getCutoffTime(ctx),
+    getGapThresholdMs(series, ctx)
+  );
   if (index === null) return null;
   const timeValue = snapshot.timeMs[index];
   const xValue = toTimeX(pane.visibleRange, pane.plotArea, timeValue);

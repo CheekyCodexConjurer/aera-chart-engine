@@ -52,6 +52,7 @@ export type {
 
 export type {
   CrosshairEvent,
+  DataWindowRequestReason,
   DataWindowRequestEvent,
   HitTestEvent,
   KeyCommand,

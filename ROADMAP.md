@@ -361,22 +361,23 @@ M0–M8 establish the contract and documentation baseline. The milestones below 
 
 ### M11 - Data pipeline + LOD (implementation)
 **Goal**: Deliver deterministic windowing, LOD, and cache behavior.
+- Plan: `docs/roadmap/m11-data-window-lod-design.md`.
 
-- [ ] T11.1 Implement window request handshake with prefetch + backpressure.
+- [x] T11.1 Implement window request handshake with prefetch + backpressure.
   - Context: host/engine window contract is doc-only.
   - Changes: request/response API, window cache, prefetch margin handling.
   - DoD: no view jumps on prepend/append; stable window updates under load.
   - Risks: window thrash; Mitigation: coalescing + request caps.
   - Deps: M3.
 
-- [ ] T11.2 Implement LOD cache with hysteresis and deterministic selection.
+- [x] T11.2 Implement LOD cache with hysteresis and deterministic selection.
   - Context: LOD flicker remains a core risk.
   - Changes: LOD tiers, cache eviction, pixel-density selection.
   - DoD: LOD boundary transitions are stable across panning.
   - Risks: memory growth; Mitigation: cache caps + eviction metrics.
   - Deps: T11.1.
 
-- [ ] T11.3 Implement gap/session handling in the time axis.
+- [x] T11.3 Implement gap/session handling in the time axis.
   - Context: quant workflows require explicit gap policy.
   - Changes: gap compression rules, session markers, axis formatting.
   - DoD: gaps render per policy; crosshair behavior is deterministic.
@@ -385,29 +386,30 @@ M0–M8 establish the contract and documentation baseline. The milestones below 
 
 ### M12 - Interaction + overlays (implementation)
 **Goal**: Deliver deterministic interactions and full overlay primitive coverage.
+- Plan: `docs/roadmap/m12-interaction-overlays-plan.md`.
 
-- [ ] T12.1 Implement pointer capture, wheel/pinch zoom, and keyboard controls.
+- [x] T12.1 Implement pointer capture, wheel/pinch zoom, and keyboard controls.
   - Context: interaction model is spec-only.
   - Changes: input handlers + state machine, priority rules enforced.
   - DoD: pan/zoom/crosshair meet SLOs with zero jitter.
   - Risks: main-thread stalls; Mitigation: transform-only updates during interaction.
   - Deps: M4.
 
-- [ ] T12.2 Implement hit-testing across series + overlays with replay cutoff.
+- [x] T12.2 Implement hit-testing across series + overlays with replay cutoff.
   - Context: hit-testing must respect replay and gaps.
   - Changes: hit-testing APIs, result ranking, replay cutoff clipping.
   - DoD: crosshair and selection match replay semantics with deterministic results.
   - Risks: inconsistent snapping; Mitigation: explicit snapping policy.
   - Deps: M3.
 
-- [ ] T12.3 Implement all overlay primitives in the contract.
+- [x] T12.3 Implement all overlay primitives in the contract.
   - Context: quant-lab plots require full primitive support.
   - Changes: line/zone/marker/label/histogram/area/table primitives.
   - DoD: unsupported primitives emit diagnostics (no silent drop).
   - Risks: render overload; Mitigation: overlay caps + perf gates.
   - Deps: M2.
 
-- [ ] T12.4 Implement host overlay coordinate conversion events.
+- [x] T12.4 Implement host overlay coordinate conversion events.
   - Context: host overlays must avoid per-frame polling.
   - Changes: event-driven coordinate updates + API surface.
   - DoD: overlays can be placed deterministically with event triggers.
